@@ -6,6 +6,7 @@
 
 import cities from "@/data/cities.json";
 import { searchPosts, postUrl } from "./bsky";
+import { fetchPressArticles } from "./press";
 import { TERMS_BY_LANG, LANG_BY_COUNTRY } from "./social";
 import type { SocialPost } from "./social";
 
@@ -105,15 +106,55 @@ export async function scanSocial(sinceHours = 12): Promise<{
   scannedPosts: number;
   statuses: number[];
 }> {
-  const results = await Promise.all(
-    SCAN_QUERIES.map((q) => searchPosts(q, 50).catch(() => ({ posts: [], status: 0 })))
-  );
+  const [results, pressArticles] = await Promise.all([
+    Promise.all(
+      SCAN_QUERIES.map((q) => searchPosts(q, 50).catch(() => ({ posts: [], status: 0 })))
+    ),
+    fetchPressArticles(3),
+  ]);
   const statuses = results.map((r) => r.status);
   const since = Date.now() - sinceHours * 3_600_000;
 
   const byPlace = new Map<string, SocialSignal>();
   const seen = new Set<string>();
   let scannedPosts = 0;
+
+  const addToPlace = (key: string, entry: [number, number, string, string], post: SocialPost) => {
+    const sig = byPlace.get(key);
+    if (sig) {
+      sig.postCount++;
+      sig.posts.push(post);
+      if (post.createdAt < sig.firstPost) sig.firstPost = post.createdAt;
+      if (post.createdAt > sig.lastPost) sig.lastPost = post.createdAt;
+    } else {
+      byPlace.set(key, {
+        place: entry[3],
+        countryCode: entry[2],
+        lat: entry[0],
+        lon: entry[1],
+        postCount: 1,
+        firstPost: post.createdAt,
+        lastPost: post.createdAt,
+        posts: [post],
+      });
+    }
+  };
+
+  // Articles de presse (GDELT) : le titre est géoparsé comme un post.
+  for (const art of pressArticles) {
+    if (new Date(art.createdAt).getTime() < since) continue;
+    const places = extractPlaces(art.title);
+    if (places.length === 0 || places.length > 3) continue;
+    const post: SocialPost = {
+      text: art.title,
+      author: art.domain,
+      handle: art.domain,
+      createdAt: art.createdAt,
+      url: art.url,
+      source: "presse",
+    };
+    for (const { key, entry } of places) addToPlace(key, entry, post);
+  }
 
   for (const p of results.flatMap((r) => r.posts)) {
     if (seen.has(p.uri)) continue;
@@ -131,27 +172,9 @@ export async function scanSocial(sinceHours = 12): Promise<{
       handle: p.author.handle,
       createdAt,
       url: postUrl(p),
+      source: "bluesky",
     };
-    for (const { key, entry } of places) {
-      const sig = byPlace.get(key);
-      if (sig) {
-        sig.postCount++;
-        sig.posts.push(post);
-        if (createdAt < sig.firstPost) sig.firstPost = createdAt;
-        if (createdAt > sig.lastPost) sig.lastPost = createdAt;
-      } else {
-        byPlace.set(key, {
-          place: entry[3],
-          countryCode: entry[2],
-          lat: entry[0],
-          lon: entry[1],
-          postCount: 1,
-          firstPost: createdAt,
-          lastPost: createdAt,
-          posts: [post],
-        });
-      }
-    }
+    for (const { key, entry } of places) addToPlace(key, entry, post);
   }
 
   const signals = [...byPlace.values()].map((s) => ({

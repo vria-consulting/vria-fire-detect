@@ -127,7 +127,7 @@ function PostList({ posts }: { posts: SocialPost[] }) {
             rel="noreferrer"
             className="font-medium text-sky-400 hover:underline"
           >
-            @{post.handle}
+            {post.source === "presse" ? `📰 ${post.handle}` : `@${post.handle}`}
           </a>{" "}
           <span className="text-zinc-500">· {formatAge(hoursAgo(post.createdAt))}</span>
           <p className="mt-1 whitespace-pre-wrap text-zinc-300">{post.text}</p>
@@ -537,7 +537,21 @@ export default function FireMap() {
     return () => clearInterval(id);
   }, [days, loadData]);
 
-  const newEvents = events.filter((ev) => hoursAgo(ev.firstSeen) < 24).slice(0, 40);
+  // Vue globale : foyers satellite ET signalements humains dans la même liste,
+  // triés par premier signal / première mention.
+  type GlobalItem =
+    | { kind: "foyer"; when: string; ev: FireEvent }
+    | { kind: "signal"; when: string; sig: SocialSignal };
+  const globalItems: GlobalItem[] = [
+    ...events
+      .filter((ev) => hoursAgo(ev.firstSeen) < 24)
+      .map((ev) => ({ kind: "foyer" as const, when: ev.firstSeen, ev })),
+    ...signals
+      .filter((sig) => hoursAgo(sig.firstPost) < 24)
+      .map((sig) => ({ kind: "signal" as const, when: sig.firstPost, sig })),
+  ]
+    .sort((a, b) => (a.when < b.when ? 1 : -1))
+    .slice(0, 40);
 
   // Fil des départs : foyers ET signalements < 1 h, triés du plus frais au moins frais
   type DepartItem =
@@ -771,51 +785,80 @@ export default function FireMap() {
           className="flex items-center justify-between px-3 py-2 text-left"
         >
           <span className="font-semibold">
-            🔥 Nouveaux foyers <span className="text-zinc-400">({newEvents.length})</span>
+            🔥 Nouveaux foyers &amp; signalements{" "}
+            <span className="text-zinc-400">({globalItems.length})</span>
           </span>
           <span className="text-zinc-500">{listOpen ? "▾" : "▸"}</span>
         </button>
         {listOpen && (
           <div className="overflow-y-auto border-t border-zinc-800">
-            {newEvents.length === 0 && status.kind === "ready" && (
+            {globalItems.length === 0 && status.kind === "ready" && (
               <p className="p-3 text-xs text-zinc-500">
-                Aucun foyer apparu dans les dernières 24 h sur la période chargée.
+                Aucun foyer ni signalement dans les dernières 24 h sur la période chargée.
               </p>
             )}
-            {newEvents.map((ev) => (
-              <button
-                key={ev.id}
-                onClick={() => selectEvent(ev)}
-                className={`block w-full border-b border-zinc-800/60 px-3 py-2 text-left hover:bg-zinc-800 ${
-                  selected?.id === ev.id ? "bg-zinc-800" : ""
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-orange-400">
-                    1er signal {formatAge(hoursAgo(ev.firstSeen))}
-                  </span>
-                  <span className="flex gap-1">
-                    {ev.confidence && (
-                      <span
-                        className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${CONF_LABEL[ev.confidence].cls}`}
-                      >
-                        {CONF_LABEL[ev.confidence].text}
-                      </span>
-                    )}
-                    {hoursAgo(ev.firstSeen) < NEW_EVENT_HOURS && (
+            {globalItems.map((item) =>
+              item.kind === "foyer" ? (
+                <button
+                  key={item.ev.id}
+                  onClick={() => selectEvent(item.ev)}
+                  className={`block w-full border-b border-zinc-800/60 px-3 py-2 text-left hover:bg-zinc-800 ${
+                    selected?.id === item.ev.id ? "bg-zinc-800" : ""
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-orange-400">
+                      🛰️ 1er signal {formatAge(hoursAgo(item.ev.firstSeen))}
+                    </span>
+                    <span className="flex gap-1">
+                      {item.ev.confidence && (
+                        <span
+                          className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${CONF_LABEL[item.ev.confidence].cls}`}
+                        >
+                          {CONF_LABEL[item.ev.confidence].text}
+                        </span>
+                      )}
+                      {hoursAgo(item.ev.firstSeen) < NEW_EVENT_HOURS && (
+                        <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold">
+                          NOUVEAU
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="text-xs text-zinc-400">
+                    {item.ev.social?.place ? `${item.ev.social.place} · ` : ""}
+                    {item.ev.centroid[1].toFixed(2)}, {item.ev.centroid[0].toFixed(2)} ·{" "}
+                    {item.ev.count} détection{item.ev.count > 1 ? "s" : ""} · {item.ev.maxFrp}{" "}
+                    MW max
+                  </div>
+                </button>
+              ) : (
+                <button
+                  key={`sig:${item.sig.place}:${item.sig.countryCode}`}
+                  onClick={() => selectSignal(item.sig)}
+                  className={`block w-full border-b border-zinc-800/60 px-3 py-2 text-left hover:bg-zinc-800 ${
+                    selectedSignal?.place === item.sig.place ? "bg-zinc-800" : ""
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-sky-400">
+                      {item.sig.posts.some((p) => p.source !== "presse") ? "💬" : "📰"} 1ère
+                      mention {formatAge(hoursAgo(item.sig.firstPost))}
+                    </span>
+                    {item.sig.newFire && (
                       <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold">
-                        NOUVEAU
+                        NOUVEAU FEU
                       </span>
                     )}
-                  </span>
-                </div>
-                <div className="text-xs text-zinc-400">
-                  {ev.social?.place ? `${ev.social.place} · ` : ""}
-                  {ev.centroid[1].toFixed(2)}, {ev.centroid[0].toFixed(2)} · {ev.count}{" "}
-                  détection{ev.count > 1 ? "s" : ""} · {ev.maxFrp} MW max
-                </div>
-              </button>
-            ))}
+                  </div>
+                  <div className="text-xs text-zinc-400">
+                    {item.sig.place} ({item.sig.countryCode.toUpperCase()}) ·{" "}
+                    {item.sig.postCount} mention{item.sig.postCount > 1 ? "s" : ""} · dernière{" "}
+                    {formatAge(hoursAgo(item.sig.lastPost))}
+                  </div>
+                </button>
+              )
+            )}
           </div>
         )}
       </div>

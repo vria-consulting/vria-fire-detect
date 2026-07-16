@@ -10,6 +10,7 @@ export type SocialPost = {
   handle: string;
   createdAt: string;
   url: string;
+  source?: "bluesky" | "presse";
 };
 
 export type SocialResult = {
