@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSignals } from "@/lib/signalcache";
 
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 // Signalements citoyens géolocalisés (veille Bluesky multilingue).
 export async function GET() {

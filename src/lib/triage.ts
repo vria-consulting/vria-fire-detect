@@ -21,7 +21,7 @@ export type TriageCandidate = {
 const CACHE_PATH = "triage-cache.json";
 const RETENTION_MS = 48 * 60 * 60 * 1000;
 const BATCH_SIZE = 25;
-const MAX_NEW_PER_SCAN = 80; // garde-fou de coût par rafraîchissement
+const MAX_NEW_PER_SCAN = 50; // garde-fou de coût et de durée par rafraîchissement
 
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 // gpt-5.6-luna : le petit modèle OpenAI le plus récent (1 $/6 $ par M tokens).
@@ -133,7 +133,6 @@ export async function triageCandidates(
     else if (fresh.length < MAX_NEW_PER_SCAN) fresh.push(c);
   }
 
-  let dirty = false;
   for (let i = 0; i < fresh.length; i += BATCH_SIZE) {
     const batch = fresh.slice(i, i + BATCH_SIZE);
     try {
@@ -142,23 +141,20 @@ export async function triageCandidates(
       for (const [url, v] of judged) {
         verdicts.set(url, v);
         cache[url] = { f: v.fire, p: v.place, at: now };
-        dirty = true;
+      }
+      for (const k of Object.keys(cache)) {
+        if (now - cache[k].at > RETENTION_MS) delete cache[k];
+      }
+      // Persisté après CHAQUE lot : si la fonction serverless est tuée en
+      // route (durée max), les verdicts déjà payés survivent au prochain appel.
+      try {
+        await writeJson(CACHE_PATH, cache);
+      } catch {
+        /* cache mémoire seulement */
       }
     } catch (e) {
       console.error("triage batch failed:", e);
       // batch non jugé : absent de la Map, l'appelant applique le repli
-    }
-  }
-
-  if (dirty) {
-    const now = Date.now();
-    for (const k of Object.keys(cache)) {
-      if (now - cache[k].at > RETENTION_MS) delete cache[k];
-    }
-    try {
-      await writeJson(CACHE_PATH, cache);
-    } catch {
-      /* cache mémoire seulement */
     }
   }
   return verdicts;
