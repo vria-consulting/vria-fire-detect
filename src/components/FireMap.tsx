@@ -288,38 +288,6 @@ export default function FireMap() {
       for (const [name, [main, core]] of Object.entries(FLAMES)) {
         map.addImage(name, flameImage(main, core));
       }
-      // Anneau sous l'icône : blanc = nouveau (< 12 h), vert = corroboré
-      map.addLayer({
-        id: "events-ring",
-        type: "circle",
-        source: "events",
-        filter: [
-          "any",
-          ["==", ["get", "isNew"], 1],
-          ["==", ["get", "corroborated"], 1],
-        ],
-        paint: {
-          "circle-radius": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            2,
-            ["interpolate", ["linear"], ["ln", ["+", ["get", "count"], 1]],
-              0, 8, 3, 13, 7, 20],
-            9,
-            ["interpolate", ["linear"], ["ln", ["+", ["get", "count"], 1]],
-              0, 16, 3, 26, 7, 42],
-          ],
-          "circle-color": "rgba(0,0,0,0)",
-          "circle-stroke-width": 2,
-          "circle-stroke-color": [
-            "case",
-            ["==", ["get", "corroborated"], 1], "#10b981",
-            "#71717a",
-          ],
-          "circle-stroke-opacity": 0.9,
-        },
-      });
       // Foyers : icône flamme teintée par âge, taille selon le nombre de détections
       map.addLayer({
         id: "events-icons",
@@ -512,7 +480,6 @@ export default function FireMap() {
         DEPART_WATCH_MIN,
       ];
       map.setFilter("events-icons", freshFilter);
-      map.setFilter("events-ring", ["all", ["any", ["==", ["get", "isNew"], 1], ["==", ["get", "corroborated"], 1]], freshFilter]);
       map.setFilter("events-glow", freshFilter);
       // Un signalement n'est un "départ" que si ses PREMIÈRES mentions sont
       // récentes (newFire) — un feu qui dure fait encore parler de lui.
@@ -553,7 +520,6 @@ export default function FireMap() {
       }
     } else {
       map.setFilter("events-icons", null);
-      map.setFilter("events-ring", ["any", ["==", ["get", "isNew"], 1], ["==", ["get", "corroborated"], 1]]);
       map.setFilter("events-glow", ["<", ["get", "lastAgeH"], 6]);
       map.setFilter("signals-icons", null);
     }
@@ -644,14 +610,6 @@ export default function FireMap() {
           ))}
         </select>
         <div className="flex flex-col gap-1 border-t border-zinc-700 pt-2 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="inline-block h-2.5 w-2.5 rounded-full border-2 border-white bg-[#ff2d00]" />
-            nouveau foyer (&lt; 12 h)
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="inline-block h-2.5 w-2.5 rounded-full border-2 border-emerald-400 bg-[#ff2d00]" />
-            corroboré par témoignages
-          </div>
           <div className="flex items-center gap-2">
             <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#ff2d00]" /> actif &lt; 3 h
           </div>
