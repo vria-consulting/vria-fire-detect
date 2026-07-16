@@ -1,14 +1,13 @@
-// Filtre de pertinence par IA (Claude) : pour chaque post/article candidat,
+// Filtre de pertinence par IA (OpenAI) : pour chaque post/article candidat,
 // juge (1) s'il signale un feu de végétation EN COURS MAINTENANT — pas un
 // bilan d'hier, pas de la recherche, pas une métaphore — et (2) lequel des
 // lieux candidats est réellement le lieu du feu (élimine les pièges type
 // « The Globe and Mail » -> Globe, Arizona).
 //
 // Chaque post n'est jugé qu'une fois : les verdicts sont persistés 48 h sur
-// Blob (partagé entre instances). Sans ANTHROPIC_API_KEY, le module renvoie
+// Blob (partagé entre instances). Sans OPENAI_API_KEY, le module renvoie
 // null et l'appelant garde le comportement mots-clés seul.
 
-import Anthropic from "@anthropic-ai/sdk";
 import { readJson, writeJson } from "./store";
 
 export type TriageVerdict = { fire: boolean; place: number | null };
@@ -24,8 +23,10 @@ const RETENTION_MS = 48 * 60 * 60 * 1000;
 const BATCH_SIZE = 25;
 const MAX_NEW_PER_SCAN = 80; // garde-fou de coût par rafraîchissement
 
-// claude-opus-4-8 par défaut ; TRIAGE_MODEL=claude-haiku-4-5 pour réduire le coût.
-const MODEL = process.env.TRIAGE_MODEL ?? "claude-opus-4-8";
+const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+// gpt-5.6-luna : le petit modèle OpenAI le plus récent (1 $/6 $ par M tokens).
+// Surchargable via TRIAGE_MODEL (ex. gpt-5.4-mini, gpt-5.4-nano).
+const MODEL = process.env.TRIAGE_MODEL ?? "gpt-5.6-luna";
 
 const SYSTEM = `Tu es le filtre de pertinence de VigiFire, un service d'alerte ultra-précoce des feux de forêt. Tu reçois une liste d'items : texte d'un post de réseau social ou titre d'article de presse, avec une liste de lieux candidats extraits automatiquement.
 
@@ -49,23 +50,15 @@ const OUTPUT_SCHEMA = {
         properties: {
           i: { type: "integer" },
           fire: { type: "boolean" },
-          place: { anyOf: [{ type: "integer" }, { type: "null" }] },
+          place: { type: ["integer", "null"] },
         },
       },
     },
   },
 } as const;
 
-let client: Anthropic | null | undefined;
-function getClient(): Anthropic | null {
-  if (client === undefined) {
-    client = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
-  }
-  return client;
-}
-
 async function judgeBatch(
-  anthropic: Anthropic,
+  apiKey: string,
   batch: TriageCandidate[]
 ): Promise<Map<string, TriageVerdict>> {
   const out = new Map<string, TriageVerdict>();
@@ -74,20 +67,36 @@ async function judgeBatch(
     texte: c.text.slice(0, 500),
     lieux: c.places,
   }));
-  const response = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 4096,
-    system: SYSTEM,
-    output_config: { format: { type: "json_schema", schema: OUTPUT_SCHEMA } },
-    messages: [{ role: "user", content: JSON.stringify(payload) }],
+  const res = await fetch(OPENAI_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      max_completion_tokens: 4096,
+      messages: [
+        { role: "system", content: SYSTEM },
+        { role: "user", content: JSON.stringify(payload) },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: { name: "triage", strict: true, schema: OUTPUT_SCHEMA },
+      },
+    }),
   });
-  if (response.stop_reason === "refusal") return out;
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") return out;
-  const parsed = JSON.parse(textBlock.text) as {
+  if (!res.ok) {
+    console.error("triage OpenAI HTTP", res.status, (await res.text()).slice(0, 300));
+    return out;
+  }
+  const j = await res.json();
+  const msg = j.choices?.[0]?.message;
+  if (!msg?.content || msg.refusal) return out;
+  const parsed = JSON.parse(msg.content) as {
     verdicts: { i: number; fire: boolean; place: number | null }[];
   };
-  for (const v of parsed.verdicts) {
+  for (const v of parsed.verdicts ?? []) {
     const cand = batch[v.i];
     if (!cand) continue;
     const place =
@@ -98,16 +107,15 @@ async function judgeBatch(
 }
 
 // Renvoie null si le tri IA n'est pas configuré (pas de clé API).
-// Sinon : Map url -> verdict pour TOUS les candidats (cache + jugements frais ;
-// les candidats non jugés — dépassement de quota, échec API — sont absents de
-// la Map et l'appelant décide quoi en faire).
+// Sinon : Map url -> verdict pour les candidats jugés (cache + jugements
+// frais ; les non jugés — dépassement de quota, échec API — sont absents de
+// la Map et l'appelant applique son repli).
 export async function triageCandidates(
   candidates: TriageCandidate[]
 ): Promise<Map<string, TriageVerdict> | null> {
-  const anthropic = getClient();
-  if (!anthropic || candidates.length === 0) {
-    return anthropic ? new Map() : null;
-  }
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return null;
+  if (candidates.length === 0) return new Map();
 
   type CacheEntry = { f: boolean; p: number | null; at: number };
   let cache: Record<string, CacheEntry> = {};
@@ -129,7 +137,7 @@ export async function triageCandidates(
   for (let i = 0; i < fresh.length; i += BATCH_SIZE) {
     const batch = fresh.slice(i, i + BATCH_SIZE);
     try {
-      const judged = await judgeBatch(anthropic, batch);
+      const judged = await judgeBatch(apiKey, batch);
       const now = Date.now();
       for (const [url, v] of judged) {
         verdicts.set(url, v);
