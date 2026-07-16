@@ -55,12 +55,14 @@ async def scan() -> list[dict]:
                 SearchGlobalRequest(
                     q=term,
                     filter=InputMessagesFilterEmpty(),
-                    min_date=None,
+                    # Filtre serveur : sans min_date, Telegram renvoie les posts
+                    # les plus « pertinents » (souvent vieux) et rien de récent.
+                    min_date=cutoff,
                     max_date=None,
                     offset_rate=0,
                     offset_peer=InputPeerEmpty(),
                     offset_id=0,
-                    limit=25,
+                    limit=50,
                 )
             )
         except errors.FloodWaitError as e:

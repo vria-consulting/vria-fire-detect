@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
   const subs = await readJson<PushSubscriptionRecord[]>(SUBS_PATH, []);
   if (subs.length === 0) return NextResponse.json({ ok: true, subs: 0, sent: 0 });
 
-  const { events } = await getEvents(1);
+  const { events } = await getEvents(24);
   const now = Date.now();
   // Seuls les foyers récents et au moins "probables" déclenchent une alerte
   // (un pixel isolé de confiance basse ferait fuir les utilisateurs).

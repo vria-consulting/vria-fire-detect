@@ -5,11 +5,16 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export async function GET(req: NextRequest) {
-  const daysParam = parseInt(req.nextUrl.searchParams.get("days") ?? "1", 10);
-  const days = [1, 2, 3].includes(daysParam) ? daysParam : 1;
+  // ?hours=6|12|24|48|72 (l'ancien ?days=1|2|3 reste accepté)
+  const daysParam = parseInt(req.nextUrl.searchParams.get("days") ?? "", 10);
+  const hoursParam = parseInt(
+    req.nextUrl.searchParams.get("hours") ?? String(daysParam * 24 || 24),
+    10
+  );
+  const hours = [6, 12, 24, 48, 72].includes(hoursParam) ? hoursParam : 24;
 
   try {
-    const data = await getEvents(days);
+    const data = await getEvents(hours);
     return NextResponse.json(data, {
       headers: { "cache-control": "public, max-age=30" },
     });
@@ -20,7 +25,7 @@ export async function GET(req: NextRequest) {
     }
     console.error("events failed:", e);
     // En cas de panne FIRMS, on sert le cache périmé plutôt que rien.
-    const stale = staleEvents(days);
+    const stale = staleEvents(hours);
     if (stale) return NextResponse.json(stale, { headers: { "x-cache": "stale" } });
     return NextResponse.json({ error: "FIRMS_UNAVAILABLE" }, { status: 502 });
   }

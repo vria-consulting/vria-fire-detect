@@ -9,7 +9,7 @@ import { haversineKm } from "./socialscan";
 
 export type EventsPayload = {
   events: FireEvent[];
-  meta: { days: number; fetchedAt: string; totalDetections: number };
+  meta: { hours: number; fetchedAt: string; totalDetections: number };
 };
 
 // Un témoignage corrobore un foyer s'il cite un lieu à moins de 50 km
@@ -30,14 +30,23 @@ function baseConfidence(ev: FireEvent): Confidence {
 const CACHE_TTL_MS = 2 * 60 * 1000;
 const cache = new Map<number, { at: number; data: EventsPayload }>();
 
-export async function getEvents(days: number): Promise<EventsPayload> {
-  const hit = cache.get(days);
+export const VALID_HOURS = [6, 12, 24, 48, 72] as const;
+
+export async function getEvents(hours: number): Promise<EventsPayload> {
+  const hit = cache.get(hours);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.data;
 
   // FIRMS (VIIRS + GOES) et Meteosat MTG (Europe/Afrique, 10 min) en parallèle ;
   // MTG renvoie [] en cas de problème, sans bloquer le reste.
+  const days = Math.max(1, Math.ceil(hours / 24));
   const [fires, mtgFires] = await Promise.all([fetchFires(days), fetchMtgFires()]);
-  const events = clusterFires([...fires.features, ...mtgFires]);
+  // Fenêtre glissante exacte : FIRMS renvoie des jours calendaires entiers,
+  // on filtre à l'heure d'acquisition près (indispensable pour 6 h / 12 h).
+  const cutoff = Date.now() - hours * 3_600_000;
+  const features = [...fires.features, ...mtgFires].filter(
+    (f) => new Date(f.properties.acq).getTime() >= cutoff
+  );
+  const events = clusterFires(features);
 
   // Corroboration par la veille sociale — ne doit jamais faire échouer les foyers.
   try {
@@ -62,15 +71,15 @@ export async function getEvents(days: number): Promise<EventsPayload> {
   const data: EventsPayload = {
     events,
     meta: {
-      days,
+      hours,
       fetchedAt: fires.meta.fetchedAt,
-      totalDetections: fires.meta.count + mtgFires.length,
+      totalDetections: features.length,
     },
   };
-  cache.set(days, { at: Date.now(), data });
+  cache.set(hours, { at: Date.now(), data });
   return data;
 }
 
-export function staleEvents(days: number): EventsPayload | null {
-  return cache.get(days)?.data ?? null;
+export function staleEvents(hours: number): EventsPayload | null {
+  return cache.get(hours)?.data ?? null;
 }

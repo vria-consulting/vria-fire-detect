@@ -36,7 +36,9 @@ const MAP_STYLE: maplibregl.StyleSpecification = {
 };
 
 function hoursAgo(iso: string): number {
-  return (Date.now() - new Date(iso).getTime()) / 3_600_000;
+  // Clampé à 0 : certains bots postent avec un horodatage futur (fuseau mal
+  // configuré), ce qui faussait le tri et l'affichage.
+  return Math.max(0, (Date.now() - new Date(iso).getTime()) / 3_600_000);
 }
 
 function formatAge(h: number): string {
@@ -146,7 +148,7 @@ export default function FireMap() {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const eventsRef = useRef<FireEvent[]>([]);
   const signalsRef = useRef<SocialSignal[]>([]);
-  const [days, setDays] = useState(1);
+  const [hours, setHours] = useState(24);
   const [status, setStatus] = useState<Status>({ kind: "loading" });
   const [events, setEvents] = useState<FireEvent[]>([]);
   const [selected, setSelected] = useState<FireEvent | null>(null);
@@ -170,11 +172,11 @@ export default function FireMap() {
 
   const [lastUpdate, setLastUpdate] = useState<number | null>(null);
 
-  const loadData = useCallback(async (map: maplibregl.Map, nDays: number, silent = false) => {
+  const loadData = useCallback(async (map: maplibregl.Map, nHours: number, silent = false) => {
     if (!silent) setStatus({ kind: "loading" });
     try {
       const [evRes, sigRes] = await Promise.all([
-        fetch(`/api/events?days=${nDays}`),
+        fetch(`/api/events?hours=${nHours}`),
         fetch(`/api/signals`).catch(() => null),
       ]);
       if (!evRes.ok) {
@@ -367,7 +369,7 @@ export default function FireMap() {
         map.on("mouseenter", layer, () => (map.getCanvas().style.cursor = "pointer"));
         map.on("mouseleave", layer, () => (map.getCanvas().style.cursor = ""));
       }
-      loadData(map, 1);
+      loadData(map, 24);
     });
 
     return () => {
@@ -377,8 +379,8 @@ export default function FireMap() {
     };
   }, [loadData]);
 
-  const changeDays = (n: number) => {
-    setDays(n);
+  const changeHours = (n: number) => {
+    setHours(n);
     if (mapRef.current) loadData(mapRef.current, n);
   };
 
@@ -536,10 +538,10 @@ export default function FireMap() {
   // sans clignotement (silent) — les données doivent coller au temps réel.
   useEffect(() => {
     const id = setInterval(() => {
-      if (mapRef.current) loadData(mapRef.current, days, true);
+      if (mapRef.current) loadData(mapRef.current, hours, true);
     }, 120_000);
     return () => clearInterval(id);
-  }, [days, loadData]);
+  }, [hours, loadData]);
 
   // Vue globale : foyers satellite ET signalements humains dans la même liste,
   // triés par premier signal / première mention.
@@ -554,29 +556,28 @@ export default function FireMap() {
       .filter((sig) => hoursAgo(sig.firstPost) < 24)
       .map((sig) => ({ kind: "signal" as const, when: sig.firstPost, sig })),
   ]
-    .sort((a, b) => (a.when < b.when ? 1 : -1))
+    .sort((a, b) => Date.parse(b.when) - Date.parse(a.when))
     .slice(0, 40);
 
   // Fil des départs : foyers ET signalements < 1 h, triés du plus frais au moins frais
   type DepartItem =
     | { kind: "sat"; ageMin: number; ev: FireEvent }
     | { kind: "social"; ageMin: number; sig: SocialSignal };
-  const departItems: DepartItem[] =
-    mode === "departs"
-      ? [
-          ...events
-            .map((ev) => ({ kind: "sat" as const, ageMin: hoursAgo(ev.firstSeen) * 60, ev }))
-            .filter((x) => x.ageMin <= DEPART_WATCH_MIN),
-          ...signals
-            .filter((sig) => sig.newFire)
-            .map((sig) => ({
-              kind: "social" as const,
-              ageMin: hoursAgo(sig.firstPost) * 60,
-              sig,
-            }))
-            .filter((x) => x.ageMin <= DEPART_WATCH_MIN),
-        ].sort((a, b) => a.ageMin - b.ageMin)
-      : [];
+  // Calculé dans tous les modes : le badge du bouton « Départs » et l'alerte
+  // doivent vivre même depuis la vue globale.
+  const departItems: DepartItem[] = [
+    ...events
+      .map((ev) => ({ kind: "sat" as const, ageMin: hoursAgo(ev.firstSeen) * 60, ev }))
+      .filter((x) => x.ageMin <= DEPART_WATCH_MIN),
+    ...signals
+      .filter((sig) => sig.newFire)
+      .map((sig) => ({
+        kind: "social" as const,
+        ageMin: hoursAgo(sig.firstPost) * 60,
+        sig,
+      }))
+      .filter((x) => x.ageMin <= DEPART_WATCH_MIN),
+  ].sort((a, b) => a.ageMin - b.ageMin);
   const hotCount = departItems.filter((x) => x.ageMin <= DEPART_HOT_MIN).length;
 
   return (
@@ -608,15 +609,15 @@ export default function FireMap() {
       <div className="absolute left-3 top-3 flex flex-col gap-2 rounded-xl bg-zinc-900/90 p-3 text-sm text-zinc-100 shadow-lg backdrop-blur">
         <div className="flex items-center gap-2">
           <span className="text-zinc-400">Période</span>
-          {[1, 2, 3].map((n) => (
+          {[6, 12, 24, 48, 72].map((h) => (
             <button
-              key={n}
-              onClick={() => changeDays(n)}
-              className={`rounded-md px-2 py-1 ${
-                days === n ? "bg-orange-600 text-white" : "bg-zinc-800 hover:bg-zinc-700"
+              key={h}
+              onClick={() => changeHours(h)}
+              className={`rounded-md px-1.5 py-1 text-xs ${
+                hours === h ? "bg-orange-600 text-white" : "bg-zinc-800 hover:bg-zinc-700"
               }`}
             >
-              {n * 24} h
+              {h} h
             </button>
           ))}
         </div>
@@ -699,7 +700,7 @@ export default function FireMap() {
                 · auto toutes les 2 min
               </span>
               <button
-                onClick={() => mapRef.current && loadData(mapRef.current, days, true)}
+                onClick={() => mapRef.current && loadData(mapRef.current, hours, true)}
                 className="rounded px-1.5 py-0.5 hover:bg-zinc-800"
                 title="Rafraîchir maintenant"
                 aria-label="Rafraîchir maintenant"
@@ -716,16 +717,16 @@ export default function FireMap() {
         <div className="absolute right-3 top-3 flex max-h-[70%] w-80 flex-col rounded-xl bg-zinc-900/95 text-sm text-zinc-100 shadow-lg backdrop-blur">
           <div className="border-b border-zinc-800 px-3 py-2">
             <span className="font-semibold">⚡ Départs de feu (&lt; 1 h)</span>
-            <p className="text-xs text-zinc-400">
-              {hotCount > 0 ? (
-                <span className="font-semibold text-red-400">
-                  {hotCount} signal{hotCount > 1 ? "s" : ""} de moins de 20 min
-                </span>
-              ) : (
-                "Aucun signal < 20 min pour l'instant"
-              )}{" "}
-              · rafraîchi toutes les 2 min
-            </p>
+            {hotCount > 0 ? (
+              <div className="mt-1 animate-pulse rounded-md bg-red-600 px-2 py-1.5 text-xs font-bold text-white">
+                🚨 {hotCount} départ{hotCount > 1 ? "s" : ""} signalé
+                {hotCount > 1 ? "s" : ""} il y a moins de 20 min
+              </div>
+            ) : (
+              <p className="text-xs text-zinc-400">
+                Aucun signal &lt; 20 min pour l&apos;instant · rafraîchi toutes les 2 min
+              </p>
+            )}
           </div>
           <div className="overflow-y-auto">
             {departItems.length === 0 && (
