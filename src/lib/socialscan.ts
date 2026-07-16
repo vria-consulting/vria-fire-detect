@@ -7,6 +7,7 @@
 import cities from "@/data/cities.json";
 import { searchPosts, postUrl } from "./bsky";
 import { fetchPressArticles } from "./press";
+import { triageCandidates } from "./triage";
 import { TERMS_BY_LANG, LANG_BY_COUNTRY } from "./social";
 import type { SocialPost } from "./social";
 
@@ -140,20 +141,29 @@ export async function scanSocial(sinceHours = 12): Promise<{
     }
   };
 
+  // 1. Collecte des candidats (posts + articles avec au moins un lieu).
+  type Candidate = {
+    post: SocialPost;
+    places: { key: string; entry: [number, number, string, string] }[];
+  };
+  const candidates: Candidate[] = [];
+
   // Articles de presse (GDELT) : le titre est géoparsé comme un post.
   for (const art of pressArticles) {
     if (new Date(art.createdAt).getTime() < since) continue;
     const places = extractPlaces(art.title);
     if (places.length === 0 || places.length > 3) continue;
-    const post: SocialPost = {
-      text: art.title,
-      author: art.domain,
-      handle: art.domain,
-      createdAt: art.createdAt,
-      url: art.url,
-      source: "presse",
-    };
-    for (const { key, entry } of places) addToPlace(key, entry, post);
+    candidates.push({
+      post: {
+        text: art.title,
+        author: art.domain,
+        handle: art.domain,
+        createdAt: art.createdAt,
+        url: art.url,
+        source: "presse",
+      },
+      places,
+    });
   }
 
   for (const p of results.flatMap((r) => r.posts)) {
@@ -165,16 +175,42 @@ export async function scanSocial(sinceHours = 12): Promise<{
     const text = p.record?.text ?? "";
     const places = extractPlaces(text);
     if (places.length === 0 || places.length > 3) continue; // 4+ lieux = revue de presse
+    candidates.push({
+      post: {
+        text,
+        author: p.author.displayName || p.author.handle,
+        handle: p.author.handle,
+        createdAt,
+        url: postUrl(p),
+        source: "bluesky",
+      },
+      places,
+    });
+  }
 
-    const post: SocialPost = {
-      text,
-      author: p.author.displayName || p.author.handle,
-      handle: p.author.handle,
-      createdAt,
-      url: postUrl(p),
-      source: "bluesky",
-    };
-    for (const { key, entry } of places) addToPlace(key, entry, post);
+  // 2. Tri de pertinence par IA : feu en cours ? quel lieu est celui du feu ?
+  // Sans clé API (verdicts === null), on garde le comportement mots-clés seul.
+  const verdicts = await triageCandidates(
+    candidates.map((c) => ({
+      url: c.post.url,
+      text: c.post.text,
+      places: c.places.map((p) => p.entry[3]),
+    }))
+  );
+
+  for (const c of candidates) {
+    if (verdicts) {
+      const v = verdicts.get(c.post.url);
+      if (v) {
+        // Jugé : on n'ancre le post QUE sur le lieu du feu identifié.
+        if (!v.fire || v.place == null) continue;
+        const chosen = c.places[v.place];
+        if (chosen) addToPlace(chosen.key, chosen.entry, c.post);
+        continue;
+      }
+      // Non jugé (quota ou échec API) : repli mots-clés pour ne rien perdre.
+    }
+    for (const { key, entry } of c.places) addToPlace(key, entry, c.post);
   }
 
   const signals = [...byPlace.values()].map((s) => ({
