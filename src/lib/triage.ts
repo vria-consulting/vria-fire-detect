@@ -18,9 +18,9 @@ export type TriageCandidate = {
   places: string[]; // noms des lieux candidats trouvés par le gazetteer
 };
 
-// v4 : bump du chemin = invalidation des verdicts rendus avant le double
-// jugement (vérification des approbations par un modèle plus puissant).
-const CACHE_PATH = "triage-cache-v4.json";
+// v5 : bump = purge des approbations non vérifiées gravées par la v4 (échec
+// silencieux de la contre-vérification, budget de tokens de raisonnement).
+const CACHE_PATH = "triage-cache-v5.json";
 const RETENTION_MS = 48 * 60 * 60 * 1000;
 const BATCH_SIZE = 25;
 const MAX_NEW_PER_SCAN = 50; // garde-fou de coût et de durée par rafraîchissement
@@ -102,7 +102,7 @@ async function judgeBatch(
     },
     body: JSON.stringify({
       model,
-      max_completion_tokens: 4096,
+      max_completion_tokens: 16000,
       messages: [
         { role: "system", content: SYSTEM },
         {
@@ -173,22 +173,36 @@ export async function triageCandidates(
 
       // Double jugement : les posts APPROUVÉS par le petit modèle sont
       // contre-vérifiés par le modèle puissant — son verdict est final.
+      // Si la vérification échoue, on REJETTE ces posts pour ce scan sans
+      // mettre le verdict en cache : ils seront rejugés au scan suivant
+      // (jamais d'approbation non vérifiée gravée dans le cache).
+      const noCache = new Set<string>();
       const approved = batch.filter((c) => judged.get(c.url)?.fire);
       if (approved.length > 0 && VERIFY_MODEL !== MODEL) {
         try {
           const verified = await judgeBatch(apiKey, approved, VERIFY_MODEL);
           for (const c of approved) {
-            judged.set(c.url, verified.get(c.url) ?? { fire: false, place: null });
+            const v = verified.get(c.url);
+            if (v) {
+              judged.set(c.url, v);
+            } else {
+              judged.set(c.url, { fire: false, place: null });
+              noCache.add(c.url);
+            }
           }
         } catch (e) {
-          console.error("triage verify failed (verdicts luna conservés):", e);
+          console.error("triage verify failed (posts rejetés, rejugés au prochain scan):", e);
+          for (const c of approved) {
+            judged.set(c.url, { fire: false, place: null });
+            noCache.add(c.url);
+          }
         }
       }
 
       const now = Date.now();
       for (const [url, v] of judged) {
         verdicts.set(url, v);
-        cache[url] = { f: v.fire, p: v.place, at: now };
+        if (!noCache.has(url)) cache[url] = { f: v.fire, p: v.place, at: now };
       }
       for (const k of Object.keys(cache)) {
         if (now - cache[k].at > RETENTION_MS) delete cache[k];
