@@ -1,0 +1,31 @@
+# Veille Telegram : recherche globale des messages publics mentionnant un feu
+# de forêt, toutes les 10 minutes (compromis fraîcheur / rate-limit MTProto).
+# Ne tourne que si la session Telegram est configurée (secret TELEGRAM_SESSION).
+name: telegram-scan
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Scan Telegram et pousse vers VigiFire
+        env:
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+          TELEGRAM_SESSION: ${{ secrets.TELEGRAM_SESSION }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$TELEGRAM_SESSION" ]; then
+            echo "TELEGRAM_SESSION absent — veille Telegram pas encore activée."
+            exit 0
+          fi
+          pip install --quiet telethon
+          python scripts/telegram_scan.py

@@ -7,6 +7,7 @@
 import cities from "@/data/cities.json";
 import { searchPosts, postUrl } from "./bsky";
 import { fetchPressArticles } from "./press";
+import { fetchTelegramPosts } from "./telegram";
 import { triageCandidates } from "./triage";
 import { TERMS_BY_LANG, LANG_BY_COUNTRY } from "./social";
 import type { SocialPost } from "./social";
@@ -107,11 +108,12 @@ export async function scanSocial(sinceHours = 12): Promise<{
   scannedPosts: number;
   statuses: number[];
 }> {
-  const [results, pressArticles] = await Promise.all([
+  const [results, pressArticles, telegramPosts] = await Promise.all([
     Promise.all(
       SCAN_QUERIES.map((q) => searchPosts(q, 50).catch(() => ({ posts: [], status: 0 })))
     ),
     fetchPressArticles(3),
+    fetchTelegramPosts(),
   ]);
   const statuses = results.map((r) => r.status);
   const since = Date.now() - sinceHours * 3_600_000;
@@ -161,6 +163,24 @@ export async function scanSocial(sinceHours = 12): Promise<{
         createdAt: art.createdAt,
         url: art.url,
         source: "presse",
+      },
+      places,
+    });
+  }
+
+  // Messages Telegram (canaux publics, via le worker GitHub Actions).
+  for (const t of telegramPosts) {
+    if (new Date(t.createdAt).getTime() < since) continue;
+    const places = extractPlaces(t.text);
+    if (places.length === 0 || places.length > 3) continue;
+    candidates.push({
+      post: {
+        text: t.text,
+        author: t.channel,
+        handle: t.handle,
+        createdAt: t.createdAt,
+        url: t.url,
+        source: "telegram",
       },
       places,
     });

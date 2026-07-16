@@ -127,7 +127,11 @@ function PostList({ posts }: { posts: SocialPost[] }) {
             rel="noreferrer"
             className="font-medium text-sky-400 hover:underline"
           >
-            {post.source === "presse" ? `📰 ${post.handle}` : `@${post.handle}`}
+            {post.source === "presse"
+              ? `📰 ${post.handle}`
+              : post.source === "telegram"
+                ? `✈️ ${post.handle}`
+                : `@${post.handle}`}
           </a>{" "}
           <span className="text-zinc-500">· {formatAge(hoursAgo(post.createdAt))}</span>
           <p className="mt-1 whitespace-pre-wrap text-zinc-300">{post.text}</p>
@@ -842,7 +846,12 @@ export default function FireMap() {
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-medium text-sky-400">
-                      {item.sig.posts.some((p) => p.source !== "presse") ? "💬" : "📰"} 1ère
+                      {item.sig.posts.some((p) => p.source === "bluesky")
+                        ? "💬"
+                        : item.sig.posts.some((p) => p.source === "telegram")
+                          ? "✈️"
+                          : "📰"}{" "}
+                      1ère
                       mention {formatAge(hoursAgo(item.sig.firstPost))}
                     </span>
                     {item.sig.newFire && (
