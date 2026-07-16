@@ -870,7 +870,8 @@ export default function FireMap() {
               <dt className="text-zinc-400">Détections</dt>
               <dd>
                 {selected.count} ({selected.viirsCount} VIIRS
-                {selected.goesCount > 0 ? ` + ${selected.goesCount} GOES` : ""})
+                {selected.goesCount > 0 ? ` + ${selected.goesCount} GOES` : ""}
+                {selected.mtgCount > 0 ? ` + ${selected.mtgCount} MTG` : ""})
               </dd>
             </div>
             <div className="flex justify-between">

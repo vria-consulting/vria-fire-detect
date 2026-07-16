@@ -2,6 +2,7 @@
 // 5 min, partagé entre /api/events et le cron d'alertes.
 
 import { fetchFires } from "./firms";
+import { fetchMtgFires } from "./mtg";
 import { clusterFires, FireEvent, Confidence } from "./cluster";
 import { getSignals } from "./signalcache";
 import { haversineKm } from "./socialscan";
@@ -16,7 +17,9 @@ export type EventsPayload = {
 const CORROBORATION_KM = 50;
 
 function baseConfidence(ev: FireEvent): Confidence {
-  if (ev.count >= 3 || (ev.viirsCount > 0 && ev.goesCount > 0) || ev.maxConf === "h") {
+  const sources =
+    (ev.viirsCount > 0 ? 1 : 0) + (ev.goesCount > 0 ? 1 : 0) + (ev.mtgCount > 0 ? 1 : 0);
+  if (ev.count >= 3 || sources >= 2 || ev.maxConf === "h") {
     return "probable";
   }
   return "possible";
@@ -29,8 +32,10 @@ export async function getEvents(days: number): Promise<EventsPayload> {
   const hit = cache.get(days);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.data;
 
-  const fires = await fetchFires(days);
-  const events = clusterFires(fires.features);
+  // FIRMS (VIIRS + GOES) et Meteosat MTG (Europe/Afrique, 10 min) en parallèle ;
+  // MTG renvoie [] en cas de problème, sans bloquer le reste.
+  const [fires, mtgFires] = await Promise.all([fetchFires(days), fetchMtgFires()]);
+  const events = clusterFires([...fires.features, ...mtgFires]);
 
   // Corroboration par la veille sociale — ne doit jamais faire échouer les foyers.
   try {
@@ -54,7 +59,11 @@ export async function getEvents(days: number): Promise<EventsPayload> {
 
   const data: EventsPayload = {
     events,
-    meta: { days, fetchedAt: fires.meta.fetchedAt, totalDetections: fires.meta.count },
+    meta: {
+      days,
+      fetchedAt: fires.meta.fetchedAt,
+      totalDetections: fires.meta.count + mtgFires.length,
+    },
   };
   cache.set(days, { at: Date.now(), data });
   return data;

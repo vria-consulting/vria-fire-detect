@@ -8,7 +8,7 @@ export type FireProperties = {
   sat: string; // N20 = NOAA-20, N21 = NOAA-21, G18/G19 = GOES West/East
   acq: string; // ISO 8601 UTC acquisition datetime
   dn: "D" | "N"; // day / night detection
-  src: "viirs" | "goes";
+  src: "viirs" | "goes" | "mtg";
 };
 
 export type FireFeature = {

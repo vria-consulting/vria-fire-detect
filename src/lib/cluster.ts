@@ -17,6 +17,7 @@ export type FireEvent = {
   count: number;
   viirsCount: number;
   goesCount: number;
+  mtgCount: number;
   firstSeen: string; // ISO — première détection = proxy de l'heure d'ignition
   lastSeen: string;
   maxFrp: number;
@@ -68,7 +69,7 @@ export function clusterFires(features: FireFeature[]): FireEvent[] {
 
     let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity;
     let sumLon = 0, sumLat = 0, maxFrp = 0;
-    let viirsCount = 0, goesCount = 0;
+    let viirsCount = 0, goesCount = 0, mtgCount = 0;
     let firstSeen = "9999", lastSeen = "0000";
     let maxConf: FireEvent["maxConf"] = "l";
     for (const m of members) {
@@ -81,6 +82,7 @@ export function clusterFires(features: FireFeature[]): FireEvent[] {
       if (lat > maxLat) maxLat = lat;
       if (m.properties.frp > maxFrp) maxFrp = m.properties.frp;
       if (m.properties.src === "goes") goesCount++;
+      else if (m.properties.src === "mtg") mtgCount++;
       else viirsCount++;
       if (m.properties.acq < firstSeen) firstSeen = m.properties.acq;
       if (m.properties.acq > lastSeen) lastSeen = m.properties.acq;
@@ -94,6 +96,7 @@ export function clusterFires(features: FireFeature[]): FireEvent[] {
       count: members.length,
       viirsCount,
       goesCount,
+      mtgCount,
       firstSeen,
       lastSeen,
       maxFrp: Math.round(maxFrp * 10) / 10,
