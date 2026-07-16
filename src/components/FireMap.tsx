@@ -23,9 +23,9 @@ const MAP_STYLE: maplibregl.StyleSpecification = {
     carto: {
       type: "raster",
       tiles: [
-        "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-        "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-        "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
+        "https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
+        "https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
       ],
       tileSize: 256,
       attribution:
@@ -59,6 +59,45 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
   const raw = atob(b64);
   return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
 }
+
+// Icône flamme dessinée au canvas, teintée par âge (même code couleur que les
+// anciens points), liseré blanc pour rester lisible sur fond clair.
+function flameImage(main: string, core: string): ImageData {
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const ctx = c.getContext("2d")!;
+  ctx.beginPath();
+  ctx.moveTo(32, 4);
+  ctx.bezierCurveTo(40, 18, 52, 24, 52, 40);
+  ctx.bezierCurveTo(52, 52, 43, 60, 32, 60);
+  ctx.bezierCurveTo(21, 60, 12, 52, 12, 40);
+  ctx.bezierCurveTo(12, 24, 24, 18, 32, 4);
+  ctx.closePath();
+  ctx.fillStyle = main;
+  ctx.strokeStyle = "rgba(255,255,255,0.95)";
+  ctx.lineWidth = 3;
+  ctx.fill();
+  ctx.stroke();
+  // cœur clair de la flamme
+  ctx.beginPath();
+  ctx.moveTo(32, 30);
+  ctx.bezierCurveTo(38, 38, 43, 40, 43, 47);
+  ctx.bezierCurveTo(43, 54, 38, 58, 32, 58);
+  ctx.bezierCurveTo(26, 58, 21, 54, 21, 47);
+  ctx.bezierCurveTo(21, 40, 26, 38, 32, 30);
+  ctx.closePath();
+  ctx.fillStyle = core;
+  ctx.fill();
+  return ctx.getImageData(0, 0, 64, 64);
+}
+
+const FLAMES: Record<string, [string, string]> = {
+  "flame-red": ["#ff2d00", "#ffd166"],
+  "flame-orange": ["#ff7a00", "#ffe08a"],
+  "flame-yellow": ["#ffc400", "#fff3bf"],
+  "flame-brown": ["#8a6d3b", "#d9c9a3"],
+  "flame-blue": ["#0ea5e9", "#bae6fd"],
+};
 
 const CONF_LABEL: Record<Confidence, { text: string; cls: string }> = {
   possible: { text: "possible", cls: "bg-zinc-700 text-zinc-300" },
@@ -246,10 +285,19 @@ export default function FireMap() {
           "circle-blur": 1,
         },
       });
+      for (const [name, [main, core]] of Object.entries(FLAMES)) {
+        map.addImage(name, flameImage(main, core));
+      }
+      // Anneau sous l'icône : blanc = nouveau (< 12 h), vert = corroboré
       map.addLayer({
-        id: "events",
+        id: "events-ring",
         type: "circle",
         source: "events",
+        filter: [
+          "any",
+          ["==", ["get", "isNew"], 1],
+          ["==", ["get", "corroborated"], 1],
+        ],
         paint: {
           "circle-radius": [
             "interpolate",
@@ -257,50 +305,64 @@ export default function FireMap() {
             ["zoom"],
             2,
             ["interpolate", ["linear"], ["ln", ["+", ["get", "count"], 1]],
-              0, 2, 3, 4.5, 7, 8.5],
+              0, 8, 3, 13, 7, 20],
             9,
             ["interpolate", ["linear"], ["ln", ["+", ["get", "count"], 1]],
-              0, 5, 3, 10, 7, 19],
+              0, 16, 3, 26, 7, 42],
           ],
-          "circle-color": [
-            "step",
-            ["get", "lastAgeH"],
-            "#ff2d00",
-            3, "#ff7a00",
-            12, "#ffc400",
-            24, "#8a6d3b",
-          ],
-          "circle-opacity": 0.85,
-          // Liseré : blanc = nouveau (< 12 h), vert = corroboré par témoignages
-          "circle-stroke-width": [
-            "case",
-            ["==", ["get", "corroborated"], 1], 2,
-            ["==", ["get", "isNew"], 1], 1.8,
-            0.4,
-          ],
+          "circle-color": "rgba(0,0,0,0)",
+          "circle-stroke-width": 2,
           "circle-stroke-color": [
             "case",
-            ["==", ["get", "corroborated"], 1], "#34d399",
-            ["==", ["get", "isNew"], 1], "#ffffff",
-            "rgba(255,255,255,0.25)",
+            ["==", ["get", "corroborated"], 1], "#10b981",
+            "#71717a",
           ],
+          "circle-stroke-opacity": 0.9,
         },
       });
-      // Signalements citoyens (veille Bluesky) — losanges bleus
+      // Foyers : icône flamme teintée par âge, taille selon le nombre de détections
       map.addLayer({
-        id: "signals",
-        type: "circle",
+        id: "events-icons",
+        type: "symbol",
+        source: "events",
+        layout: {
+          "icon-image": [
+            "step",
+            ["get", "lastAgeH"],
+            "flame-red",
+            3, "flame-orange",
+            12, "flame-yellow",
+            24, "flame-brown",
+          ],
+          "icon-size": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            2,
+            ["interpolate", ["linear"], ["ln", ["+", ["get", "count"], 1]],
+              0, 0.18, 3, 0.32, 7, 0.55],
+            9,
+            ["interpolate", ["linear"], ["ln", ["+", ["get", "count"], 1]],
+              0, 0.4, 3, 0.72, 7, 1.25],
+          ],
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+        },
+      });
+      // Signalements citoyens (veille Bluesky) — flamme bleue
+      map.addLayer({
+        id: "signals-icons",
+        type: "symbol",
         source: "signals",
-        paint: {
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 4, 9, 9],
-          "circle-color": "#0ea5e9",
-          "circle-opacity": 0.9,
-          "circle-stroke-width": 1.2,
-          "circle-stroke-color": "#e0f2fe",
+        layout: {
+          "icon-image": "flame-blue",
+          "icon-size": ["interpolate", ["linear"], ["zoom"], 2, 0.26, 9, 0.5],
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
         },
       });
 
-      map.on("click", "events", (e) => {
+      map.on("click", "events-icons", (e) => {
         const f = e.features?.[0];
         if (!f) return;
         const ev = eventsRef.current.find((x) => x.id === f.properties.id);
@@ -310,7 +372,7 @@ export default function FireMap() {
           setSocial({ kind: "idle" });
         }
       });
-      map.on("click", "signals", (e) => {
+      map.on("click", "signals-icons", (e) => {
         const f = e.features?.[0];
         if (!f) return;
         const sig = signalsRef.current[f.properties.idx];
@@ -320,13 +382,13 @@ export default function FireMap() {
         }
       });
       map.on("click", (e) => {
-        const hits = map.queryRenderedFeatures(e.point, { layers: ["events", "signals"] });
+        const hits = map.queryRenderedFeatures(e.point, { layers: ["events-icons", "signals-icons"] });
         if (hits.length === 0) {
           setSelected(null);
           setSelectedSignal(null);
         }
       });
-      for (const layer of ["events", "signals"]) {
+      for (const layer of ["events-icons", "signals-icons"]) {
         map.on("mouseenter", layer, () => (map.getCanvas().style.cursor = "pointer"));
         map.on("mouseleave", layer, () => (map.getCanvas().style.cursor = ""));
       }
@@ -439,7 +501,7 @@ export default function FireMap() {
   // Applique le mode aux couches carte + marqueurs pulsants des départs < 20 min
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.getLayer("events")) return;
+    if (!map || !map.getLayer("events-icons")) return;
     for (const m of pulseMarkersRef.current) m.remove();
     pulseMarkersRef.current = [];
 
@@ -449,11 +511,12 @@ export default function FireMap() {
         ["get", "firstAgeMin"],
         DEPART_WATCH_MIN,
       ];
-      map.setFilter("events", freshFilter);
+      map.setFilter("events-icons", freshFilter);
+      map.setFilter("events-ring", ["all", ["any", ["==", ["get", "isNew"], 1], ["==", ["get", "corroborated"], 1]], freshFilter]);
       map.setFilter("events-glow", freshFilter);
       // Un signalement n'est un "départ" que si ses PREMIÈRES mentions sont
       // récentes (newFire) — un feu qui dure fait encore parler de lui.
-      map.setFilter("signals", [
+      map.setFilter("signals-icons", [
         "all",
         ["==", ["get", "newFire"], 1],
         ["<=", ["get", "firstAgeMin"], DEPART_WATCH_MIN],
@@ -489,9 +552,10 @@ export default function FireMap() {
         );
       }
     } else {
-      map.setFilter("events", null);
+      map.setFilter("events-icons", null);
+      map.setFilter("events-ring", ["any", ["==", ["get", "isNew"], 1], ["==", ["get", "corroborated"], 1]]);
       map.setFilter("events-glow", ["<", ["get", "lastAgeH"], 6]);
-      map.setFilter("signals", null);
+      map.setFilter("signals-icons", null);
     }
   }, [mode, events, signals]);
 
