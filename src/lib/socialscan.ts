@@ -218,11 +218,13 @@ export async function scanSocial(sinceHours = 12): Promise<{
 
   // 2. Tri de pertinence par IA : feu en cours ? quel lieu est celui du feu ?
   // Sans clé API (verdicts === null), on garde le comportement mots-clés seul.
+  // Le pays de chaque candidat est fourni au juge : il peut ainsi rejeter les
+  // homonymes incohérents (« Boston Bar » au Canada ≠ Boston (US)).
   const verdicts = await triageCandidates(
     candidates.map((c) => ({
       url: c.post.url,
       text: c.post.text,
-      places: c.places.map((p) => p.entry[3]),
+      places: c.places.map((p) => `${p.entry[3]} (${p.entry[2].toUpperCase()})`),
     }))
   );
 
