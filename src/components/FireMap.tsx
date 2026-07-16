@@ -17,8 +17,8 @@ const REGIONS: Record<string, { center: [number, number]; zoom: number }> = {
 
 const SAT_NAMES: Record<string, string> = {
   N: "Suomi-NPP",
-  "1": "NOAA-20",
-  "2": "NOAA-21",
+  N20: "NOAA-20",
+  N21: "NOAA-21",
 };
 
 const MAP_STYLE: maplibregl.StyleSpecification = {
