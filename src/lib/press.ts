@@ -22,6 +22,26 @@ const QUERY =
 
 let lastGood: { at: number; articles: PressArticle[] } = { at: 0, articles: [] };
 
+const PRESS_CACHE_PATH = "press-cache.json";
+// Le rate limit GDELT (1 req/5 s PAR IP) frappe fort depuis les IP partagées
+// de Vercel : le dernier résultat réussi est donc persisté sur Blob pour que
+// toutes les instances puissent le resservir.
+async function fallbackFromBlob(): Promise<PressArticle[]> {
+  if (lastGood.articles.length > 0) return lastGood.articles;
+  try {
+    const { readJson } = await import("./store");
+    const cached = await readJson<{ at: number; articles: PressArticle[] }>(
+      PRESS_CACHE_PATH,
+      { at: 0, articles: [] }
+    );
+    // On ne ressert pas des articles de plus de 6 h.
+    if (Date.now() - cached.at < 6 * 60 * 60 * 1000) return cached.articles;
+  } catch {
+    /* pas de Blob en local sans token : tant pis */
+  }
+  return [];
+}
+
 export async function fetchPressArticles(sinceHours = 3): Promise<PressArticle[]> {
   try {
     const params = new URLSearchParams({
@@ -32,12 +52,17 @@ export async function fetchPressArticles(sinceHours = 3): Promise<PressArticle[]
       maxrecords: "250",
       sort: "datedesc",
     });
-    const res = await fetch(`${GDELT_URL}?${params}`, {
-      headers: { "User-Agent": "VigiFire/0.1 (https://vria-fire-detect.vercel.app)" },
-    });
+    const url = `${GDELT_URL}?${params}`;
+    const headers = {
+      "User-Agent": "VigiFire/0.1 (https://vria-fire-detect.vercel.app)",
+    };
+    let res = await fetch(url, { headers });
+    if (res.status === 429) {
+      await new Promise((r) => setTimeout(r, 6500));
+      res = await fetch(url, { headers });
+    }
     if (!res.ok) {
-      // 429 fréquent (IP partagées) : on ressert le dernier résultat connu.
-      return lastGood.articles;
+      return fallbackFromBlob();
     }
     const j = await res.json();
     type Art = { title?: string; url?: string; domain?: string; seendate?: string };
@@ -52,9 +77,15 @@ export async function fetchPressArticles(sinceHours = 3): Promise<PressArticle[]
       articles.push({ title: a.title, url: a.url, domain: a.domain ?? "presse", createdAt: iso });
     }
     lastGood = { at: Date.now(), articles };
+    try {
+      const { writeJson } = await import("./store");
+      await writeJson(PRESS_CACHE_PATH, lastGood);
+    } catch {
+      /* Blob indisponible : le cache mémoire suffit */
+    }
     return articles;
   } catch (e) {
     console.error("GDELT fetch failed:", e);
-    return lastGood.articles;
+    return fallbackFromBlob();
   }
 }
