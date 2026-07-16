@@ -47,6 +47,17 @@ function formatAge(h: number): string {
 
 const NEW_EVENT_HOURS = 12; // un foyer est "nouveau" si son 1er signal a < 12 h
 
+// Clé publique VAPID (non sensible) — la clé privée reste côté serveur.
+const VAPID_PUBLIC_KEY =
+  "BDkzUjBlN8TEIWHqe9Fo5UrCHbxzFp8MYPH3q2bqqLyZ5rob33ci-B4dFr2GLAGw_aO9zhT2prXSb7w7LD8rnjk";
+
+function urlBase64ToUint8Array(base64: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64.length % 4)) % 4);
+  const b64 = (base64 + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(b64);
+  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+}
+
 const CONF_LABEL: Record<Confidence, { text: string; cls: string }> = {
   possible: { text: "possible", cls: "bg-zinc-700 text-zinc-300" },
   probable: { text: "probable", cls: "bg-amber-700 text-amber-100" },
@@ -97,6 +108,13 @@ export default function FireMap() {
   const [selectedSignal, setSelectedSignal] = useState<SocialSignal | null>(null);
   const [social, setSocial] = useState<SocialState>({ kind: "idle" });
   const [listOpen, setListOpen] = useState(true);
+  const [alertState, setAlertState] = useState<"off" | "busy" | "on">("off");
+  const [alertMsg, setAlertMsg] = useState<string | null>(null);
+  const pendingSelectRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (localStorage.getItem("vigifire-alert-endpoint")) setAlertState("on");
+  }, []);
 
   const loadData = useCallback(async (map: maplibregl.Map, nDays: number) => {
     setStatus({ kind: "loading" });
@@ -114,6 +132,13 @@ export default function FireMap() {
         await evRes.json();
       eventsRef.current = data.events;
       setEvents(data.events);
+
+      // Lien profond depuis une notification : ?ev=<id> sélectionne le foyer.
+      if (pendingSelectRef.current) {
+        const ev = data.events.find((x) => x.id === pendingSelectRef.current);
+        pendingSelectRef.current = null;
+        if (ev) setSelected(ev);
+      }
 
       let signals: SocialSignal[] = [];
       if (sigRes?.ok) {
@@ -162,11 +187,18 @@ export default function FireMap() {
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
+    // Lien profond : /?lat=..&lon=..&z=..&ev=<id> (notifications d'alerte)
+    const params = new URLSearchParams(window.location.search);
+    const pLat = parseFloat(params.get("lat") ?? "");
+    const pLon = parseFloat(params.get("lon") ?? "");
+    const pZ = parseFloat(params.get("z") ?? "");
+    const hasDeepLink = isFinite(pLat) && isFinite(pLon);
+    pendingSelectRef.current = params.get("ev");
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: MAP_STYLE,
-      center: REGIONS["Europe du Sud"].center,
-      zoom: REGIONS["Europe du Sud"].zoom,
+      center: hasDeepLink ? [pLon, pLat] : REGIONS["Europe du Sud"].center,
+      zoom: hasDeepLink ? (isFinite(pZ) ? pZ : 9) : REGIONS["Europe du Sud"].zoom,
       attributionControl: { compact: true },
     });
     mapRef.current = map;
@@ -322,6 +354,65 @@ export default function FireMap() {
     }
   };
 
+  const toggleAlerts = async () => {
+    setAlertMsg(null);
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      setAlertMsg("Notifications non supportées par ce navigateur.");
+      return;
+    }
+    setAlertState("busy");
+    try {
+      if (localStorage.getItem("vigifire-alert-endpoint")) {
+        // Désabonnement
+        const reg = await navigator.serviceWorker.getRegistration();
+        const sub = await reg?.pushManager.getSubscription();
+        const endpoint =
+          sub?.endpoint ?? localStorage.getItem("vigifire-alert-endpoint");
+        if (endpoint) {
+          await fetch("/api/subscribe", {
+            method: "DELETE",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ endpoint }),
+          });
+        }
+        await sub?.unsubscribe();
+        localStorage.removeItem("vigifire-alert-endpoint");
+        setAlertState("off");
+        setAlertMsg("Alertes désactivées.");
+        return;
+      }
+      // Abonnement sur la vue courante
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") {
+        setAlertState("off");
+        setAlertMsg("Autorisez les notifications pour activer les alertes.");
+        return;
+      }
+      const reg = await navigator.serviceWorker.register("/sw.js");
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
+      });
+      const b = mapRef.current!.getBounds();
+      const res = await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          subscription: sub.toJSON(),
+          bbox: [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()],
+        }),
+      });
+      if (!res.ok) throw new Error("subscribe failed");
+      localStorage.setItem("vigifire-alert-endpoint", sub.endpoint);
+      setAlertState("on");
+      setAlertMsg("Alertes actives : nouveaux foyers probables dans cette vue (vérification toutes les 5 min).");
+    } catch (e) {
+      console.error(e);
+      setAlertState(localStorage.getItem("vigifire-alert-endpoint") ? "on" : "off");
+      setAlertMsg("Échec de l'activation — réessayez.");
+    }
+  };
+
   const newEvents = events.filter((ev) => hoursAgo(ev.firstSeen) < 24).slice(0, 40);
 
   return (
@@ -379,6 +470,24 @@ export default function FireMap() {
             <span className="inline-block h-2.5 w-2.5 rounded-full border border-sky-200 bg-sky-500" />
             signalement citoyen (Bluesky)
           </div>
+        </div>
+        <div className="border-t border-zinc-700 pt-2">
+          <button
+            onClick={toggleAlerts}
+            disabled={alertState === "busy"}
+            className={`w-full rounded-md px-2 py-1.5 text-xs font-medium ${
+              alertState === "on"
+                ? "bg-emerald-800 text-emerald-100 hover:bg-emerald-700"
+                : "bg-zinc-800 hover:bg-zinc-700"
+            }`}
+          >
+            {alertState === "on"
+              ? "🔔 Alertes actives — désactiver"
+              : alertState === "busy"
+                ? "…"
+                : "🔔 M'alerter sur cette vue"}
+          </button>
+          {alertMsg && <p className="mt-1 text-[11px] text-zinc-400">{alertMsg}</p>}
         </div>
         <div className="border-t border-zinc-700 pt-2 text-xs text-zinc-400">
           {status.kind === "loading" && "Analyse des détections…"}
