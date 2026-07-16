@@ -46,6 +46,8 @@ function formatAge(h: number): string {
 }
 
 const NEW_EVENT_HOURS = 12; // un foyer est "nouveau" si son 1er signal a < 12 h
+const DEPART_WATCH_MIN = 60; // mode départs : fenêtre affichée
+const DEPART_HOT_MIN = 20; // pulsation rouge : signal de moins de 20 min
 
 // Clé publique VAPID (non sensible) — la clé privée reste côté serveur.
 const VAPID_PUBLIC_KEY =
@@ -111,9 +113,16 @@ export default function FireMap() {
   const [alertState, setAlertState] = useState<"off" | "busy" | "on">("off");
   const [alertMsg, setAlertMsg] = useState<string | null>(null);
   const pendingSelectRef = useRef<string | null>(null);
+  // Mode "départs de feu" : ne montrer que les signaux < 1 h, pulsation < 20 min
+  const [mode, setMode] = useState<"tout" | "departs">("tout");
+  const [signals, setSignals] = useState<SocialSignal[]>([]);
+  const pulseMarkersRef = useRef<maplibregl.Marker[]>([]);
+  const [, setTick] = useState(0); // re-rendu périodique des "il y a X min"
 
   useEffect(() => {
     if (localStorage.getItem("vigifire-alert-endpoint")) setAlertState("on");
+    const id = setInterval(() => setTick((t) => t + 1), 30_000);
+    return () => clearInterval(id);
   }, []);
 
   const loadData = useCallback(async (map: maplibregl.Map, nDays: number) => {
@@ -146,6 +155,7 @@ export default function FireMap() {
         signals = sigData.signals;
       }
       signalsRef.current = signals;
+      setSignals(signals);
 
       const evSrc = map.getSource("events") as maplibregl.GeoJSONSource | undefined;
       if (evSrc)
@@ -158,6 +168,7 @@ export default function FireMap() {
               id: ev.id,
               count: ev.count,
               lastAgeH: hoursAgo(ev.lastSeen),
+              firstAgeMin: Math.round(hoursAgo(ev.firstSeen) * 60),
               isNew: hoursAgo(ev.firstSeen) < NEW_EVENT_HOURS ? 1 : 0,
               corroborated: ev.confidence === "corrobore" ? 1 : 0,
             },
@@ -170,7 +181,11 @@ export default function FireMap() {
           features: signals.map((s, i) => ({
             type: "Feature" as const,
             geometry: { type: "Point" as const, coordinates: [s.lon, s.lat] },
-            properties: { idx: i, postCount: s.postCount },
+            properties: {
+              idx: i,
+              postCount: s.postCount,
+              ageMin: Math.round(hoursAgo(s.lastPost) * 60),
+            },
           })),
         });
 
@@ -413,11 +428,121 @@ export default function FireMap() {
     }
   };
 
+  const selectSignal = (sig: SocialSignal) => {
+    setSelectedSignal(sig);
+    setSelected(null);
+    mapRef.current?.flyTo({ center: [sig.lon, sig.lat], zoom: 9 });
+  };
+
+  // Applique le mode aux couches carte + marqueurs pulsants des départs < 20 min
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.getLayer("events")) return;
+    for (const m of pulseMarkersRef.current) m.remove();
+    pulseMarkersRef.current = [];
+
+    if (mode === "departs") {
+      const freshFilter: maplibregl.FilterSpecification = [
+        "<=",
+        ["get", "firstAgeMin"],
+        DEPART_WATCH_MIN,
+      ];
+      map.setFilter("events", freshFilter);
+      map.setFilter("events-glow", freshFilter);
+      map.setFilter("signals", ["<=", ["get", "ageMin"], DEPART_WATCH_MIN]);
+
+      for (const ev of events) {
+        if (hoursAgo(ev.firstSeen) * 60 > DEPART_HOT_MIN) continue;
+        const el = document.createElement("div");
+        el.className = "pulse-marker";
+        el.title = "Départ de feu détecté il y a moins de 20 min";
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          setSelected(ev);
+          setSelectedSignal(null);
+          setSocial({ kind: "idle" });
+        });
+        pulseMarkersRef.current.push(
+          new maplibregl.Marker({ element: el }).setLngLat(ev.centroid).addTo(map)
+        );
+      }
+      for (const sig of signals) {
+        if (hoursAgo(sig.lastPost) * 60 > DEPART_HOT_MIN) continue;
+        const el = document.createElement("div");
+        el.className = "pulse-marker pulse-social";
+        el.title = "Signalement citoyen de moins de 20 min";
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          setSelectedSignal(sig);
+          setSelected(null);
+        });
+        pulseMarkersRef.current.push(
+          new maplibregl.Marker({ element: el }).setLngLat([sig.lon, sig.lat]).addTo(map)
+        );
+      }
+    } else {
+      map.setFilter("events", null);
+      map.setFilter("events-glow", ["<", ["get", "lastAgeH"], 6]);
+      map.setFilter("signals", null);
+    }
+  }, [mode, events, signals]);
+
+  // En mode départs, les données se rafraîchissent toutes les 2 min.
+  useEffect(() => {
+    if (mode !== "departs") return;
+    const id = setInterval(() => {
+      if (mapRef.current) loadData(mapRef.current, days);
+    }, 120_000);
+    return () => clearInterval(id);
+  }, [mode, days, loadData]);
+
   const newEvents = events.filter((ev) => hoursAgo(ev.firstSeen) < 24).slice(0, 40);
+
+  // Fil des départs : foyers ET signalements < 1 h, triés du plus frais au moins frais
+  type DepartItem =
+    | { kind: "sat"; ageMin: number; ev: FireEvent }
+    | { kind: "social"; ageMin: number; sig: SocialSignal };
+  const departItems: DepartItem[] =
+    mode === "departs"
+      ? [
+          ...events
+            .map((ev) => ({ kind: "sat" as const, ageMin: hoursAgo(ev.firstSeen) * 60, ev }))
+            .filter((x) => x.ageMin <= DEPART_WATCH_MIN),
+          ...signals
+            .map((sig) => ({
+              kind: "social" as const,
+              ageMin: hoursAgo(sig.lastPost) * 60,
+              sig,
+            }))
+            .filter((x) => x.ageMin <= DEPART_WATCH_MIN),
+        ].sort((a, b) => a.ageMin - b.ageMin)
+      : [];
+  const hotCount = departItems.filter((x) => x.ageMin <= DEPART_HOT_MIN).length;
 
   return (
     <div className="relative h-full w-full">
       <div ref={containerRef} className="h-full w-full" />
+
+      {/* Commutateur de mode */}
+      <div className="absolute left-1/2 top-3 z-10 flex -translate-x-1/2 rounded-full bg-zinc-900/95 p-1 text-sm shadow-lg backdrop-blur">
+        <button
+          onClick={() => setMode("tout")}
+          className={`rounded-full px-3 py-1.5 font-medium ${
+            mode === "tout" ? "bg-zinc-700 text-white" : "text-zinc-400 hover:text-zinc-200"
+          }`}
+        >
+          🌍 Vue globale
+        </button>
+        <button
+          onClick={() => setMode("departs")}
+          className={`rounded-full px-3 py-1.5 font-medium ${
+            mode === "departs" ? "bg-red-600 text-white" : "text-zinc-400 hover:text-zinc-200"
+          }`}
+        >
+          ⚡ Départs de feu
+          {mode !== "departs" && hotCount > 0 ? ` (${hotCount})` : ""}
+        </button>
+      </div>
 
       {/* Barre de contrôle */}
       <div className="absolute left-3 top-3 flex flex-col gap-2 rounded-xl bg-zinc-900/90 p-3 text-sm text-zinc-100 shadow-lg backdrop-blur">
@@ -515,7 +640,78 @@ export default function FireMap() {
         </div>
       </div>
 
+      {/* Fil des départs de feu (< 1 h) */}
+      {mode === "departs" && (
+        <div className="absolute right-3 top-3 flex max-h-[70%] w-80 flex-col rounded-xl bg-zinc-900/95 text-sm text-zinc-100 shadow-lg backdrop-blur">
+          <div className="border-b border-zinc-800 px-3 py-2">
+            <span className="font-semibold">⚡ Départs de feu (&lt; 1 h)</span>
+            <p className="text-xs text-zinc-400">
+              {hotCount > 0 ? (
+                <span className="font-semibold text-red-400">
+                  {hotCount} signal{hotCount > 1 ? "s" : ""} de moins de 20 min
+                </span>
+              ) : (
+                "Aucun signal < 20 min pour l'instant"
+              )}{" "}
+              · rafraîchi toutes les 2 min
+            </p>
+          </div>
+          <div className="overflow-y-auto">
+            {departItems.length === 0 && (
+              <p className="p-3 text-xs text-zinc-500">
+                Aucun départ détecté dans la dernière heure. Les satellites polaires ne
+                passent que quelques fois par jour : la couverture &lt; 1 h vient surtout
+                de GOES (Amériques) et des témoignages Bluesky.
+              </p>
+            )}
+            {departItems.map((item) => {
+              const hot = item.ageMin <= DEPART_HOT_MIN;
+              const key = item.kind === "sat" ? item.ev.id : `s:${item.sig.place}`;
+              return (
+                <button
+                  key={key}
+                  onClick={() =>
+                    item.kind === "sat" ? selectEvent(item.ev) : selectSignal(item.sig)
+                  }
+                  className="block w-full border-b border-zinc-800/60 px-3 py-2 text-left hover:bg-zinc-800"
+                >
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`text-base font-bold ${hot ? "text-red-400" : "text-orange-300"}`}
+                    >
+                      {item.kind === "sat" ? "🛰️" : "💬"} il y a{" "}
+                      {Math.max(1, Math.round(item.ageMin))} min
+                    </span>
+                    {hot && (
+                      <span className="animate-pulse rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold">
+                        URGENT
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-zinc-400">
+                    {item.kind === "sat" ? (
+                      <>
+                        Détection satellite
+                        {item.ev.social?.place ? ` · ${item.ev.social.place}` : ""} ·{" "}
+                        {item.ev.centroid[1].toFixed(2)}, {item.ev.centroid[0].toFixed(2)} ·{" "}
+                        {item.ev.maxFrp} MW
+                      </>
+                    ) : (
+                      <>
+                        Témoignage Bluesky · {item.sig.place} ({item.sig.countryCode.toUpperCase()}) ·{" "}
+                        {item.sig.postCount} post{item.sig.postCount > 1 ? "s" : ""}
+                      </>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Liste des nouveaux foyers */}
+      {mode === "tout" && (
       <div className="absolute right-3 top-3 flex max-h-[70%] w-72 flex-col rounded-xl bg-zinc-900/90 text-sm text-zinc-100 shadow-lg backdrop-blur">
         <button
           onClick={() => setListOpen(!listOpen)}
@@ -570,6 +766,7 @@ export default function FireMap() {
           </div>
         )}
       </div>
+      )}
 
       {/* Panneau signalement citoyen */}
       {selectedSignal && (
