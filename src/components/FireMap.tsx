@@ -423,12 +423,18 @@ export default function FireMap() {
                   {social.result.posts.length !== 1 ? "s" : ""} trouvé
                   {social.result.posts.length !== 1 ? "s" : ""} (48 h)
                 </p>
-                {social.result.posts.length === 0 && (
-                  <p className="text-xs text-zinc-500">
-                    Aucune mention sur Bluesky pour cette zone. Ça ne veut pas dire
-                    qu&apos;il n&apos;y a pas de feu — juste pas de témoin connecté.
-                  </p>
-                )}
+                {social.result.posts.length === 0 &&
+                  (social.result.searchStatuses?.every((s) => s >= 400 || s === 0) ? (
+                    <p className="text-xs text-amber-400">
+                      La recherche Bluesky est momentanément inaccessible depuis nos
+                      serveurs — réessayez plus tard.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-zinc-500">
+                      Aucune mention sur Bluesky pour cette zone. Ça ne veut pas dire
+                      qu&apos;il n&apos;y a pas de feu — juste pas de témoin connecté.
+                    </p>
+                  ))}
                 <ul className="space-y-2">
                   {social.result.posts.map((post) => (
                     <li key={post.url} className="rounded-md bg-zinc-800/80 p-2 text-xs">
