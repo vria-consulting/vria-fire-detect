@@ -14,6 +14,9 @@ export type SocialResult = {
   place: string | null;
   queries: string[];
   posts: SocialPost[];
+  // Statut HTTP de chaque requête Bluesky — pour diagnostiquer un blocage
+  // (200 = OK, 403 = bloqué, 0 = échec réseau).
+  searchStatuses?: number[];
 };
 
 const NOMINATIM_UA = "VigiFire/0.1 (https://vria-fire-detect.vercel.app)";
@@ -93,7 +96,7 @@ type BskyPost = {
   record: { text?: string; createdAt?: string };
 };
 
-async function searchPosts(q: string): Promise<BskyPost[]> {
+async function searchPosts(q: string): Promise<{ posts: BskyPost[]; status: number }> {
   const params = `?q=${encodeURIComponent(q)}&limit=20&sort=latest`;
   // 1. Endpoint public (sans authentification)
   let res = await fetch(PUBLIC_SEARCH + params, {
@@ -101,15 +104,16 @@ async function searchPosts(q: string): Promise<BskyPost[]> {
   });
   // 2. Repli authentifié si le public est bloqué et que des identifiants existent
   if (!res.ok) {
+    const publicStatus = res.status;
     const jwt = await bskyAuth();
-    if (!jwt) return [];
+    if (!jwt) return { posts: [], status: publicStatus };
     res = await fetch(`${AUTH_BASE}/app.bsky.feed.searchPosts${params}`, {
       headers: { Authorization: `Bearer ${jwt}` },
     });
-    if (!res.ok) return [];
+    if (!res.ok) return { posts: [], status: res.status };
   }
   const j = await res.json();
-  return j.posts ?? [];
+  return { posts: j.posts ?? [], status: res.status };
 }
 
 export async function findWitnessPosts(
@@ -135,10 +139,13 @@ export async function findWitnessPosts(
   }
 
   const since = Date.now() - sinceHours * 3_600_000;
-  const results = await Promise.all(queries.map((q) => searchPosts(q).catch(() => [])));
+  const results = await Promise.all(
+    queries.map((q) => searchPosts(q).catch(() => ({ posts: [], status: 0 })))
+  );
+  const searchStatuses = results.map((r) => r.status);
   const seen = new Set<string>();
   const posts: SocialPost[] = [];
-  for (const p of results.flat()) {
+  for (const p of results.flatMap((r) => r.posts)) {
     if (seen.has(p.uri)) continue;
     seen.add(p.uri);
     const createdAt = p.record?.createdAt ?? "";
@@ -153,5 +160,5 @@ export async function findWitnessPosts(
     });
   }
   posts.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-  return { place: places[0], queries, posts: posts.slice(0, 20) };
+  return { place: places[0], queries, posts: posts.slice(0, 20), searchStatuses };
 }
