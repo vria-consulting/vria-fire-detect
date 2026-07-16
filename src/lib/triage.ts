@@ -18,17 +18,19 @@ export type TriageCandidate = {
   places: string[]; // noms des lieux candidats trouvés par le gazetteer
 };
 
-// v3 : bump du chemin = invalidation de tous les verdicts rendus avant
-// l'injection de la date courante et les règles véhicules/faits passés.
-const CACHE_PATH = "triage-cache-v3.json";
+// v4 : bump du chemin = invalidation des verdicts rendus avant le double
+// jugement (vérification des approbations par un modèle plus puissant).
+const CACHE_PATH = "triage-cache-v4.json";
 const RETENTION_MS = 48 * 60 * 60 * 1000;
 const BATCH_SIZE = 25;
 const MAX_NEW_PER_SCAN = 50; // garde-fou de coût et de durée par rafraîchissement
 
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
-// gpt-5.6-luna : le petit modèle OpenAI le plus récent (1 $/6 $ par M tokens).
-// Surchargable via TRIAGE_MODEL (ex. gpt-5.4-mini, gpt-5.4-nano).
+// Double jugement : le petit modèle filtre tout le flux (rejette ~85 %), puis
+// le modèle de vérification contre-examine UNIQUEMENT les posts approuvés —
+// la précision d'un grand modèle pour ~15 % de son coût.
 const MODEL = process.env.TRIAGE_MODEL ?? "gpt-5.6-luna";
+const VERIFY_MODEL = process.env.TRIAGE_VERIFY_MODEL ?? "gpt-5.6-terra";
 
 const SYSTEM = `Tu es le filtre de pertinence de VigiFire, un service d'alerte ultra-précoce des feux de forêt destiné aux secours. Chaque faux positif décrédibilise le service. Tu reçois une liste d'items : texte d'un post de réseau social ou titre d'article de presse, avec des lieux candidats.
 
@@ -47,7 +49,14 @@ Pour chaque item :
 - feu de voiture(s), de poubelle, d'appartement ou d'usine SANS risque explicite de propagation à la végétation ;
 - recherche scientifique, technologie de détection, prévention, marketing, collectes de dons, offres d'emploi ;
 - métaphores (« on fire »), fiction, films, musique, jeux vidéo ;
+- scénarios HYPOTHÉTIQUES ou conditionnels (« si un grand incendie se produisait… », exercices, simulations, plans de prévention) ;
+- revendications politiques ou associatives à propos de feux (demandes de démission, polémiques sur la gestion) sans signalement d'un feu précis en cours ;
 - feu de bâtiment isolé sans enjeu de propagation à la végétation.
+
+Pièges de lieu à déjouer :
+- un NOM DE PERSONNE qui ressemble à une ville (« Juanma Moreno » n'est pas Moreno en Argentine) ;
+- un ADJECTIF homonyme d'une ville (« vasto incendio » = « vaste incendie » en italien, pas la ville de Vasto — vérifie que le mot est bien utilisé comme lieu dans la phrase) ;
+- un aéroport, un stade ou un bâtiment homonyme d'une ville d'un autre pays.
 
 "place" = l'indice (base 0) du candidat qui est le lieu où le feu BRÛLE — pas là où la fumée dérive, pas là où l'on en parle, pas un nom de média ni un siège d'organisation. Les candidats portent leur code pays : rejette les homonymes incohérents avec le texte (feu en Colombie-Britannique + candidat « Boston (US) » = null).
 
@@ -76,7 +85,8 @@ const OUTPUT_SCHEMA = {
 
 async function judgeBatch(
   apiKey: string,
-  batch: TriageCandidate[]
+  batch: TriageCandidate[],
+  model: string
 ): Promise<Map<string, TriageVerdict>> {
   const out = new Map<string, TriageVerdict>();
   const payload = batch.map((c, i) => ({
@@ -91,7 +101,7 @@ async function judgeBatch(
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      model: MODEL,
+      model,
       max_completion_tokens: 4096,
       messages: [
         { role: "system", content: SYSTEM },
@@ -159,7 +169,22 @@ export async function triageCandidates(
   for (let i = 0; i < fresh.length; i += BATCH_SIZE) {
     const batch = fresh.slice(i, i + BATCH_SIZE);
     try {
-      const judged = await judgeBatch(apiKey, batch);
+      const judged = await judgeBatch(apiKey, batch, MODEL);
+
+      // Double jugement : les posts APPROUVÉS par le petit modèle sont
+      // contre-vérifiés par le modèle puissant — son verdict est final.
+      const approved = batch.filter((c) => judged.get(c.url)?.fire);
+      if (approved.length > 0 && VERIFY_MODEL !== MODEL) {
+        try {
+          const verified = await judgeBatch(apiKey, approved, VERIFY_MODEL);
+          for (const c of approved) {
+            judged.set(c.url, verified.get(c.url) ?? { fire: false, place: null });
+          }
+        } catch (e) {
+          console.error("triage verify failed (verdicts luna conservés):", e);
+        }
+      }
+
       const now = Date.now();
       for (const [url, v] of judged) {
         verdicts.set(url, v);
