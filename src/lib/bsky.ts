@@ -50,9 +50,12 @@ export function postUrl(p: BskyPost): string {
 
 export async function searchPosts(
   q: string,
-  limit = 20
+  limit = 20,
+  opts?: { until?: string; since?: string }
 ): Promise<{ posts: BskyPost[]; status: number }> {
-  const params = `?q=${encodeURIComponent(q)}&limit=${limit}&sort=latest`;
+  let params = `?q=${encodeURIComponent(q)}&limit=${limit}&sort=latest`;
+  if (opts?.until) params += `&until=${encodeURIComponent(opts.until)}`;
+  if (opts?.since) params += `&since=${encodeURIComponent(opts.since)}`;
   // 1. Endpoint public (sans authentification)
   let res = await fetch(PUBLIC_SEARCH + params, { headers: { "User-Agent": UA } });
   // 2. Repli authentifié

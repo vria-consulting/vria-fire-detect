@@ -6,6 +6,7 @@
 
 import cities from "@/data/cities.json";
 import { searchPosts, postUrl } from "./bsky";
+import { TERMS_BY_LANG, LANG_BY_COUNTRY } from "./social";
 import type { SocialPost } from "./social";
 
 // [lat, lon, countryCode, displayName]
@@ -40,7 +41,35 @@ export type SocialSignal = {
   firstPost: string; // ISO — plus ancien post de la fenêtre pour ce lieu
   lastPost: string;
   posts: SocialPost[];
+  // true = les toutes premières mentions de ce lieu datent de moins d'1 h
+  // (vérifié contre l'historique Bluesky) -> candidat "départ de feu".
+  // Un feu qui dure fait encore parler de lui : lastPost récent mais newFire=false.
+  newFire?: boolean;
 };
+
+// Vérifie s'il existait déjà des mentions feu+lieu AVANT la date de coupure.
+// C'est la parade au biais d'échantillonnage : un gros feu en cours génère
+// tellement de posts récents que la fenêtre de scan ne voit plus les anciens.
+export async function hasMentionsBefore(
+  place: string,
+  countryCode: string,
+  untilIso: string
+): Promise<boolean> {
+  const lang = LANG_BY_COUNTRY[countryCode.toLowerCase()];
+  const terms = [
+    ...(lang ? TERMS_BY_LANG[lang].slice(0, 1) : []),
+    TERMS_BY_LANG.en[0], // "fire"
+  ];
+  for (const term of terms) {
+    try {
+      const { posts } = await searchPosts(`"${place}" ${term}`, 5, { until: untilIso });
+      if (posts.length > 0) return true;
+    } catch {
+      // en cas d'échec réseau, on ne conclut pas
+    }
+  }
+  return false;
+}
 
 function normalize(s: string): string {
   return s
@@ -77,7 +106,7 @@ export async function scanSocial(sinceHours = 12): Promise<{
   statuses: number[];
 }> {
   const results = await Promise.all(
-    SCAN_QUERIES.map((q) => searchPosts(q, 30).catch(() => ({ posts: [], status: 0 })))
+    SCAN_QUERIES.map((q) => searchPosts(q, 50).catch(() => ({ posts: [], status: 0 })))
   );
   const statuses = results.map((r) => r.status);
   const since = Date.now() - sinceHours * 3_600_000;

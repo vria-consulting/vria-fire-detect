@@ -23,7 +23,7 @@ export type SocialResult = {
 
 const NOMINATIM_UA = "VigiFire/0.1 (https://vria-fire-detect.vercel.app)";
 
-const TERMS_BY_LANG: Record<string, string[]> = {
+export const TERMS_BY_LANG: Record<string, string[]> = {
   fr: ["incendie", "feu", "fumée"],
   es: ["incendio", "fuego", "humo"],
   pt: ["incêndio", "fogo", "fumaça"],
@@ -34,7 +34,7 @@ const TERMS_BY_LANG: Record<string, string[]> = {
   en: ["fire", "wildfire", "smoke"],
 };
 
-const LANG_BY_COUNTRY: Record<string, string> = {
+export const LANG_BY_COUNTRY: Record<string, string> = {
   fr: "fr", be: "fr", mc: "fr", lu: "fr", ma: "fr", dz: "fr", tn: "fr",
   es: "es", mx: "es", ar: "es", cl: "es", co: "es", pe: "es", bo: "es", ve: "es", ec: "es", uy: "es", py: "es", gt: "es", hn: "es", ni: "es", cr: "es", pa: "es", do: "es", cu: "es",
   pt: "pt", br: "pt", ao: "pt", mz: "pt",

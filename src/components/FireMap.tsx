@@ -185,6 +185,8 @@ export default function FireMap() {
               idx: i,
               postCount: s.postCount,
               ageMin: Math.round(hoursAgo(s.lastPost) * 60),
+              firstAgeMin: Math.round(hoursAgo(s.firstPost) * 60),
+              newFire: s.newFire ? 1 : 0,
             },
           })),
         });
@@ -449,7 +451,13 @@ export default function FireMap() {
       ];
       map.setFilter("events", freshFilter);
       map.setFilter("events-glow", freshFilter);
-      map.setFilter("signals", ["<=", ["get", "ageMin"], DEPART_WATCH_MIN]);
+      // Un signalement n'est un "départ" que si ses PREMIÈRES mentions sont
+      // récentes (newFire) — un feu qui dure fait encore parler de lui.
+      map.setFilter("signals", [
+        "all",
+        ["==", ["get", "newFire"], 1],
+        ["<=", ["get", "firstAgeMin"], DEPART_WATCH_MIN],
+      ]);
 
       for (const ev of events) {
         if (hoursAgo(ev.firstSeen) * 60 > DEPART_HOT_MIN) continue;
@@ -467,7 +475,7 @@ export default function FireMap() {
         );
       }
       for (const sig of signals) {
-        if (hoursAgo(sig.lastPost) * 60 > DEPART_HOT_MIN) continue;
+        if (!sig.newFire || hoursAgo(sig.firstPost) * 60 > DEPART_HOT_MIN) continue;
         const el = document.createElement("div");
         el.className = "pulse-marker pulse-social";
         el.title = "Signalement citoyen de moins de 20 min";
@@ -509,9 +517,10 @@ export default function FireMap() {
             .map((ev) => ({ kind: "sat" as const, ageMin: hoursAgo(ev.firstSeen) * 60, ev }))
             .filter((x) => x.ageMin <= DEPART_WATCH_MIN),
           ...signals
+            .filter((sig) => sig.newFire)
             .map((sig) => ({
               kind: "social" as const,
-              ageMin: hoursAgo(sig.lastPost) * 60,
+              ageMin: hoursAgo(sig.firstPost) * 60,
               sig,
             }))
             .filter((x) => x.ageMin <= DEPART_WATCH_MIN),
@@ -679,7 +688,7 @@ export default function FireMap() {
                     <span
                       className={`text-base font-bold ${hot ? "text-red-400" : "text-orange-300"}`}
                     >
-                      {item.kind === "sat" ? "🛰️" : "💬"} il y a{" "}
+                      {item.kind === "sat" ? "🛰️ 1er signal" : "💬 1ère mention"} il y a{" "}
                       {Math.max(1, Math.round(item.ageMin))} min
                     </span>
                     {hot && (
@@ -783,9 +792,15 @@ export default function FireMap() {
               ✕
             </button>
           </div>
+          {selectedSignal.newFire && (
+            <span className="mb-2 inline-block animate-pulse rounded bg-red-600 px-2 py-0.5 text-xs font-bold">
+              NOUVEAU FEU — 1ère mention {formatAge(hoursAgo(selectedSignal.firstPost))}
+            </span>
+          )}
           <p className="mb-2 text-xs text-zinc-400">
             {selectedSignal.postCount} post{selectedSignal.postCount > 1 ? "s" : ""} Bluesky
-            (12 h) mentionnant un feu près de {selectedSignal.place} — dernier{" "}
+            (12 h) mentionnant un feu près de {selectedSignal.place} — 1ère mention{" "}
+            {formatAge(hoursAgo(selectedSignal.firstPost))}, dernière{" "}
             {formatAge(hoursAgo(selectedSignal.lastPost))}. Position = centre de la
             commune citée, pas du feu.
           </p>
