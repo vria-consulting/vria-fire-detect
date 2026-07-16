@@ -14,25 +14,42 @@ from datetime import datetime, timedelta, timezone
 
 from telethon import TelegramClient, errors
 from telethon.sessions import StringSession
-from telethon.tl.functions.messages import SearchGlobalRequest
-from telethon.tl.types import InputMessagesFilterEmpty, InputPeerEmpty
 
 INGEST_URL = "https://vria-fire-detect.vercel.app/api/ingest/telegram"
 
-# Expressions fortes uniquement (mêmes langues que la veille Bluesky/GDELT).
-TERMS = [
-    "feu de forêt",
-    "incendie",
-    "wildfire",
-    "forest fire",
-    "incendio forestal",
-    "incêndio florestal",
-    "Waldbrand",
-    "orman yangını",
-    "πυρκαγιά",
+# La recherche globale MTProto est bridée sur ce compte (résultats vides) :
+# on lit une liste de canaux publics vérifiés — protections civiles, pompiers,
+# canaux dédiés aux feux — et on filtre les messages par mots-clés.
+CHANNELS = [
+    "incendios_forestales",     # 🇪🇸 canal dédié feux de forêt
+    "IncendiosForestalesEU",    # 🇪🇸 information incendies forestiers
+    "EmergenciasSevilla",       # 🇪🇸 urgences Séville
+    "BomberosdeChileOficial",   # 🇨🇱 pompiers du Chili
+    "ProtCivileFVG",            # 🇮🇹 protection civile Frioul
+    "procivcal",                # 🇮🇹 protection civile Calabre
+    "protezionecivileempoli",   # 🇮🇹 protection civile Empoli
+    "dsns_telegram",            # 🇺🇦 service d'État des situations d'urgence
+    "mchs_official",            # 🇷🇺 ministère des situations d'urgence
+]
+
+# Filtre thématique (les canaux généralistes parlent aussi d'autres urgences).
+KEYWORDS = [
+    "incendi", "fuego", "forestal",             # es / it (incendio, incendios…)
+    "feu", "incendie",                          # fr
+    "fire", "wildfire",                         # en
+    "yangın",                                   # tr
+    "φωτιά", "πυρκαγιά",                        # el
+    "пожеж", "пожар", "лісов", "лесн",          # uk / ru
+    "queimada", "incêndio",                     # pt
+    "waldbrand",                                # de
 ]
 
 WINDOW = timedelta(hours=2)
+
+
+def matches(text: str) -> bool:
+    low = text.lower()
+    return any(k in low for k in KEYWORDS)
 
 
 async def scan() -> list[dict]:
@@ -47,55 +64,34 @@ async def scan() -> list[dict]:
 
     cutoff = datetime.now(timezone.utc) - WINDOW
     posts: list[dict] = []
-    seen: set[str] = set()
 
-    for term in TERMS:
+    for username in CHANNELS:
         try:
-            res = await client(
-                SearchGlobalRequest(
-                    q=term,
-                    filter=InputMessagesFilterEmpty(),
-                    # Filtre serveur : sans min_date, Telegram renvoie les posts
-                    # les plus « pertinents » (souvent vieux) et rien de récent.
-                    min_date=cutoff,
-                    max_date=None,
-                    offset_rate=0,
-                    offset_peer=InputPeerEmpty(),
-                    offset_id=0,
-                    limit=50,
+            entity = await client.get_entity(username)
+            async for msg in client.iter_messages(entity, limit=30):
+                text = getattr(msg, "message", None)
+                date = getattr(msg, "date", None)
+                if not date or date < cutoff:
+                    break  # messages triés du plus récent au plus ancien
+                if not text or not matches(text):
+                    continue
+                posts.append(
+                    {
+                        "text": text[:600],
+                        "url": f"https://t.me/{username}/{msg.id}",
+                        "channel": getattr(entity, "title", username) or username,
+                        "handle": username,
+                        "createdAt": date.astimezone(timezone.utc)
+                        .isoformat()
+                        .replace("+00:00", "Z"),
+                    }
                 )
-            )
         except errors.FloodWaitError as e:
-            print(f"FloodWait {e.seconds}s sur « {term} » — on saute le terme")
+            print(f"FloodWait {e.seconds}s sur @{username} — canal sauté")
             await asyncio.sleep(min(e.seconds, 30))
-            continue
-
-        chats = {c.id: c for c in getattr(res, "chats", [])}
-        for msg in getattr(res, "messages", []):
-            text = getattr(msg, "message", None)
-            date = getattr(msg, "date", None)
-            peer = getattr(msg, "peer_id", None)
-            if not text or not date or date < cutoff:
-                continue
-            channel_id = getattr(peer, "channel_id", None)
-            chat = chats.get(channel_id) if channel_id else None
-            username = getattr(chat, "username", None) if chat else None
-            if not username:
-                continue  # sans username public, pas d'URL consultable
-            url = f"https://t.me/{username}/{msg.id}"
-            if url in seen:
-                continue
-            seen.add(url)
-            posts.append(
-                {
-                    "text": text[:600],
-                    "url": url,
-                    "channel": getattr(chat, "title", username) or username,
-                    "handle": username,
-                    "createdAt": date.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
-                }
-            )
-        await asyncio.sleep(2)  # politesse rate-limit entre les termes
+        except Exception as e:
+            print(f"@{username} inaccessible : {type(e).__name__}")
+        await asyncio.sleep(1)  # politesse rate-limit entre canaux
 
     await client.disconnect()
     return posts
