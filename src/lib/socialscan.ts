@@ -1,0 +1,153 @@
+// Veille sociale proactive : recherche Bluesky des posts très récents
+// mentionnant un feu de forêt (8 langues), géolocalisés par nom de lieu via
+// un gazetteer GeoNames embarqué (villes de 5000+ habitants, licence CC-BY).
+// Objectif précocité : un témoignage peut précéder de plusieurs heures le
+// prochain passage satellite.
+
+import cities from "@/data/cities.json";
+import { searchPosts, postUrl } from "./bsky";
+import type { SocialPost } from "./social";
+
+// [lat, lon, countryCode, displayName]
+const GAZETTEER = cities as unknown as Record<string, [number, number, string, string]>;
+
+// Expressions fortes uniquement (pas "fire"/"feu" seuls : trop de métaphores).
+const SCAN_QUERIES = [
+  '"wildfire"',
+  '"forest fire"',
+  '"brush fire"',
+  '"bushfire"',
+  '"grass fire"',
+  '"feu de forêt"',
+  '"départ de feu"',
+  '"incendie"',
+  '"incendio forestal"',
+  '"incendio"',
+  '"incêndio florestal"',
+  '"queimada"',
+  '"Waldbrand"',
+  '"incendio boschivo"',
+  '"πυρκαγιά"',
+  '"orman yangını"',
+];
+
+export type SocialSignal = {
+  place: string;
+  countryCode: string;
+  lat: number;
+  lon: number;
+  postCount: number;
+  firstPost: string; // ISO — plus ancien post de la fenêtre pour ce lieu
+  lastPost: string;
+  posts: SocialPost[];
+};
+
+function normalize(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+// Extrait les lieux mentionnés : n-grammes (1 à 3 mots) commençant par une
+// majuscule dans le texte original, cherchés dans le gazetteer.
+function extractPlaces(text: string): { key: string; entry: [number, number, string, string] }[] {
+  const tokens = text.split(/[^\p{L}''-]+/u).filter(Boolean);
+  const found = new Map<string, [number, number, string, string]>();
+  for (let i = 0; i < tokens.length; i++) {
+    // Un nom de lieu commence par une majuscule.
+    if (!/\p{Lu}/u.test(tokens[i][0])) continue;
+    for (let n = 3; n >= 1; n--) {
+      if (i + n > tokens.length) break;
+      const gram = tokens.slice(i, i + n).join(" ");
+      const key = normalize(gram);
+      const entry = GAZETTEER[key];
+      if (entry) {
+        found.set(key, entry);
+        break; // le n-gramme le plus long gagne
+      }
+    }
+  }
+  return [...found.entries()].map(([key, entry]) => ({ key, entry }));
+}
+
+export async function scanSocial(sinceHours = 12): Promise<{
+  signals: SocialSignal[];
+  scannedPosts: number;
+  statuses: number[];
+}> {
+  const results = await Promise.all(
+    SCAN_QUERIES.map((q) => searchPosts(q, 30).catch(() => ({ posts: [], status: 0 })))
+  );
+  const statuses = results.map((r) => r.status);
+  const since = Date.now() - sinceHours * 3_600_000;
+
+  const byPlace = new Map<string, SocialSignal>();
+  const seen = new Set<string>();
+  let scannedPosts = 0;
+
+  for (const p of results.flatMap((r) => r.posts)) {
+    if (seen.has(p.uri)) continue;
+    seen.add(p.uri);
+    scannedPosts++;
+    const createdAt = p.record?.createdAt ?? "";
+    if (!createdAt || new Date(createdAt).getTime() < since) continue;
+    const text = p.record?.text ?? "";
+    const places = extractPlaces(text);
+    if (places.length === 0 || places.length > 3) continue; // 4+ lieux = revue de presse
+
+    const post: SocialPost = {
+      text,
+      author: p.author.displayName || p.author.handle,
+      handle: p.author.handle,
+      createdAt,
+      url: postUrl(p),
+    };
+    for (const { key, entry } of places) {
+      const sig = byPlace.get(key);
+      if (sig) {
+        sig.postCount++;
+        sig.posts.push(post);
+        if (createdAt < sig.firstPost) sig.firstPost = createdAt;
+        if (createdAt > sig.lastPost) sig.lastPost = createdAt;
+      } else {
+        byPlace.set(key, {
+          place: entry[3],
+          countryCode: entry[2],
+          lat: entry[0],
+          lon: entry[1],
+          postCount: 1,
+          firstPost: createdAt,
+          lastPost: createdAt,
+          posts: [post],
+        });
+      }
+    }
+  }
+
+  const signals = [...byPlace.values()].map((s) => ({
+    ...s,
+    posts: s.posts
+      .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+      .slice(0, 5),
+  }));
+  signals.sort((a, b) => (a.lastPost < b.lastPost ? 1 : -1));
+  return { signals, scannedPosts, statuses };
+}
+
+export function haversineKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}

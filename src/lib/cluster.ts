@@ -4,6 +4,11 @@
 // à chaque rafraîchissement du cache, aucun stockage requis.
 
 import type { FireFeature } from "./firms";
+import type { SocialPost } from "./social";
+
+// possible = signal satellite isolé ; probable = signaux satellites multiples
+// ou confiance haute ; corroboré = satellite + témoignages humains proches.
+export type Confidence = "possible" | "probable" | "corrobore";
 
 export type FireEvent = {
   id: string;
@@ -16,6 +21,8 @@ export type FireEvent = {
   lastSeen: string;
   maxFrp: number;
   maxConf: "l" | "n" | "h";
+  confidence?: Confidence;
+  social?: { place: string; postCount: number; posts: SocialPost[] };
 };
 
 // ~4,4 km à l'équateur : assez large pour absorber l'imprécision GOES (2 km),

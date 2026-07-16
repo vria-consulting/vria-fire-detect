@@ -2,6 +2,8 @@
 // (Nominatim/OSM) puis recherche de témoignages sur Bluesky autour des noms
 // de lieux, dans la langue locale + anglais. Coût : zéro (APIs publiques).
 
+import { searchPosts, postUrl } from "./bsky";
+
 export type SocialPost = {
   text: string;
   author: string;
@@ -64,58 +66,6 @@ async function reverseGeocode(lat: number, lon: number): Promise<Geo> {
   return geo;
 }
 
-// --- Bluesky ---
-
-const PUBLIC_SEARCH = "https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts";
-const AUTH_BASE = "https://bsky.social/xrpc";
-
-let session: { jwt: string; at: number } | null = null;
-
-async function bskyAuth(): Promise<string | null> {
-  const id = process.env.BSKY_IDENTIFIER;
-  const pw = process.env.BSKY_APP_PASSWORD;
-  if (!id || !pw) return null;
-  if (session && Date.now() - session.at < 45 * 60 * 1000) return session.jwt;
-  const res = await fetch(`${AUTH_BASE}/com.atproto.server.createSession`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ identifier: id, password: pw }),
-  });
-  if (!res.ok) {
-    console.error("bsky auth failed", res.status);
-    return null;
-  }
-  const j = await res.json();
-  session = { jwt: j.accessJwt, at: Date.now() };
-  return session.jwt;
-}
-
-type BskyPost = {
-  uri: string;
-  author: { handle: string; displayName?: string };
-  record: { text?: string; createdAt?: string };
-};
-
-async function searchPosts(q: string): Promise<{ posts: BskyPost[]; status: number }> {
-  const params = `?q=${encodeURIComponent(q)}&limit=20&sort=latest`;
-  // 1. Endpoint public (sans authentification)
-  let res = await fetch(PUBLIC_SEARCH + params, {
-    headers: { "User-Agent": NOMINATIM_UA },
-  });
-  // 2. Repli authentifié si le public est bloqué et que des identifiants existent
-  if (!res.ok) {
-    const publicStatus = res.status;
-    const jwt = await bskyAuth();
-    if (!jwt) return { posts: [], status: publicStatus };
-    res = await fetch(`${AUTH_BASE}/app.bsky.feed.searchPosts${params}`, {
-      headers: { Authorization: `Bearer ${jwt}` },
-    });
-    if (!res.ok) return { posts: [], status: res.status };
-  }
-  const j = await res.json();
-  return { posts: j.posts ?? [], status: res.status };
-}
-
 export async function findWitnessPosts(
   lat: number,
   lon: number,
@@ -150,13 +100,12 @@ export async function findWitnessPosts(
     seen.add(p.uri);
     const createdAt = p.record?.createdAt ?? "";
     if (!createdAt || new Date(createdAt).getTime() < since) continue;
-    const rkey = p.uri.split("/").pop();
     posts.push({
       text: p.record?.text ?? "",
       author: p.author.displayName || p.author.handle,
       handle: p.author.handle,
       createdAt,
-      url: `https://bsky.app/profile/${p.author.handle}/post/${rkey}`,
+      url: postUrl(p),
     });
   }
   posts.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));

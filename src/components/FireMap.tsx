@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import type { FireEvent } from "@/lib/cluster";
-import type { SocialResult } from "@/lib/social";
+import type { FireEvent, Confidence } from "@/lib/cluster";
+import type { SocialResult, SocialPost } from "@/lib/social";
+import type { SocialSignal } from "@/lib/socialscan";
 
 const REGIONS: Record<string, { center: [number, number]; zoom: number }> = {
   France: { center: [2.5, 46.6], zoom: 5.2 },
@@ -28,7 +29,7 @@ const MAP_STYLE: maplibregl.StyleSpecification = {
       ],
       tileSize: 256,
       attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a> | Données feux : <a href="https://firms.modaps.eosdis.nasa.gov/">NASA FIRMS</a>',
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a> | Feux : <a href="https://firms.modaps.eosdis.nasa.gov/">NASA FIRMS</a> | Lieux : <a href="https://www.geonames.org/">GeoNames</a>',
     },
   },
   layers: [{ id: "carto", type: "raster", source: "carto" }],
@@ -46,9 +47,15 @@ function formatAge(h: number): string {
 
 const NEW_EVENT_HOURS = 12; // un foyer est "nouveau" si son 1er signal a < 12 h
 
+const CONF_LABEL: Record<Confidence, { text: string; cls: string }> = {
+  possible: { text: "possible", cls: "bg-zinc-700 text-zinc-300" },
+  probable: { text: "probable", cls: "bg-amber-700 text-amber-100" },
+  corrobore: { text: "corroboré", cls: "bg-emerald-700 text-emerald-100" },
+};
+
 type Status =
   | { kind: "loading" }
-  | { kind: "ready"; events: number; detections: number }
+  | { kind: "ready"; events: number; detections: number; signals: number }
   | { kind: "error"; code: string };
 
 type SocialState =
@@ -57,46 +64,96 @@ type SocialState =
   | { kind: "done"; result: SocialResult }
   | { kind: "error" };
 
+function PostList({ posts }: { posts: SocialPost[] }) {
+  return (
+    <ul className="space-y-2">
+      {posts.map((post) => (
+        <li key={post.url} className="rounded-md bg-zinc-800/80 p-2 text-xs">
+          <a
+            href={post.url}
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium text-sky-400 hover:underline"
+          >
+            @{post.handle}
+          </a>{" "}
+          <span className="text-zinc-500">· {formatAge(hoursAgo(post.createdAt))}</span>
+          <p className="mt-1 whitespace-pre-wrap text-zinc-300">{post.text}</p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function FireMap() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const eventsRef = useRef<FireEvent[]>([]);
+  const signalsRef = useRef<SocialSignal[]>([]);
   const [days, setDays] = useState(1);
   const [status, setStatus] = useState<Status>({ kind: "loading" });
   const [events, setEvents] = useState<FireEvent[]>([]);
   const [selected, setSelected] = useState<FireEvent | null>(null);
+  const [selectedSignal, setSelectedSignal] = useState<SocialSignal | null>(null);
   const [social, setSocial] = useState<SocialState>({ kind: "idle" });
   const [listOpen, setListOpen] = useState(true);
 
-  const loadEvents = useCallback(async (map: maplibregl.Map, nDays: number) => {
+  const loadData = useCallback(async (map: maplibregl.Map, nDays: number) => {
     setStatus({ kind: "loading" });
     try {
-      const res = await fetch(`/api/events?days=${nDays}`);
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({ error: "UNKNOWN" }));
-        setStatus({ kind: "error", code: body.error ?? `HTTP_${res.status}` });
+      const [evRes, sigRes] = await Promise.all([
+        fetch(`/api/events?days=${nDays}`),
+        fetch(`/api/signals`).catch(() => null),
+      ]);
+      if (!evRes.ok) {
+        const body = await evRes.json().catch(() => ({ error: "UNKNOWN" }));
+        setStatus({ kind: "error", code: body.error ?? `HTTP_${evRes.status}` });
         return;
       }
       const data: { events: FireEvent[]; meta: { totalDetections: number } } =
-        await res.json();
+        await evRes.json();
       eventsRef.current = data.events;
       setEvents(data.events);
-      const features = data.events.map((ev) => ({
-        type: "Feature" as const,
-        geometry: { type: "Point" as const, coordinates: ev.centroid },
-        properties: {
-          id: ev.id,
-          count: ev.count,
-          lastAgeH: hoursAgo(ev.lastSeen),
-          isNew: hoursAgo(ev.firstSeen) < NEW_EVENT_HOURS ? 1 : 0,
-        },
-      }));
-      const src = map.getSource("events") as maplibregl.GeoJSONSource | undefined;
-      if (src) src.setData({ type: "FeatureCollection", features });
+
+      let signals: SocialSignal[] = [];
+      if (sigRes?.ok) {
+        const sigData: { signals: SocialSignal[] } = await sigRes.json();
+        signals = sigData.signals;
+      }
+      signalsRef.current = signals;
+
+      const evSrc = map.getSource("events") as maplibregl.GeoJSONSource | undefined;
+      if (evSrc)
+        evSrc.setData({
+          type: "FeatureCollection",
+          features: data.events.map((ev) => ({
+            type: "Feature" as const,
+            geometry: { type: "Point" as const, coordinates: ev.centroid },
+            properties: {
+              id: ev.id,
+              count: ev.count,
+              lastAgeH: hoursAgo(ev.lastSeen),
+              isNew: hoursAgo(ev.firstSeen) < NEW_EVENT_HOURS ? 1 : 0,
+              corroborated: ev.confidence === "corrobore" ? 1 : 0,
+            },
+          })),
+        });
+      const sigSrc = map.getSource("signals") as maplibregl.GeoJSONSource | undefined;
+      if (sigSrc)
+        sigSrc.setData({
+          type: "FeatureCollection",
+          features: signals.map((s, i) => ({
+            type: "Feature" as const,
+            geometry: { type: "Point" as const, coordinates: [s.lon, s.lat] },
+            properties: { idx: i, postCount: s.postCount },
+          })),
+        });
+
       setStatus({
         kind: "ready",
         events: data.events.length,
         detections: data.meta.totalDetections,
+        signals: signals.length,
       });
     } catch {
       setStatus({ kind: "error", code: "NETWORK" });
@@ -121,6 +178,10 @@ export default function FireMap() {
     map.on("load", () => {
       requestAnimationFrame(() => map.resize());
       map.addSource("events", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+      map.addSource("signals", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       });
@@ -161,32 +222,66 @@ export default function FireMap() {
             24, "#8a6d3b",
           ],
           "circle-opacity": 0.85,
-          // Liseré blanc = foyer apparu il y a moins de 12 h (la précocité, notre produit)
-          "circle-stroke-width": ["case", ["==", ["get", "isNew"], 1], 1.8, 0.4],
+          // Liseré : blanc = nouveau (< 12 h), vert = corroboré par témoignages
+          "circle-stroke-width": [
+            "case",
+            ["==", ["get", "corroborated"], 1], 2,
+            ["==", ["get", "isNew"], 1], 1.8,
+            0.4,
+          ],
           "circle-stroke-color": [
             "case",
-            ["==", ["get", "isNew"], 1],
-            "#ffffff",
+            ["==", ["get", "corroborated"], 1], "#34d399",
+            ["==", ["get", "isNew"], 1], "#ffffff",
             "rgba(255,255,255,0.25)",
           ],
         },
       });
+      // Signalements citoyens (veille Bluesky) — losanges bleus
+      map.addLayer({
+        id: "signals",
+        type: "circle",
+        source: "signals",
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 4, 9, 9],
+          "circle-color": "#0ea5e9",
+          "circle-opacity": 0.9,
+          "circle-stroke-width": 1.2,
+          "circle-stroke-color": "#e0f2fe",
+        },
+      });
+
       map.on("click", "events", (e) => {
         const f = e.features?.[0];
         if (!f) return;
         const ev = eventsRef.current.find((x) => x.id === f.properties.id);
         if (ev) {
           setSelected(ev);
+          setSelectedSignal(null);
           setSocial({ kind: "idle" });
         }
       });
-      map.on("click", (e) => {
-        const hits = map.queryRenderedFeatures(e.point, { layers: ["events"] });
-        if (hits.length === 0) setSelected(null);
+      map.on("click", "signals", (e) => {
+        const f = e.features?.[0];
+        if (!f) return;
+        const sig = signalsRef.current[f.properties.idx];
+        if (sig) {
+          setSelectedSignal(sig);
+          setSelected(null);
+        }
       });
-      map.on("mouseenter", "events", () => (map.getCanvas().style.cursor = "pointer"));
-      map.on("mouseleave", "events", () => (map.getCanvas().style.cursor = ""));
-      loadEvents(map, 1);
+      map.on("click", (e) => {
+        const hits = map.queryRenderedFeatures(e.point, { layers: ["events", "signals"] });
+        if (hits.length === 0) {
+          setSelected(null);
+          setSelectedSignal(null);
+        }
+      });
+      for (const layer of ["events", "signals"]) {
+        map.on("mouseenter", layer, () => (map.getCanvas().style.cursor = "pointer"));
+        map.on("mouseleave", layer, () => (map.getCanvas().style.cursor = ""));
+      }
+      loadData(map, 1);
     });
 
     return () => {
@@ -194,11 +289,11 @@ export default function FireMap() {
       map.remove();
       mapRef.current = null;
     };
-  }, [loadEvents]);
+  }, [loadData]);
 
   const changeDays = (n: number) => {
     setDays(n);
-    if (mapRef.current) loadEvents(mapRef.current, n);
+    if (mapRef.current) loadData(mapRef.current, n);
   };
 
   const jumpTo = (name: string) => {
@@ -208,6 +303,7 @@ export default function FireMap() {
 
   const selectEvent = (ev: FireEvent) => {
     setSelected(ev);
+    setSelectedSignal(null);
     setSocial({ kind: "idle" });
     mapRef.current?.flyTo({ center: ev.centroid, zoom: 8.5 });
   };
@@ -264,6 +360,10 @@ export default function FireMap() {
             nouveau foyer (&lt; 12 h)
           </div>
           <div className="flex items-center gap-2">
+            <span className="inline-block h-2.5 w-2.5 rounded-full border-2 border-emerald-400 bg-[#ff2d00]" />
+            corroboré par témoignages
+          </div>
+          <div className="flex items-center gap-2">
             <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#ff2d00]" /> actif &lt; 3 h
           </div>
           <div className="flex items-center gap-2">
@@ -274,6 +374,10 @@ export default function FireMap() {
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#8a6d3b]" /> plus de 24 h
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-2.5 w-2.5 rounded-full border border-sky-200 bg-sky-500" />
+            signalement citoyen (Bluesky)
           </div>
         </div>
         <div className="border-t border-zinc-700 pt-2 text-xs text-zinc-400">
@@ -287,7 +391,9 @@ export default function FireMap() {
               <span className="font-semibold text-zinc-200">
                 {status.detections.toLocaleString("fr-FR")}
               </span>{" "}
-              détections (VIIRS + GOES)
+              détections ·{" "}
+              <span className="font-semibold text-sky-300">{status.signals}</span>{" "}
+              signalements
             </>
           )}
           {status.kind === "error" && (
@@ -330,21 +436,61 @@ export default function FireMap() {
                   <span className="font-medium text-orange-400">
                     1er signal {formatAge(hoursAgo(ev.firstSeen))}
                   </span>
-                  {hoursAgo(ev.firstSeen) < NEW_EVENT_HOURS && (
-                    <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold">
-                      NOUVEAU
-                    </span>
-                  )}
+                  <span className="flex gap-1">
+                    {ev.confidence && (
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${CONF_LABEL[ev.confidence].cls}`}
+                      >
+                        {CONF_LABEL[ev.confidence].text}
+                      </span>
+                    )}
+                    {hoursAgo(ev.firstSeen) < NEW_EVENT_HOURS && (
+                      <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold">
+                        NOUVEAU
+                      </span>
+                    )}
+                  </span>
                 </div>
                 <div className="text-xs text-zinc-400">
-                  {ev.centroid[1].toFixed(2)}, {ev.centroid[0].toFixed(2)} · {ev.count} détection
-                  {ev.count > 1 ? "s" : ""} · {ev.maxFrp} MW max
+                  {ev.social?.place ? `${ev.social.place} · ` : ""}
+                  {ev.centroid[1].toFixed(2)}, {ev.centroid[0].toFixed(2)} · {ev.count}{" "}
+                  détection{ev.count > 1 ? "s" : ""} · {ev.maxFrp} MW max
                 </div>
               </button>
             ))}
           </div>
         )}
       </div>
+
+      {/* Panneau signalement citoyen */}
+      {selectedSignal && (
+        <div className="absolute bottom-8 left-3 max-h-[60%] w-80 overflow-y-auto rounded-xl bg-zinc-900/95 p-4 text-sm text-zinc-100 shadow-xl backdrop-blur">
+          <div className="mb-2 flex items-start justify-between">
+            <h2 className="font-semibold text-sky-400">
+              Signalement citoyen — {selectedSignal.place}
+            </h2>
+            <button
+              onClick={() => setSelectedSignal(null)}
+              className="text-zinc-500 hover:text-zinc-200"
+              aria-label="Fermer"
+            >
+              ✕
+            </button>
+          </div>
+          <p className="mb-2 text-xs text-zinc-400">
+            {selectedSignal.postCount} post{selectedSignal.postCount > 1 ? "s" : ""} Bluesky
+            (12 h) mentionnant un feu près de {selectedSignal.place} — dernier{" "}
+            {formatAge(hoursAgo(selectedSignal.lastPost))}. Position = centre de la
+            commune citée, pas du feu.
+          </p>
+          <PostList posts={selectedSignal.posts} />
+          <p className="mt-3 border-t border-zinc-700 pt-2 text-xs text-zinc-500">
+            Témoignage non confirmé par satellite : soit le feu est trop petit ou trop
+            récent pour être vu (précocité !), soit il ne s&apos;agit pas d&apos;un feu de
+            forêt.
+          </p>
+        </div>
+      )}
 
       {/* Panneau de détail du foyer */}
       {selected && (
@@ -361,6 +507,13 @@ export default function FireMap() {
               ✕
             </button>
           </div>
+          {selected.confidence && (
+            <span
+              className={`mb-2 inline-block rounded px-2 py-0.5 text-xs font-bold ${CONF_LABEL[selected.confidence].cls}`}
+            >
+              {CONF_LABEL[selected.confidence].text}
+            </span>
+          )}
           <dl className="space-y-1.5">
             <div className="flex justify-between">
               <dt className="text-zinc-400">Premier signal (UTC)</dt>
@@ -382,12 +535,6 @@ export default function FireMap() {
               <dd>{selected.maxFrp} MW</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-zinc-400">Confiance max</dt>
-              <dd>
-                {selected.maxConf === "h" ? "Haute" : selected.maxConf === "l" ? "Faible" : "Nominale"}
-              </dd>
-            </div>
-            <div className="flex justify-between">
               <dt className="text-zinc-400">Position</dt>
               <dd>
                 {selected.centroid[1].toFixed(3)}, {selected.centroid[0].toFixed(3)}
@@ -395,14 +542,25 @@ export default function FireMap() {
             </div>
           </dl>
 
-          {/* Corroboration sociale */}
+          {/* Témoignages attachés automatiquement (corroboration) */}
+          {selected.social && (
+            <div className="mt-3 border-t border-zinc-700 pt-3">
+              <p className="mb-2 text-xs font-medium text-emerald-400">
+                Corroboré par {selected.social.postCount} témoignage
+                {selected.social.postCount > 1 ? "s" : ""} près de {selected.social.place}
+              </p>
+              <PostList posts={selected.social.posts} />
+            </div>
+          )}
+
+          {/* Recherche manuelle complémentaire */}
           <div className="mt-3 border-t border-zinc-700 pt-3">
             {social.kind === "idle" && (
               <button
                 onClick={() => searchWitnesses(selected)}
                 className="w-full rounded-md bg-sky-700 px-3 py-1.5 font-medium hover:bg-sky-600"
               >
-                🔎 Chercher des témoignages (Bluesky)
+                🔎 Chercher {selected.social ? "plus de " : "des "}témoignages
               </button>
             )}
             {social.kind === "loading" && (
@@ -435,24 +593,7 @@ export default function FireMap() {
                       qu&apos;il n&apos;y a pas de feu — juste pas de témoin connecté.
                     </p>
                   ))}
-                <ul className="space-y-2">
-                  {social.result.posts.map((post) => (
-                    <li key={post.url} className="rounded-md bg-zinc-800/80 p-2 text-xs">
-                      <a
-                        href={post.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="font-medium text-sky-400 hover:underline"
-                      >
-                        @{post.handle}
-                      </a>{" "}
-                      <span className="text-zinc-500">
-                        · {formatAge(hoursAgo(post.createdAt))}
-                      </span>
-                      <p className="mt-1 whitespace-pre-wrap text-zinc-300">{post.text}</p>
-                    </li>
-                  ))}
-                </ul>
+                <PostList posts={social.result.posts} />
               </div>
             )}
           </div>
