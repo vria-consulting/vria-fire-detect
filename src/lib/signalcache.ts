@@ -17,7 +17,7 @@ export type SignalsPayload = {
 };
 
 const HISTORY_PATH = "signal-history.json";
-const NEW_FIRE_WINDOW_MS = 60 * 60 * 1000; // "nouveau feu" = 1res mentions < 1 h
+const NEW_FIRE_WINDOW_MS = 2 * 60 * 60 * 1000; // "nouveau feu" = 1res mentions < 2 h
 const HISTORY_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 // Marqueur "feu déjà établi avant notre première observation" : on antidate.
 const ESTABLISHED_BACKDATE_MS = 24 * 60 * 60 * 1000;

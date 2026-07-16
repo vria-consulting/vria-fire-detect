@@ -48,7 +48,7 @@ function formatAge(h: number): string {
 }
 
 const NEW_EVENT_HOURS = 12; // un foyer est "nouveau" si son 1er signal a < 12 h
-const DEPART_WATCH_MIN = 60; // mode départs : fenêtre affichée
+const DEPART_WATCH_MIN = 120; // mode départs : 1er signalement il y a 2 h max
 const DEPART_HOT_MIN = 20; // pulsation rouge : signal de moins de 20 min
 
 // Clé publique VAPID (non sensible) — la clé privée reste côté serveur.
@@ -179,6 +179,10 @@ export default function FireMap() {
   const [signals, setSignals] = useState<SocialSignal[]>([]);
   const pulseMarkersRef = useRef<maplibregl.Marker[]>([]);
   const [, setTick] = useState(0); // re-rendu périodique des "il y a X min"
+  // Emprise affichée [ouest, sud, est, nord] : filtre les listes de droite.
+  const [viewBounds, setViewBounds] = useState<[number, number, number, number] | null>(
+    null
+  );
 
   useEffect(() => {
     if (localStorage.getItem("vigifire-alert-endpoint")) setAlertState("on");
@@ -305,8 +309,15 @@ export default function FireMap() {
     const ro = new ResizeObserver(() => map.resize());
     ro.observe(containerRef.current);
 
+    const syncBounds = () => {
+      const b = map.getBounds();
+      setViewBounds([b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]);
+    };
+    map.on("moveend", syncBounds);
+
     map.on("load", () => {
       requestAnimationFrame(() => map.resize());
+      syncBounds();
       map.addSource("events", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
@@ -576,6 +587,14 @@ export default function FireMap() {
     return () => clearInterval(id);
   }, [hours, loadData]);
 
+  // Les listes de droite suivent la zone affichée à l'écran.
+  const inView = (lon: number, lat: number) =>
+    !viewBounds ||
+    (lon >= viewBounds[0] &&
+      lon <= viewBounds[2] &&
+      lat >= viewBounds[1] &&
+      lat <= viewBounds[3]);
+
   // Vue globale : foyers satellite ET signalements humains dans la même liste,
   // triés par premier signal / première mention.
   type GlobalItem =
@@ -583,10 +602,10 @@ export default function FireMap() {
     | { kind: "signal"; when: string; sig: SocialSignal };
   const globalItems: GlobalItem[] = [
     ...events
-      .filter((ev) => hoursAgo(ev.firstSeen) < 24)
+      .filter((ev) => hoursAgo(ev.firstSeen) < 24 && inView(ev.centroid[0], ev.centroid[1]))
       .map((ev) => ({ kind: "foyer" as const, when: ev.firstSeen, ev })),
     ...signals
-      .filter((sig) => hoursAgo(sig.firstPost) < 24)
+      .filter((sig) => hoursAgo(sig.firstPost) < 24 && inView(sig.lon, sig.lat))
       .map((sig) => ({ kind: "signal" as const, when: sig.firstPost, sig })),
   ]
     .sort((a, b) => Date.parse(b.when) - Date.parse(a.when))
@@ -601,9 +620,9 @@ export default function FireMap() {
   const departItems: DepartItem[] = [
     ...events
       .map((ev) => ({ kind: "sat" as const, ageMin: hoursAgo(ev.firstSeen) * 60, ev }))
-      .filter((x) => x.ageMin <= DEPART_WATCH_MIN),
+      .filter((x) => x.ageMin <= DEPART_WATCH_MIN && inView(x.ev.centroid[0], x.ev.centroid[1])),
     ...signals
-      .filter((sig) => sig.newFire)
+      .filter((sig) => sig.newFire && inView(sig.lon, sig.lat))
       .map((sig) => ({
         kind: "social" as const,
         ageMin: hoursAgo(sig.firstPost) * 60,
@@ -701,7 +720,12 @@ export default function FireMap() {
           {alertMsg && <p className="mt-1 text-[11px] text-zinc-400">{alertMsg}</p>}
         </div>
         <div className="border-t border-zinc-700 pt-2 text-xs text-zinc-400">
-          {status.kind === "loading" && "Analyse des détections…"}
+          {status.kind === "loading" && (
+            <span className="flex items-center gap-2">
+              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-zinc-500 border-t-orange-500" />
+              Récupération et analyse en cours…
+            </span>
+          )}
           {status.kind === "ready" && (
             <>
               <span className="font-semibold text-zinc-200">
@@ -749,7 +773,8 @@ export default function FireMap() {
       {mode === "departs" && (
         <div className="absolute right-3 top-3 flex max-h-[70%] w-80 flex-col rounded-xl bg-zinc-900/95 text-sm text-zinc-100 shadow-lg backdrop-blur">
           <div className="border-b border-zinc-800 px-3 py-2">
-            <span className="font-semibold">⚡ Départs de feu (&lt; 1 h)</span>
+            <span className="font-semibold">⚡ Départs de feu (&lt; 2 h)</span>
+            <span className="ml-1 text-[10px] text-zinc-500">· dans la vue affichée</span>
             {hotCount > 0 ? (
               <div className="mt-1 animate-pulse rounded-md bg-red-600 px-2 py-1.5 text-xs font-bold text-white">
                 🚨 {hotCount} départ{hotCount > 1 ? "s" : ""} signalé
@@ -762,11 +787,17 @@ export default function FireMap() {
             )}
           </div>
           <div className="overflow-y-auto">
-            {departItems.length === 0 && (
+            {status.kind === "loading" && departItems.length === 0 && (
+              <p className="flex items-center gap-2 p-3 text-xs text-zinc-400">
+                <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-500 border-t-orange-500" />
+                Récupération des satellites et analyse IA des signaux…
+              </p>
+            )}
+            {status.kind !== "loading" && departItems.length === 0 && (
               <p className="p-3 text-xs text-zinc-500">
-                Aucun départ détecté dans la dernière heure. Les satellites polaires ne
-                passent que quelques fois par jour : la couverture &lt; 1 h vient surtout
-                de GOES (Amériques) et des témoignages Bluesky.
+                Aucun départ (1er signalement &lt; 2 h) dans la vue affichée. Élargissez
+                la carte ou changez de région : la couverture la plus rapide vient de
+                GOES (Amériques), Meteosat (Europe/Afrique) et des témoignages.
               </p>
             )}
             {departItems.map((item) => {
@@ -825,14 +856,24 @@ export default function FireMap() {
           <span className="font-semibold">
             🔥 Nouveaux foyers &amp; signalements{" "}
             <span className="text-zinc-400">({globalItems.length})</span>
+            <span className="ml-1 text-[10px] font-normal text-zinc-500">
+              · dans la vue affichée
+            </span>
           </span>
           <span className="text-zinc-500">{listOpen ? "▾" : "▸"}</span>
         </button>
         {listOpen && (
           <div className="overflow-y-auto border-t border-zinc-800">
+            {status.kind === "loading" && globalItems.length === 0 && (
+              <p className="flex items-center gap-2 p-3 text-xs text-zinc-400">
+                <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-500 border-t-orange-500" />
+                Récupération des satellites et analyse IA des signaux…
+              </p>
+            )}
             {globalItems.length === 0 && status.kind === "ready" && (
               <p className="p-3 text-xs text-zinc-500">
-                Aucun foyer ni signalement dans les dernières 24 h sur la période chargée.
+                Aucun foyer ni signalement récent dans la vue affichée — déplacez la
+                carte ou changez de région.
               </p>
             )}
             {globalItems.map((item) =>
