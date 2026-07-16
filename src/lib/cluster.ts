@@ -23,7 +23,12 @@ export type FireEvent = {
   maxFrp: number;
   maxConf: "l" | "n" | "h";
   confidence?: Confidence;
-  social?: { place: string; postCount: number; posts: SocialPost[] };
+  social?: {
+    place: string;
+    postCount: number;
+    posts: SocialPost[];
+    firstPress?: string; // 1er article de presse — pour mesurer notre avance
+  };
 };
 
 // ~4,4 km à l'équateur : assez large pour absorber l'imprécision GOES (2 km),

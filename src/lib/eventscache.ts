@@ -58,7 +58,12 @@ export async function getEvents(hours: number): Promise<EventsPayload> {
           haversineKm(ev.centroid[1], ev.centroid[0], sig.lat, sig.lon) <= CORROBORATION_KM
         ) {
           ev.confidence = "corrobore";
-          ev.social = { place: sig.place, postCount: sig.postCount, posts: sig.posts };
+          ev.social = {
+            place: sig.place,
+            postCount: sig.postCount,
+            posts: sig.posts,
+            firstPress: sig.firstPress,
+          };
           break;
         }
       }

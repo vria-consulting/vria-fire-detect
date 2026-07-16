@@ -43,6 +43,7 @@ export type SocialSignal = {
   postCount: number;
   firstPost: string; // ISO — plus ancien post de la fenêtre pour ce lieu
   lastPost: string;
+  firstPress?: string; // ISO — plus ancien article de presse (mesure de précocité)
   posts: SocialPost[];
   // true = les toutes premières mentions de ce lieu datent de moins d'1 h
   // (vérifié contre l'historique Bluesky) -> candidat "départ de feu".
@@ -129,6 +130,12 @@ export async function scanSocial(sinceHours = 12): Promise<{
       sig.posts.push(post);
       if (post.createdAt < sig.firstPost) sig.firstPost = post.createdAt;
       if (post.createdAt > sig.lastPost) sig.lastPost = post.createdAt;
+      if (
+        post.source === "presse" &&
+        (!sig.firstPress || post.createdAt < sig.firstPress)
+      ) {
+        sig.firstPress = post.createdAt;
+      }
     } else {
       byPlace.set(key, {
         place: entry[3],
@@ -138,6 +145,7 @@ export async function scanSocial(sinceHours = 12): Promise<{
         postCount: 1,
         firstPost: post.createdAt,
         lastPost: post.createdAt,
+        firstPress: post.source === "presse" ? post.createdAt : undefined,
         posts: [post],
       });
     }

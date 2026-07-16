@@ -118,6 +118,21 @@ type SocialState =
   | { kind: "done"; result: SocialResult }
   | { kind: "error" };
 
+type Wind = { speed: number; gusts: number; direction: number };
+
+// Direction météo = d'où vient le vent.
+function compass(deg: number): string {
+  const pts = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
+  return pts[Math.round(deg / 45) % 8];
+}
+
+function formatDelta(ms: number): string {
+  const min = Math.round(ms / 60_000);
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  return `${h} h${min % 60 ? ` ${min % 60}` : ""}`;
+}
+
 function PostList({ posts }: { posts: SocialPost[] }) {
   return (
     <ul className="space-y-2">
@@ -154,6 +169,7 @@ export default function FireMap() {
   const [selected, setSelected] = useState<FireEvent | null>(null);
   const [selectedSignal, setSelectedSignal] = useState<SocialSignal | null>(null);
   const [social, setSocial] = useState<SocialState>({ kind: "idle" });
+  const [wind, setWind] = useState<Wind | null>(null);
   const [listOpen, setListOpen] = useState(true);
   const [alertState, setAlertState] = useState<"off" | "busy" | "on">("off");
   const [alertMsg, setAlertMsg] = useState<string | null>(null);
@@ -171,6 +187,23 @@ export default function FireMap() {
   }, []);
 
   const [lastUpdate, setLastUpdate] = useState<number | null>(null);
+
+  // Vent au droit du foyer sélectionné (Open-Meteo, gratuit).
+  useEffect(() => {
+    setWind(null);
+    if (!selected) return;
+    let stale = false;
+    const [lon, lat] = selected.centroid;
+    fetch(`/api/wind?lat=${lat.toFixed(3)}&lon=${lon.toFixed(3)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((w) => {
+        if (!stale && w && typeof w.speed === "number") setWind(w);
+      })
+      .catch(() => {});
+    return () => {
+      stale = true;
+    };
+  }, [selected]);
 
   const loadData = useCallback(async (map: maplibregl.Map, nHours: number, silent = false) => {
     if (!silent) setStatus({ kind: "loading" });
@@ -932,6 +965,16 @@ export default function FireMap() {
               {CONF_LABEL[selected.confidence].text}
             </span>
           )}
+          {selected.social?.firstPress &&
+            Date.parse(selected.social.firstPress) > Date.parse(selected.firstSeen) && (
+              <span className="mb-2 ml-1 inline-block rounded bg-emerald-800 px-2 py-0.5 text-xs font-bold text-emerald-100">
+                ⏱️ Détecté{" "}
+                {formatDelta(
+                  Date.parse(selected.social.firstPress) - Date.parse(selected.firstSeen)
+                )}{" "}
+                avant le 1er article de presse
+              </span>
+            )}
           <dl className="space-y-1.5">
             <div className="flex justify-between">
               <dt className="text-zinc-400">Premier signal (UTC)</dt>
@@ -953,6 +996,22 @@ export default function FireMap() {
               <dt className="text-zinc-400">Puissance max</dt>
               <dd>{selected.maxFrp} MW</dd>
             </div>
+            {wind && (
+              <div className="flex justify-between">
+                <dt className="text-zinc-400">Vent</dt>
+                <dd>
+                  <span
+                    className="mr-1 inline-block font-bold text-sky-300"
+                    style={{ transform: `rotate(${wind.direction}deg)` }}
+                    title={`Vent venant du ${compass(wind.direction)}`}
+                  >
+                    ↓
+                  </span>
+                  {wind.speed} km/h de {compass(wind.direction)}
+                  {wind.gusts > wind.speed + 10 ? ` · rafales ${wind.gusts}` : ""}
+                </dd>
+              </div>
+            )}
             <div className="flex justify-between">
               <dt className="text-zinc-400">Position</dt>
               <dd>
