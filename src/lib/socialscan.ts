@@ -51,28 +51,32 @@ export type SocialSignal = {
   newFire?: boolean;
 };
 
-// Vérifie s'il existait déjà des mentions feu+lieu AVANT la date de coupure.
-// C'est la parade au biais d'échantillonnage : un gros feu en cours génère
+// Renvoie la date de la mention feu+lieu la plus récente AVANT la coupure
+// (ou null). Parade au biais d'échantillonnage : un gros feu en cours génère
 // tellement de posts récents que la fenêtre de scan ne voit plus les anciens.
-export async function hasMentionsBefore(
+export async function latestMentionBefore(
   place: string,
   countryCode: string,
   untilIso: string
-): Promise<boolean> {
+): Promise<string | null> {
   const lang = LANG_BY_COUNTRY[countryCode.toLowerCase()];
   const terms = [
     ...(lang ? TERMS_BY_LANG[lang].slice(0, 1) : []),
     TERMS_BY_LANG.en[0], // "fire"
   ];
+  let latest: string | null = null;
   for (const term of terms) {
     try {
       const { posts } = await searchPosts(`"${place}" ${term}`, 5, { until: untilIso });
-      if (posts.length > 0) return true;
+      for (const p of posts) {
+        const at = p.record?.createdAt;
+        if (at && (!latest || at > latest)) latest = at;
+      }
     } catch {
       // en cas d'échec réseau, on ne conclut pas
     }
   }
-  return false;
+  return latest;
 }
 
 function normalize(s: string): string {

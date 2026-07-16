@@ -18,9 +18,9 @@ export type TriageCandidate = {
   places: string[]; // noms des lieux candidats trouvés par le gazetteer
 };
 
-// v2 : bump du chemin = invalidation de tous les verdicts rendus avec les
-// consignes précédentes (moins strictes sur l'ironie et la fumée dérivante).
-const CACHE_PATH = "triage-cache-v2.json";
+// v3 : bump du chemin = invalidation de tous les verdicts rendus avant
+// l'injection de la date courante et les règles véhicules/faits passés.
+const CACHE_PATH = "triage-cache-v3.json";
 const RETENTION_MS = 48 * 60 * 60 * 1000;
 const BATCH_SIZE = 25;
 const MAX_NEW_PER_SCAN = 50; // garde-fou de coût et de durée par rafraîchissement
@@ -43,6 +43,8 @@ Pour chaque item :
 - humour, ironie, sarcasme, indignation politique ou militante (« burning the world down », « le pays brûle », critiques du capitalisme ou du gouvernement) ;
 - commentaire général sur la fumée, la qualité de l'air, la canicule ou le climat SANS feu précis nouvellement signalé (« les commerces ferment à cause de la qualité de l'air » = false) ;
 - feu passé, éteint, maîtrisé, bilans, reconstruction, procès, enquêtes, commémorations, statistiques de saison ;
+- fait DATÉ du passé, même récent : le champ « maintenant » du message te donne la date et l'heure actuelles — un événement daté d'hier ou d'avant (« les faits ont eu lieu mercredi à 22 h 30 ») n'est PAS un feu en cours ;
+- feu de voiture(s), de poubelle, d'appartement ou d'usine SANS risque explicite de propagation à la végétation ;
 - recherche scientifique, technologie de détection, prévention, marketing, collectes de dons, offres d'emploi ;
 - métaphores (« on fire »), fiction, films, musique, jeux vidéo ;
 - feu de bâtiment isolé sans enjeu de propagation à la végétation.
@@ -93,7 +95,13 @@ async function judgeBatch(
       max_completion_tokens: 4096,
       messages: [
         { role: "system", content: SYSTEM },
-        { role: "user", content: JSON.stringify(payload) },
+        {
+          role: "user",
+          content: JSON.stringify({
+            maintenant: new Date().toISOString(),
+            items: payload,
+          }),
+        },
       ],
       response_format: {
         type: "json_schema",

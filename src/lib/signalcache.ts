@@ -8,7 +8,7 @@
 //    borne "until") détecte les feux déjà en cours avant notre première
 //    observation.
 
-import { scanSocial, hasMentionsBefore, SocialSignal } from "./socialscan";
+import { scanSocial, latestMentionBefore, SocialSignal } from "./socialscan";
 import { readJson, writeJson } from "./store";
 
 export type SignalsPayload = {
@@ -17,50 +17,63 @@ export type SignalsPayload = {
 };
 
 const HISTORY_PATH = "signal-history.json";
-const NEW_FIRE_WINDOW_MS = 2 * 60 * 60 * 1000; // "nouveau feu" = 1res mentions < 2 h
+const NEW_FIRE_WINDOW_MS = 2 * 60 * 60 * 1000; // "nouveau feu" = rafale démarrée < 2 h
 const HISTORY_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
-// Marqueur "feu déjà établi avant notre première observation" : on antidate.
-const ESTABLISHED_BACKDATE_MS = 24 * 60 * 60 * 1000;
+// Un lieu redevient éligible aux "départs" si ses mentions repartent après
+// ce silence : un NOUVEAU feu à Montpellier ne doit pas être masqué parce que
+// Montpellier a déjà brûlé la semaine dernière.
+const QUIET_GAP_MS = 6 * 60 * 60 * 1000;
 
 const TTL_MS = 3 * 60 * 1000;
 let cached: { at: number; data: SignalsPayload } | null = null;
 let inflight: Promise<SignalsPayload> | null = null;
 
+// Historique par lieu : l = dernière mention vue, b = début de la rafale en
+// cours. Un lieu est en "rafale nouvelle" si ses mentions repartent après
+// QUIET_GAP_MS de silence ; newFire = la rafale a commencé il y a < 2 h.
+type PlaceHistory = { l: string; b: string };
+
+function upgrade(v: string | PlaceHistory): PlaceHistory {
+  // Migration de l'ancien format (simple ISO string).
+  return typeof v === "string" ? { l: v, b: v } : v;
+}
+
 async function flagNewFires(signals: SocialSignal[]): Promise<void> {
   const now = Date.now();
   try {
-    const history = await readJson<Record<string, string>>(HISTORY_PATH, {});
+    const raw = await readJson<Record<string, string | PlaceHistory>>(HISTORY_PATH, {});
+    const history: Record<string, PlaceHistory> = {};
+    for (const [k, v] of Object.entries(raw)) history[k] = upgrade(v);
     let dirty = false;
 
     for (const sig of signals) {
       const key = `${sig.place}|${sig.countryCode}`.toLowerCase();
-      const known = history[key];
-      if (known) {
-        sig.newFire = now - new Date(known).getTime() < NEW_FIRE_WINDOW_MS;
-        continue;
+      const h = history[key];
+      let burstStart: string;
+
+      if (h && Date.parse(sig.firstPost) - Date.parse(h.l) < QUIET_GAP_MS) {
+        // Mentions continues depuis la dernière observation : même rafale.
+        burstStart = h.b < sig.firstPost ? h.b : sig.firstPost;
+      } else {
+        // Lieu jamais vu, ou silence > 6 h : candidate nouvelle rafale.
+        // Contre-vérification Bluesky : y avait-il des mentions juste avant
+        // notre première observation (biais d'échantillonnage) ?
+        const prior = await latestMentionBefore(sig.place, sig.countryCode, sig.firstPost);
+        if (prior && Date.parse(sig.firstPost) - Date.parse(prior) < QUIET_GAP_MS) {
+          burstStart = prior; // feu déjà en cours avant notre fenêtre
+        } else {
+          burstStart = sig.firstPost; // véritable nouveau départ
+        }
       }
-      // Lieu jamais observé. Si même sa plus ancienne mention de notre fenêtre
-      // est déjà vieille (> 1 h), inutile de vérifier : pas un départ.
-      const firstPostAge = now - new Date(sig.firstPost).getTime();
-      if (firstPostAge >= NEW_FIRE_WINDOW_MS) {
-        sig.newFire = false;
-        history[key] = sig.firstPost;
-        dirty = true;
-        continue;
-      }
-      // Mentions toutes récentes : le feu existait-il déjà avant 1 h ?
-      const cutoff = new Date(now - NEW_FIRE_WINDOW_MS).toISOString();
-      const established = await hasMentionsBefore(sig.place, sig.countryCode, cutoff);
-      sig.newFire = !established;
-      history[key] = established
-        ? new Date(now - ESTABLISHED_BACKDATE_MS).toISOString()
-        : sig.firstPost;
+
+      sig.newFire = now - Date.parse(burstStart) < NEW_FIRE_WINDOW_MS;
+      history[key] = { l: sig.lastPost, b: burstStart };
       dirty = true;
     }
 
-    // Purge des lieux anciens (un feu > 7 j repassera par la contre-vérification).
+    // Purge des lieux silencieux depuis > 7 j.
     for (const k of Object.keys(history)) {
-      if (now - new Date(history[k]).getTime() > HISTORY_RETENTION_MS) {
+      if (now - Date.parse(history[k].l) > HISTORY_RETENTION_MS) {
         delete history[k];
         dirty = true;
       }
