@@ -19,9 +19,8 @@ export type TriageCandidate = {
   createdAt: string; // les plus récents sont jugés en premier
 };
 
-// v5 : bump = purge des approbations non vérifiées gravées par la v4 (échec
-// silencieux de la contre-vérification, budget de tokens de raisonnement).
-const CACHE_PATH = "triage-cache-v5.json";
+// v6 : gazetteer multi-homonymes + règle du lieu englobant/voisin.
+const CACHE_PATH = "triage-cache-v6.json";
 const RETENTION_MS = 48 * 60 * 60 * 1000;
 const BATCH_SIZE = 25;
 const MAX_NEW_PER_SCAN = 50; // garde-fou de coût et de durée par rafraîchissement
@@ -59,7 +58,9 @@ Pièges de lieu à déjouer :
 - un ADJECTIF homonyme d'une ville (« vasto incendio » = « vaste incendie » en italien, pas la ville de Vasto — vérifie que le mot est bien utilisé comme lieu dans la phrase) ;
 - un aéroport, un stade ou un bâtiment homonyme d'une ville d'un autre pays.
 
-"place" = l'indice (base 0) du candidat qui est le lieu où le feu BRÛLE — pas là où la fumée dérive, pas là où l'on en parle, pas un nom de média ni un siège d'organisation. Les candidats portent leur code pays : rejette les homonymes incohérents avec le texte (feu en Colombie-Britannique + candidat « Boston (US) » = null).
+"place" = l'indice (base 0) du candidat qui localise le feu. Les candidats portent leur code pays, et un même nom peut apparaître plusieurs fois avec des pays différents (homonymes) : choisis celui qui est cohérent avec le texte — « incendio en Guadalajara » dans un texte espagnol qui cite Castilla-La Mancha = « Guadalajara (ES) », pas (MX).
+- Choisis en priorité le lieu exact du feu. À défaut, un candidat ENGLOBANT ou VOISIN cité dans le texte pour situer le feu est valide : la province pour un village absent des candidats (« incendio en Lozoyuela, Madrid » → « Madrid (ES) »), la ville dont le feu coupe la ligne de train (« trains Vigo-Ourense suspendus par le feu de Crecente » → « Ourense (ES) »).
+- Réponds null si AUCUN candidat n'est cohérent : là où la fumée dérive, là où l'on en parle, un nom de média, un siège d'organisation, ou un homonyme du mauvais pays.
 
 Règle d'or : au moindre doute sur l'un ou l'autre, réponds false / null. Manquer un signal ambigu coûte moins cher qu'une fausse alerte envoyée aux secours.`;
 
@@ -136,6 +137,34 @@ async function judgeBatch(
     const place =
       v.place != null && v.place >= 0 && v.place < cand.places.length ? v.place : null;
     out.set(cand.url, { fire: v.fire, place });
+  }
+  return out;
+}
+
+// Pour la QA : jugement direct SANS cache Blob, avec exactement les mêmes
+// modèles, prompt et double vérification que la production. Renvoie pour
+// chaque candidat le verdict du trieur (luna) et le verdict final (vérifié).
+export async function judgeForQA(
+  candidates: TriageCandidate[]
+): Promise<Map<string, { first: TriageVerdict | null; final: TriageVerdict | null }>> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error("OPENAI_API_KEY manquante");
+  const out = new Map<string, { first: TriageVerdict | null; final: TriageVerdict | null }>();
+  for (let i = 0; i < candidates.length; i += BATCH_SIZE) {
+    const batch = candidates.slice(i, i + BATCH_SIZE);
+    const judged = await judgeBatch(apiKey, batch, MODEL);
+    const approved = batch.filter((c) => judged.get(c.url)?.fire);
+    let verified = new Map<string, TriageVerdict>();
+    if (approved.length > 0 && VERIFY_MODEL !== MODEL) {
+      verified = await judgeBatch(apiKey, approved, VERIFY_MODEL);
+    }
+    for (const c of batch) {
+      const first = judged.get(c.url) ?? null;
+      const final = first?.fire
+        ? (verified.get(c.url) ?? { fire: false, place: null })
+        : first;
+      out.set(c.url, { first, final });
+    }
   }
   return out;
 }

@@ -4,19 +4,16 @@
 // Objectif précocité : un témoignage peut précéder de plusieurs heures le
 // prochain passage satellite.
 
-import cities from "@/data/cities.json";
 import { searchPosts, postUrl } from "./bsky";
+import { extractPlaces } from "./geoparse";
 import { fetchPressArticles } from "./press";
 import { fetchTelegramPosts } from "./telegram";
 import { triageCandidates } from "./triage";
 import { TERMS_BY_LANG, LANG_BY_COUNTRY } from "./social";
 import type { SocialPost } from "./social";
 
-// [lat, lon, countryCode, displayName]
-const GAZETTEER = cities as unknown as Record<string, [number, number, string, string]>;
-
 // Expressions fortes uniquement (pas "fire"/"feu" seuls : trop de métaphores).
-const SCAN_QUERIES = [
+export const SCAN_QUERIES = [
   '"wildfire"',
   '"forest fire"',
   '"brush fire"',
@@ -79,35 +76,6 @@ export async function latestMentionBefore(
   return latest;
 }
 
-function normalize(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
-
-// Extrait les lieux mentionnés : n-grammes (1 à 3 mots) commençant par une
-// majuscule dans le texte original, cherchés dans le gazetteer.
-function extractPlaces(text: string): { key: string; entry: [number, number, string, string] }[] {
-  const tokens = text.split(/[^\p{L}''-]+/u).filter(Boolean);
-  const found = new Map<string, [number, number, string, string]>();
-  for (let i = 0; i < tokens.length; i++) {
-    // Un nom de lieu commence par une majuscule.
-    if (!/\p{Lu}/u.test(tokens[i][0])) continue;
-    for (let n = 3; n >= 1; n--) {
-      if (i + n > tokens.length) break;
-      const gram = tokens.slice(i, i + n).join(" ");
-      const key = normalize(gram);
-      const entry = GAZETTEER[key];
-      if (entry) {
-        found.set(key, entry);
-        break; // le n-gramme le plus long gagne
-      }
-    }
-  }
-  return [...found.entries()].map(([key, entry]) => ({ key, entry }));
-}
-
 export async function scanSocial(sinceHours = 12): Promise<{
   signals: SocialSignal[];
   scannedPosts: number;
@@ -166,7 +134,8 @@ export async function scanSocial(sinceHours = 12): Promise<{
   for (const art of pressArticles) {
     if (new Date(art.createdAt).getTime() < since) continue;
     const places = extractPlaces(art.title);
-    if (places.length === 0 || places.length > 3) continue;
+    const placeNames = new Set(places.map((x) => x.key)).size;
+    if (places.length === 0 || placeNames > 3) continue; // 4+ noms de lieux = revue de presse
     candidates.push({
       post: {
         text: art.title,
@@ -184,7 +153,8 @@ export async function scanSocial(sinceHours = 12): Promise<{
   for (const t of telegramPosts) {
     if (new Date(t.createdAt).getTime() < since) continue;
     const places = extractPlaces(t.text);
-    if (places.length === 0 || places.length > 3) continue;
+    const placeNames = new Set(places.map((x) => x.key)).size;
+    if (places.length === 0 || placeNames > 3) continue; // 4+ noms de lieux = revue de presse
     candidates.push({
       post: {
         text: t.text,
@@ -206,7 +176,8 @@ export async function scanSocial(sinceHours = 12): Promise<{
     if (!createdAt || new Date(createdAt).getTime() < since) continue;
     const text = p.record?.text ?? "";
     const places = extractPlaces(text);
-    if (places.length === 0 || places.length > 3) continue; // 4+ lieux = revue de presse
+    const placeNames = new Set(places.map((x) => x.key)).size;
+    if (places.length === 0 || placeNames > 3) continue; // 4+ noms de lieux = revue de presse
     candidates.push({
       post: {
         text,

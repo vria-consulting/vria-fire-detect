@@ -44,7 +44,7 @@ KEYWORDS = [
     "waldbrand",                                # de
 ]
 
-WINDOW = timedelta(hours=2)
+WINDOW = timedelta(hours=float(os.environ.get("TG_WINDOW_HOURS", "2")))
 
 
 def matches(text: str) -> bool:
@@ -68,7 +68,7 @@ async def scan() -> list[dict]:
     for username in CHANNELS:
         try:
             entity = await client.get_entity(username)
-            async for msg in client.iter_messages(entity, limit=30):
+            async for msg in client.iter_messages(entity, limit=int(os.environ.get("TG_LIMIT", "30"))):
                 text = getattr(msg, "message", None)
                 date = getattr(msg, "date", None)
                 if not date or date < cutoff:
@@ -114,5 +114,9 @@ def push(posts: list[dict]) -> None:
 
 if __name__ == "__main__":
     found = asyncio.run(scan())
-    print(f"{len(found)} messages récents trouvés")
-    push(found)
+    if os.environ.get("TG_DRY"):
+        # mode QA : dump JSON sur stdout, pas d'envoi
+        print(json.dumps(found, ensure_ascii=False))
+    else:
+        print(f"{len(found)} messages récents trouvés")
+        push(found)
