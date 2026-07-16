@@ -5,9 +5,10 @@
 export type FireProperties = {
   frp: number; // Fire Radiative Power (MW)
   conf: "l" | "n" | "h"; // low / nominal / high
-  sat: string; // N = Suomi-NPP, 1 = NOAA-20, 2 = NOAA-21
+  sat: string; // N20 = NOAA-20, N21 = NOAA-21, G18/G19 = GOES West/East
   acq: string; // ISO 8601 UTC acquisition datetime
   dn: "D" | "N"; // day / night detection
+  src: "viirs" | "goes";
 };
 
 export type FireFeature = {
@@ -22,12 +23,18 @@ export type FireCollection = {
   meta: { sources: string[]; days: number; fetchedAt: string; count: number };
 };
 
-// VIIRS 375 m — les trois satellites en orbite polaire couvrent le globe ~4-6x/jour.
-const SOURCES = ["VIIRS_SNPP_NRT", "VIIRS_NOAA20_NRT", "VIIRS_NOAA21_NRT"];
+// VIIRS 375 m (orbite polaire, monde, ~4x/jour, sensible aux petits feux) +
+// GOES 2 km (géostationnaire, Amériques, rafraîchi ~10 min → précocité).
+// Suomi-NPP retiré : plus de production NRT depuis le 2026-07-10.
+const SOURCES = ["VIIRS_NOAA20_NRT", "VIIRS_NOAA21_NRT", "GOES_NRT"];
+
+// GOES détecte vite mais avec des fausses alarmes à basse confiance ;
+// en dessous de ce seuil (%), la détection est écartée.
+const GOES_MIN_CONF = 40;
 
 const WORLD_BBOX = "-180,-90,180,90";
 
-function parseCsv(csv: string): FireFeature[] {
+function parseCsv(csv: string, src: FireProperties["src"]): FireFeature[] {
   const lines = csv.trim().split("\n");
   if (lines.length < 2) return [];
   const header = lines[0].split(",");
@@ -48,20 +55,32 @@ function parseCsv(csv: string): FireFeature[] {
     const lat = parseFloat(f[iLat]);
     const lon = parseFloat(f[iLon]);
     if (!isFinite(lat) || !isFinite(lon)) continue;
-    // acq_time est "HHMM" (UTC), parfois sur 3 chiffres.
+
+    // Confiance : lettre (l/n/h) pour VIIRS, pourcentage pour GOES.
+    const confRaw = (f[iConf] || "n").toLowerCase();
+    let conf: FireProperties["conf"];
+    const confNum = parseFloat(confRaw);
+    if (isFinite(confNum)) {
+      if (src === "goes" && confNum < GOES_MIN_CONF) continue;
+      conf = confNum >= 80 ? "h" : confNum >= 50 ? "n" : "l";
+    } else {
+      conf = confRaw === "l" || confRaw === "h" ? (confRaw as "l" | "h") : "n";
+    }
+
+    // acq_time est "HMM"/"HHMM" (UTC).
     const hhmm = f[iTime].padStart(4, "0");
     const acq = `${f[iDate]}T${hhmm.slice(0, 2)}:${hhmm.slice(2)}:00Z`;
-    const confRaw = (f[iConf] || "n").toLowerCase();
-    const conf = confRaw === "l" || confRaw === "h" ? confRaw : "n";
+    const frp = parseFloat(f[iFrp]);
     features.push({
       type: "Feature",
       geometry: { type: "Point", coordinates: [lon, lat] },
       properties: {
-        frp: parseFloat(f[iFrp]) || 0,
-        conf: conf as FireProperties["conf"],
+        frp: isFinite(frp) && frp > 0 ? frp : 0,
+        conf,
         sat: f[iSat] || "?",
         acq,
         dn: f[iDn] === "N" ? "N" : "D",
+        src,
       },
     });
   }
@@ -85,7 +104,7 @@ export async function fetchFires(days: number): Promise<FireCollection> {
       if (text.startsWith("Invalid")) {
         throw new Error("FIRMS_MAP_KEY_INVALID");
       }
-      return parseCsv(text);
+      return parseCsv(text, source === "GOES_NRT" ? "goes" : "viirs");
     })
   );
   const features = results.flat();

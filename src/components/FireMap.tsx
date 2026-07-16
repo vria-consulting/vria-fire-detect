@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import type { FireCollection, FireFeature } from "@/lib/firms";
+import type { FireEvent } from "@/lib/cluster";
+import type { SocialResult } from "@/lib/social";
 
 const REGIONS: Record<string, { center: [number, number]; zoom: number }> = {
   France: { center: [2.5, 46.6], zoom: 5.2 },
@@ -13,12 +14,6 @@ const REGIONS: Record<string, { center: [number, number]; zoom: number }> = {
   Afrique: { center: [20, 2], zoom: 3.0 },
   "Asie du Sud-Est": { center: [105, 12], zoom: 3.5 },
   Australie: { center: [134, -26], zoom: 3.5 },
-};
-
-const SAT_NAMES: Record<string, string> = {
-  N: "Suomi-NPP",
-  N20: "NOAA-20",
-  N21: "NOAA-21",
 };
 
 const MAP_STYLE: maplibregl.StyleSpecification = {
@@ -49,39 +44,59 @@ function formatAge(h: number): string {
   return `il y a ${Math.round(h / 24)} j`;
 }
 
+const NEW_EVENT_HOURS = 12; // un foyer est "nouveau" si son 1er signal a < 12 h
+
 type Status =
   | { kind: "loading" }
-  | { kind: "ready"; count: number; fetchedAt: string }
+  | { kind: "ready"; events: number; detections: number }
   | { kind: "error"; code: string };
+
+type SocialState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "done"; result: SocialResult }
+  | { kind: "error" };
 
 export default function FireMap() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const eventsRef = useRef<FireEvent[]>([]);
   const [days, setDays] = useState(1);
   const [status, setStatus] = useState<Status>({ kind: "loading" });
-  const [selected, setSelected] = useState<FireFeature | null>(null);
+  const [events, setEvents] = useState<FireEvent[]>([]);
+  const [selected, setSelected] = useState<FireEvent | null>(null);
+  const [social, setSocial] = useState<SocialState>({ kind: "idle" });
+  const [listOpen, setListOpen] = useState(true);
 
-  const loadFires = useCallback(async (map: maplibregl.Map, nDays: number) => {
+  const loadEvents = useCallback(async (map: maplibregl.Map, nDays: number) => {
     setStatus({ kind: "loading" });
     try {
-      const res = await fetch(`/api/fires?days=${nDays}`);
+      const res = await fetch(`/api/events?days=${nDays}`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({ error: "UNKNOWN" }));
         setStatus({ kind: "error", code: body.error ?? `HTTP_${res.status}` });
         return;
       }
-      const data: FireCollection = await res.json();
-      // L'âge est figé au chargement — précision suffisante pour un rafraîchissement
-      // toutes les 10 min côté serveur.
-      for (const f of data.features) {
-        (f.properties as Record<string, unknown>).ageH = hoursAgo(f.properties.acq);
-      }
-      const src = map.getSource("fires") as maplibregl.GeoJSONSource | undefined;
-      if (src) src.setData(data as unknown as GeoJSON.FeatureCollection);
+      const data: { events: FireEvent[]; meta: { totalDetections: number } } =
+        await res.json();
+      eventsRef.current = data.events;
+      setEvents(data.events);
+      const features = data.events.map((ev) => ({
+        type: "Feature" as const,
+        geometry: { type: "Point" as const, coordinates: ev.centroid },
+        properties: {
+          id: ev.id,
+          count: ev.count,
+          lastAgeH: hoursAgo(ev.lastSeen),
+          isNew: hoursAgo(ev.firstSeen) < NEW_EVENT_HOURS ? 1 : 0,
+        },
+      }));
+      const src = map.getSource("events") as maplibregl.GeoJSONSource | undefined;
+      if (src) src.setData({ type: "FeatureCollection", features });
       setStatus({
         kind: "ready",
-        count: data.meta.count,
-        fetchedAt: data.meta.fetchedAt,
+        events: data.events.length,
+        detections: data.meta.totalDetections,
       });
     } catch {
       setStatus({ kind: "error", code: "NETWORK" });
@@ -100,76 +115,78 @@ export default function FireMap() {
     mapRef.current = map;
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
 
-    // Filet de sécurité : si le canvas s'est initialisé avant que le layout
-    // flex ne soit stabilisé, on force un recalcul de taille.
     const ro = new ResizeObserver(() => map.resize());
     ro.observe(containerRef.current);
 
     map.on("load", () => {
       requestAnimationFrame(() => map.resize());
-      map.addSource("fires", {
+      map.addSource("events", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       });
-      // Halo discret sous chaque détection récente.
       map.addLayer({
-        id: "fires-glow",
+        id: "events-glow",
         type: "circle",
-        source: "fires",
-        filter: ["<", ["get", "ageH"], 6],
+        source: "events",
+        filter: ["<", ["get", "lastAgeH"], 6],
         paint: {
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 6, 8, 18],
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 10, 8, 26],
           "circle-color": "#ff3b00",
-          "circle-opacity": 0.18,
+          "circle-opacity": 0.15,
           "circle-blur": 1,
         },
       });
       map.addLayer({
-        id: "fires",
+        id: "events",
         type: "circle",
-        source: "fires",
+        source: "events",
         paint: {
           "circle-radius": [
             "interpolate",
             ["linear"],
             ["zoom"],
             2,
-            ["interpolate", ["linear"], ["get", "frp"], 0, 1.6, 100, 4],
+            ["interpolate", ["linear"], ["ln", ["+", ["get", "count"], 1]],
+              0, 2, 3, 4.5, 7, 8.5],
             9,
-            ["interpolate", ["linear"], ["get", "frp"], 0, 5, 100, 12],
+            ["interpolate", ["linear"], ["ln", ["+", ["get", "count"], 1]],
+              0, 5, 3, 10, 7, 19],
           ],
           "circle-color": [
             "step",
-            ["get", "ageH"],
-            "#ff2d00", // < 3 h : rouge vif
-            3,
-            "#ff7a00", // 3-12 h : orange
-            12,
-            "#ffc400", // 12-24 h : jaune
-            24,
-            "#8a6d3b", // > 24 h : brun atténué
+            ["get", "lastAgeH"],
+            "#ff2d00",
+            3, "#ff7a00",
+            12, "#ffc400",
+            24, "#8a6d3b",
           ],
           "circle-opacity": 0.85,
-          "circle-stroke-width": 0.5,
-          "circle-stroke-color": "rgba(255,255,255,0.25)",
+          // Liseré blanc = foyer apparu il y a moins de 12 h (la précocité, notre produit)
+          "circle-stroke-width": ["case", ["==", ["get", "isNew"], 1], 1.8, 0.4],
+          "circle-stroke-color": [
+            "case",
+            ["==", ["get", "isNew"], 1],
+            "#ffffff",
+            "rgba(255,255,255,0.25)",
+          ],
         },
       });
-      map.on("click", "fires", (e) => {
+      map.on("click", "events", (e) => {
         const f = e.features?.[0];
         if (!f) return;
-        setSelected({
-          type: "Feature",
-          geometry: f.geometry as FireFeature["geometry"],
-          properties: f.properties as unknown as FireFeature["properties"],
-        });
+        const ev = eventsRef.current.find((x) => x.id === f.properties.id);
+        if (ev) {
+          setSelected(ev);
+          setSocial({ kind: "idle" });
+        }
       });
       map.on("click", (e) => {
-        const hits = map.queryRenderedFeatures(e.point, { layers: ["fires"] });
+        const hits = map.queryRenderedFeatures(e.point, { layers: ["events"] });
         if (hits.length === 0) setSelected(null);
       });
-      map.on("mouseenter", "fires", () => (map.getCanvas().style.cursor = "pointer"));
-      map.on("mouseleave", "fires", () => (map.getCanvas().style.cursor = ""));
-      loadFires(map, 1);
+      map.on("mouseenter", "events", () => (map.getCanvas().style.cursor = "pointer"));
+      map.on("mouseleave", "events", () => (map.getCanvas().style.cursor = ""));
+      loadEvents(map, 1);
     });
 
     return () => {
@@ -177,11 +194,11 @@ export default function FireMap() {
       map.remove();
       mapRef.current = null;
     };
-  }, [loadFires]);
+  }, [loadEvents]);
 
   const changeDays = (n: number) => {
     setDays(n);
-    if (mapRef.current) loadFires(mapRef.current, n);
+    if (mapRef.current) loadEvents(mapRef.current, n);
   };
 
   const jumpTo = (name: string) => {
@@ -189,8 +206,27 @@ export default function FireMap() {
     if (r && mapRef.current) mapRef.current.flyTo({ center: r.center, zoom: r.zoom });
   };
 
-  const p = selected?.properties;
-  const coords = selected?.geometry.coordinates;
+  const selectEvent = (ev: FireEvent) => {
+    setSelected(ev);
+    setSocial({ kind: "idle" });
+    mapRef.current?.flyTo({ center: ev.centroid, zoom: 8.5 });
+  };
+
+  const searchWitnesses = async (ev: FireEvent) => {
+    setSocial({ kind: "loading" });
+    try {
+      const res = await fetch(`/api/social?lat=${ev.centroid[1]}&lon=${ev.centroid[0]}`);
+      if (!res.ok) {
+        setSocial({ kind: "error" });
+        return;
+      }
+      setSocial({ kind: "done", result: await res.json() });
+    } catch {
+      setSocial({ kind: "error" });
+    }
+  };
+
+  const newEvents = events.filter((ev) => hoursAgo(ev.firstSeen) < 24).slice(0, 40);
 
   return (
     <div className="relative h-full w-full">
@@ -224,7 +260,11 @@ export default function FireMap() {
         </select>
         <div className="flex flex-col gap-1 border-t border-zinc-700 pt-2 text-xs">
           <div className="flex items-center gap-2">
-            <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#ff2d00]" /> moins de 3 h
+            <span className="inline-block h-2.5 w-2.5 rounded-full border-2 border-white bg-[#ff2d00]" />
+            nouveau foyer (&lt; 12 h)
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#ff2d00]" /> actif &lt; 3 h
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#ff7a00]" /> 3 – 12 h
@@ -237,18 +277,22 @@ export default function FireMap() {
           </div>
         </div>
         <div className="border-t border-zinc-700 pt-2 text-xs text-zinc-400">
-          {status.kind === "loading" && "Chargement des détections…"}
+          {status.kind === "loading" && "Analyse des détections…"}
           {status.kind === "ready" && (
             <>
               <span className="font-semibold text-zinc-200">
-                {status.count.toLocaleString("fr-FR")}
+                {status.events.toLocaleString("fr-FR")}
               </span>{" "}
-              détections VIIRS
+              foyers ·{" "}
+              <span className="font-semibold text-zinc-200">
+                {status.detections.toLocaleString("fr-FR")}
+              </span>{" "}
+              détections (VIIRS + GOES)
             </>
           )}
           {status.kind === "error" && (
             <span className="text-red-400">
-              {status.code === "FIRMS_MAP_KEY_MISSING" || status.code === "FIRMS_MAP_KEY_INVALID"
+              {status.code.startsWith("FIRMS_MAP_KEY")
                 ? "Clé NASA FIRMS manquante ou invalide (variable FIRMS_MAP_KEY)."
                 : "Données FIRMS momentanément indisponibles."}
             </span>
@@ -256,11 +300,59 @@ export default function FireMap() {
         </div>
       </div>
 
-      {/* Panneau de détail */}
-      {p && coords && (
-        <div className="absolute bottom-8 left-3 w-72 rounded-xl bg-zinc-900/95 p-4 text-sm text-zinc-100 shadow-xl backdrop-blur">
+      {/* Liste des nouveaux foyers */}
+      <div className="absolute right-3 top-3 flex max-h-[70%] w-72 flex-col rounded-xl bg-zinc-900/90 text-sm text-zinc-100 shadow-lg backdrop-blur">
+        <button
+          onClick={() => setListOpen(!listOpen)}
+          className="flex items-center justify-between px-3 py-2 text-left"
+        >
+          <span className="font-semibold">
+            🔥 Nouveaux foyers <span className="text-zinc-400">({newEvents.length})</span>
+          </span>
+          <span className="text-zinc-500">{listOpen ? "▾" : "▸"}</span>
+        </button>
+        {listOpen && (
+          <div className="overflow-y-auto border-t border-zinc-800">
+            {newEvents.length === 0 && status.kind === "ready" && (
+              <p className="p-3 text-xs text-zinc-500">
+                Aucun foyer apparu dans les dernières 24 h sur la période chargée.
+              </p>
+            )}
+            {newEvents.map((ev) => (
+              <button
+                key={ev.id}
+                onClick={() => selectEvent(ev)}
+                className={`block w-full border-b border-zinc-800/60 px-3 py-2 text-left hover:bg-zinc-800 ${
+                  selected?.id === ev.id ? "bg-zinc-800" : ""
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-orange-400">
+                    1er signal {formatAge(hoursAgo(ev.firstSeen))}
+                  </span>
+                  {hoursAgo(ev.firstSeen) < NEW_EVENT_HOURS && (
+                    <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold">
+                      NOUVEAU
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-zinc-400">
+                  {ev.centroid[1].toFixed(2)}, {ev.centroid[0].toFixed(2)} · {ev.count} détection
+                  {ev.count > 1 ? "s" : ""} · {ev.maxFrp} MW max
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Panneau de détail du foyer */}
+      {selected && (
+        <div className="absolute bottom-8 left-3 max-h-[60%] w-80 overflow-y-auto rounded-xl bg-zinc-900/95 p-4 text-sm text-zinc-100 shadow-xl backdrop-blur">
           <div className="mb-2 flex items-start justify-between">
-            <h2 className="font-semibold text-orange-400">Détection thermique</h2>
+            <h2 className="font-semibold text-orange-400">
+              Foyer — 1er signal {formatAge(hoursAgo(selected.firstSeen))}
+            </h2>
             <button
               onClick={() => setSelected(null)}
               className="text-zinc-500 hover:text-zinc-200"
@@ -271,39 +363,97 @@ export default function FireMap() {
           </div>
           <dl className="space-y-1.5">
             <div className="flex justify-between">
-              <dt className="text-zinc-400">Détecté</dt>
-              <dd>{formatAge(hoursAgo(p.acq))}</dd>
+              <dt className="text-zinc-400">Premier signal (UTC)</dt>
+              <dd>{new Date(selected.firstSeen).toISOString().slice(0, 16).replace("T", " ")}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-zinc-400">Heure (UTC)</dt>
-              <dd>{new Date(p.acq).toISOString().slice(0, 16).replace("T", " ")}</dd>
+              <dt className="text-zinc-400">Dernier signal</dt>
+              <dd>{formatAge(hoursAgo(selected.lastSeen))}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-zinc-400">Puissance (FRP)</dt>
-              <dd>{Number(p.frp).toFixed(1)} MW</dd>
+              <dt className="text-zinc-400">Détections</dt>
+              <dd>
+                {selected.count} ({selected.viirsCount} VIIRS
+                {selected.goesCount > 0 ? ` + ${selected.goesCount} GOES` : ""})
+              </dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-zinc-400">Confiance</dt>
-              <dd>{p.conf === "h" ? "Haute" : p.conf === "l" ? "Faible" : "Nominale"}</dd>
+              <dt className="text-zinc-400">Puissance max</dt>
+              <dd>{selected.maxFrp} MW</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-zinc-400">Satellite</dt>
-              <dd>{SAT_NAMES[p.sat] ?? p.sat} (VIIRS)</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-zinc-400">Passage</dt>
-              <dd>{p.dn === "N" ? "Nuit" : "Jour"}</dd>
+              <dt className="text-zinc-400">Confiance max</dt>
+              <dd>
+                {selected.maxConf === "h" ? "Haute" : selected.maxConf === "l" ? "Faible" : "Nominale"}
+              </dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-zinc-400">Position</dt>
               <dd>
-                {coords[1].toFixed(3)}, {coords[0].toFixed(3)}
+                {selected.centroid[1].toFixed(3)}, {selected.centroid[0].toFixed(3)}
               </dd>
             </div>
           </dl>
+
+          {/* Corroboration sociale */}
+          <div className="mt-3 border-t border-zinc-700 pt-3">
+            {social.kind === "idle" && (
+              <button
+                onClick={() => searchWitnesses(selected)}
+                className="w-full rounded-md bg-sky-700 px-3 py-1.5 font-medium hover:bg-sky-600"
+              >
+                🔎 Chercher des témoignages (Bluesky)
+              </button>
+            )}
+            {social.kind === "loading" && (
+              <p className="text-xs text-zinc-400">Recherche de témoignages en cours…</p>
+            )}
+            {social.kind === "error" && (
+              <p className="text-xs text-red-400">Recherche indisponible pour le moment.</p>
+            )}
+            {social.kind === "done" && (
+              <div>
+                <p className="mb-2 text-xs text-zinc-400">
+                  {social.result.place ? (
+                    <>
+                      Zone : <span className="text-zinc-200">{social.result.place}</span> —{" "}
+                    </>
+                  ) : null}
+                  {social.result.posts.length} témoignage
+                  {social.result.posts.length !== 1 ? "s" : ""} trouvé
+                  {social.result.posts.length !== 1 ? "s" : ""} (48 h)
+                </p>
+                {social.result.posts.length === 0 && (
+                  <p className="text-xs text-zinc-500">
+                    Aucune mention sur Bluesky pour cette zone. Ça ne veut pas dire
+                    qu&apos;il n&apos;y a pas de feu — juste pas de témoin connecté.
+                  </p>
+                )}
+                <ul className="space-y-2">
+                  {social.result.posts.map((post) => (
+                    <li key={post.url} className="rounded-md bg-zinc-800/80 p-2 text-xs">
+                      <a
+                        href={post.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-medium text-sky-400 hover:underline"
+                      >
+                        @{post.handle}
+                      </a>{" "}
+                      <span className="text-zinc-500">
+                        · {formatAge(hoursAgo(post.createdAt))}
+                      </span>
+                      <p className="mt-1 whitespace-pre-wrap text-zinc-300">{post.text}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
           <p className="mt-3 border-t border-zinc-700 pt-2 text-xs text-zinc-500">
-            Une détection = un pixel thermique de 375 m, pas nécessairement un feu de forêt
-            (torchères, brûlages agricoles…).
+            Le « 1er signal » est l&apos;heure du premier passage satellite ayant vu ce foyer —
+            l&apos;ignition réelle peut être antérieure.
           </p>
         </div>
       )}
