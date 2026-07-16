@@ -17,7 +17,8 @@ export default function About() {
 
         <h2 className="pt-4 text-lg font-semibold text-zinc-100">D&apos;où viennent les données ?</h2>
         <p>
-          Les détections proviennent de la NASA (programme{" "}
+          Trois familles de satellites se complètent. Les instruments <strong>VIIRS</strong>{" "}
+          (NASA{" "}
           <a
             href="https://firms.modaps.eosdis.nasa.gov/"
             className="text-orange-400 underline"
@@ -26,11 +27,13 @@ export default function About() {
           >
             FIRMS
           </a>
-          ) : les instruments VIIRS embarqués sur trois satellites en orbite polaire (Suomi-NPP,
-          NOAA-20, NOAA-21) balayent chaque point du globe plusieurs fois par jour et repèrent les
-          anomalies thermiques avec une résolution de 375 m. Un feu intense de quelques mètres
-          carrés est détectable de nuit. Les données sont rafraîchies environ toutes les dix
-          minutes.
+          , satellites NOAA-20 et NOAA-21 en orbite polaire) repèrent les anomalies thermiques
+          avec une résolution de 375 m — un feu intense de quelques mètres carrés est détectable
+          de nuit — mais ne passent que quelques fois par jour. Les satellites géostationnaires{" "}
+          <strong>GOES</strong> (NOAA, Amériques) et <strong>Meteosat MTG</strong> (EUMETSAT,
+          Europe/Afrique) surveillent en continu et rafraîchissent toutes les 10 minutes : moins
+          précis, mais décisifs pour la précocité. VigiFire y ajoute une veille des témoignages
+          citoyens sur les réseaux sociaux, géolocalisés par nom de lieu.
         </p>
 
         <h2 className="pt-4 text-lg font-semibold text-zinc-100">Limites à connaître</h2>
