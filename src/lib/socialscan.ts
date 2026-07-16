@@ -229,21 +229,22 @@ export async function scanSocial(sinceHours = 12): Promise<{
       url: c.post.url,
       text: c.post.text,
       places: c.places.map((p) => `${p.entry[3]} (${p.entry[2].toUpperCase()})`),
+      createdAt: c.post.createdAt,
     }))
   );
 
   for (const c of candidates) {
     if (verdicts) {
+      // Tri IA actif : AUCUN post non jugé ne s'affiche. Un post au-delà du
+      // plafond de jugements attend simplement le scan suivant (3 min) —
+      // précision d'abord, c'est la promesse du produit.
       const v = verdicts.get(c.post.url);
-      if (v) {
-        // Jugé : on n'ancre le post QUE sur le lieu du feu identifié.
-        if (!v.fire || v.place == null) continue;
-        const chosen = c.places[v.place];
-        if (chosen) addToPlace(chosen.key, chosen.entry, c.post);
-        continue;
-      }
-      // Non jugé (quota ou échec API) : repli mots-clés pour ne rien perdre.
+      if (!v || !v.fire || v.place == null) continue;
+      const chosen = c.places[v.place];
+      if (chosen) addToPlace(chosen.key, chosen.entry, c.post);
+      continue;
     }
+    // Sans tri IA (pas de clé API) : comportement mots-clés historique.
     for (const { key, entry } of c.places) addToPlace(key, entry, c.post);
   }
 

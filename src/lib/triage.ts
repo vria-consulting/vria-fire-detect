@@ -16,6 +16,7 @@ export type TriageCandidate = {
   url: string; // identifiant unique du post/article
   text: string;
   places: string[]; // noms des lieux candidats trouvés par le gazetteer
+  createdAt: string; // les plus récents sont jugés en premier
 };
 
 // v5 : bump = purge des approbations non vérifiées gravées par la v4 (échec
@@ -159,12 +160,17 @@ export async function triageCandidates(
   }
 
   const verdicts = new Map<string, TriageVerdict>();
-  const fresh: TriageCandidate[] = [];
+  const uncached: TriageCandidate[] = [];
   for (const c of candidates) {
     const hit = cache[c.url];
     if (hit) verdicts.set(c.url, { fire: hit.f, place: hit.p });
-    else if (fresh.length < MAX_NEW_PER_SCAN) fresh.push(c);
+    else uncached.push(c);
   }
+  // Les posts les plus récents d'abord : la précocité est le produit. Le
+  // surplus au-delà du plafond attendra le scan suivant (jamais affiché sans
+  // jugement — l'appelant écarte les posts absents de la Map).
+  uncached.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  const fresh = uncached.slice(0, MAX_NEW_PER_SCAN);
 
   for (let i = 0; i < fresh.length; i += BATCH_SIZE) {
     const batch = fresh.slice(i, i + BATCH_SIZE);
