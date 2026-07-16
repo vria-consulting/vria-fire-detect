@@ -160,12 +160,14 @@ export default function FireMap() {
 
   useEffect(() => {
     if (localStorage.getItem("vigifire-alert-endpoint")) setAlertState("on");
-    const id = setInterval(() => setTick((t) => t + 1), 30_000);
+    const id = setInterval(() => setTick((t) => t + 1), 10_000);
     return () => clearInterval(id);
   }, []);
 
-  const loadData = useCallback(async (map: maplibregl.Map, nDays: number) => {
-    setStatus({ kind: "loading" });
+  const [lastUpdate, setLastUpdate] = useState<number | null>(null);
+
+  const loadData = useCallback(async (map: maplibregl.Map, nDays: number, silent = false) => {
+    if (!silent) setStatus({ kind: "loading" });
     try {
       const [evRes, sigRes] = await Promise.all([
         fetch(`/api/events?days=${nDays}`),
@@ -236,8 +238,9 @@ export default function FireMap() {
         detections: data.meta.totalDetections,
         signals: signals.length,
       });
+      setLastUpdate(Date.now());
     } catch {
-      setStatus({ kind: "error", code: "NETWORK" });
+      if (!silent) setStatus({ kind: "error", code: "NETWORK" });
     }
   }, []);
 
@@ -525,14 +528,14 @@ export default function FireMap() {
     }
   }, [mode, events, signals]);
 
-  // En mode départs, les données se rafraîchissent toutes les 2 min.
+  // Rafraîchissement automatique toutes les 2 min, dans tous les modes,
+  // sans clignotement (silent) — les données doivent coller au temps réel.
   useEffect(() => {
-    if (mode !== "departs") return;
     const id = setInterval(() => {
-      if (mapRef.current) loadData(mapRef.current, days);
+      if (mapRef.current) loadData(mapRef.current, days, true);
     }, 120_000);
     return () => clearInterval(id);
-  }, [mode, days, loadData]);
+  }, [days, loadData]);
 
   const newEvents = events.filter((ev) => hoursAgo(ev.firstSeen) < 24).slice(0, 40);
 
@@ -667,6 +670,25 @@ export default function FireMap() {
                 ? "Clé NASA FIRMS manquante ou invalide (variable FIRMS_MAP_KEY)."
                 : "Données FIRMS momentanément indisponibles."}
             </span>
+          )}
+          {lastUpdate && (
+            <div className="mt-1 flex items-center justify-between text-[11px] text-zinc-500">
+              <span>
+                Mise à jour{" "}
+                {Date.now() - lastUpdate < 15_000
+                  ? "à l'instant"
+                  : `il y a ${Math.round((Date.now() - lastUpdate) / 1000)} s`}{" "}
+                · auto toutes les 2 min
+              </span>
+              <button
+                onClick={() => mapRef.current && loadData(mapRef.current, days, true)}
+                className="rounded px-1.5 py-0.5 hover:bg-zinc-800"
+                title="Rafraîchir maintenant"
+                aria-label="Rafraîchir maintenant"
+              >
+                ↻
+              </button>
+            </div>
           )}
         </div>
       </div>

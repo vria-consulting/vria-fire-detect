@@ -22,7 +22,7 @@ const HISTORY_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 // Marqueur "feu déjà établi avant notre première observation" : on antidate.
 const ESTABLISHED_BACKDATE_MS = 24 * 60 * 60 * 1000;
 
-const TTL_MS = 5 * 60 * 1000;
+const TTL_MS = 3 * 60 * 1000;
 let cached: { at: number; data: SignalsPayload } | null = null;
 let inflight: Promise<SignalsPayload> | null = null;
 

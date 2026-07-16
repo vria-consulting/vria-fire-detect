@@ -25,7 +25,9 @@ function baseConfidence(ev: FireEvent): Confidence {
   return "possible";
 }
 
-const CACHE_TTL_MS = 5 * 60 * 1000;
+// 2 min : la précocité prime — le volume reste très en dessous du rate limit
+// FIRMS (5000 transactions / 10 min) et les produits MTG sont cachés à l'unité.
+const CACHE_TTL_MS = 2 * 60 * 1000;
 const cache = new Map<number, { at: number; data: EventsPayload }>();
 
 export async function getEvents(days: number): Promise<EventsPayload> {

@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   try {
     const data = await getEvents(days);
     return NextResponse.json(data, {
-      headers: { "cache-control": "public, max-age=120" },
+      headers: { "cache-control": "public, max-age=30" },
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "UNKNOWN";

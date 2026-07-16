@@ -9,7 +9,7 @@ export async function GET() {
   try {
     const data = await getSignals();
     return NextResponse.json(data, {
-      headers: { "cache-control": "public, max-age=120" },
+      headers: { "cache-control": "public, max-age=30" },
     });
   } catch (e) {
     console.error("signals failed:", e);
