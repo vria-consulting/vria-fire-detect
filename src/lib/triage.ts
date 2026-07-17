@@ -19,9 +19,9 @@ export type TriageCandidate = {
   createdAt: string; // les plus récents sont jugés en premier
 };
 
-// v8 : géoparsing corrigé (lieu en fin de texte, élision « d'Épouville ») —
-// les indices de lieux des verdicts v7 seraient désalignés.
-const CACHE_PATH = "triage-cache-v8.json";
+// v9 : règle d'ancrage durcie (voisin lointain, nom administratif de feu) —
+// détectée par la batterie QA IA (Ladybank/Tentsmuir, Fort Frances 14 Fire).
+const CACHE_PATH = "triage-cache-v9.json";
 const RETENTION_MS = 48 * 60 * 60 * 1000;
 const BATCH_SIZE = 25;
 const MAX_NEW_PER_SCAN = 50; // garde-fou de coût et de durée par rafraîchissement
@@ -65,6 +65,8 @@ Pièges de lieu à déjouer :
 
 "place" = l'indice (base 0) du candidat qui localise le feu. Les candidats portent leur code pays, et un même nom peut apparaître plusieurs fois avec des pays différents (homonymes) : choisis celui qui est cohérent avec le texte — « incendio en Guadalajara » dans un texte espagnol qui cite Castilla-La Mancha = « Guadalajara (ES) », pas (MX).
 - Choisis en priorité le lieu exact du feu. À défaut, un candidat ENGLOBANT ou VOISIN cité dans le texte pour situer le feu est valide : la province pour un village absent des candidats (« incendio en Lozoyuela, Madrid » → « Madrid (ES) »), la ville dont le feu coupe la ligne de train (« trains Vigo-Ourense suspendus par le feu de Crecente » → « Ourense (ES) »).
+- MAIS un voisin n'est valide que s'il situe réellement le feu : si le texte nomme précisément le lieu du feu et que ce lieu n'est PAS parmi les candidats, ne rabats PAS le feu sur la ville de l'AUTEUR ni sur un lieu que le texte présente comme distinct (« There's a wildfire at Tentsmuir, which isn't exactly local » posté depuis Ladybank → null : le texte dit lui-même que ce n'est pas local).
+- Un NOM DE CODE administratif de feu contenant une ville (« Fort Frances 14 Fire », « Red Lake 007 ») désigne le district de gestion, pas l'emplacement : si le texte situe le feu près d'autres lieux, choisis ces lieux — sinon null, jamais la ville du nom de code.
 - Réponds null si AUCUN candidat n'est cohérent : là où la fumée dérive, là où l'on en parle, un nom de média, un siège d'organisation, ou un homonyme du mauvais pays.
 
 Règle d'or : au moindre doute sur l'un ou l'autre, réponds false / null. Manquer un signal ambigu coûte moins cher qu'une fausse alerte envoyée aux secours.`;

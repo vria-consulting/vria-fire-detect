@@ -147,14 +147,16 @@ export async function runConnectors(opts: QaOptions): Promise<void> {
     try {
       const out = execFileSync(
         "gh",
-        ["run", "list", "--workflow=telegram-scan.yml", "--limit", "1", "--json", "status,conclusion,updatedAt"],
+        ["run", "list", "--workflow=telegram-scan.yml", "--limit", "3", "--json", "status,conclusion,updatedAt"],
         { encoding: "utf8", timeout: 30_000 }
       );
       const runs = JSON.parse(out) as { status: string; conclusion: string; updatedAt: string }[];
-      if (runs.length === 0) return { verdict: "FAIL", detail: "aucun run du workflow telegram-scan" };
-      const r = runs[0];
+      // Un run peut être EN COURS au moment de la QA : on juge le dernier
+      // run TERMINÉ (bug détecté par l'analyste IA de la rétrospective).
+      const r = runs.find((x) => x.status === "completed");
+      if (!r) return { verdict: "WARN", detail: "aucun run terminé (exécution en cours)" };
       const ageH = (Date.now() - Date.parse(r.updatedAt)) / 3_600_000;
-      if (r.conclusion !== "success") return { verdict: "FAIL", detail: `dernier run : ${r.conclusion}` };
+      if (r.conclusion !== "success") return { verdict: "FAIL", detail: `dernier run terminé : ${r.conclusion}` };
       if (ageH > 3) return { verdict: "FAIL", detail: `dernier run il y a ${ageH.toFixed(1)} h` };
       if (ageH > 0.5) {
         return { verdict: "WARN", detail: `dernier run il y a ${Math.round(ageH * 60)} min (planning GitHub qui dérive, fenêtre de scan 2 h = couvert)` };
@@ -217,10 +219,15 @@ export async function runConnectors(opts: QaOptions): Promise<void> {
       headers: { Authorization: `Bearer ${key}` },
     });
     if (!res.ok) return { verdict: "FAIL", detail: `API cron-job.org HTTP ${res.status}` };
-    const j = (await res.json()) as { history?: { date: string; httpStatus: number }[] };
+    const j = (await res.json()) as { history?: { date: string | number; httpStatus: number }[] };
     const last = j.history?.[0];
     if (!last) return { verdict: "FAIL", detail: "aucune exécution dans l'historique" };
-    const ageMin = (Date.now() - Date.parse(last.date)) / 60_000;
+    // L'API renvoie un timestamp unix (secondes), pas une chaîne ISO — un
+    // Date.parse produisait « NaN min » et laissait passer un cron mort
+    // (bug détecté par l'analyste IA de la rétrospective).
+    const ts = typeof last.date === "number" ? last.date * 1000 : Date.parse(last.date);
+    if (!isFinite(ts)) return { verdict: "FAIL", detail: `horodatage illisible : ${JSON.stringify(last.date)}` };
+    const ageMin = (Date.now() - ts) / 60_000;
     if (last.httpStatus !== 200) return { verdict: "FAIL", detail: `dernière exécution HTTP ${last.httpStatus}` };
     if (ageMin > 10) return { verdict: "FAIL", detail: `dernière exécution il y a ${Math.round(ageMin)} min (attendu ≤ 3 min)` };
     return { verdict: "PASS", detail: `dernière exécution 200 il y a ${Math.round(ageMin)} min` };
