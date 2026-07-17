@@ -10,6 +10,24 @@ body {
   height: 100%;
 }
 
+/* Le chant du kanari : les ondes s'allument en cascade */
+.kanari-w1,
+.kanari-w2,
+.kanari-w3 {
+  opacity: 0.3;
+  animation: kanari-chant 2.4s ease-in-out infinite;
+}
+.kanari-w2 {
+  animation-delay: 0.3s;
+}
+.kanari-w3 {
+  animation-delay: 0.6s;
+}
+@keyframes kanari-chant {
+  0%, 100% { opacity: 0.3; }
+  25% { opacity: 1; }
+}
+
 /* Marqueur pulsant des départs de feu très récents (< 20 min) */
 .pulse-marker {
   width: 18px;

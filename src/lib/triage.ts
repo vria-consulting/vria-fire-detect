@@ -32,7 +32,7 @@ const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const MODEL = process.env.TRIAGE_MODEL ?? "gpt-5.6-luna";
 const VERIFY_MODEL = process.env.TRIAGE_VERIFY_MODEL ?? "gpt-5.6-terra";
 
-const SYSTEM = `Tu es le filtre de pertinence de VigiFire, un service d'alerte ultra-précoce des feux de forêt destiné aux secours. Chaque faux positif décrédibilise le service. Tu reçois une liste d'items : texte d'un post de réseau social ou titre d'article de presse, avec des lieux candidats.
+const SYSTEM = `Tu es le filtre de pertinence de Kanari, un service d'alerte ultra-précoce des feux de forêt destiné aux secours. Chaque faux positif décrédibilise le service. Tu reçois une liste d'items : texte d'un post de réseau social ou titre d'article de presse, avec des lieux candidats.
 
 Pour chaque item :
 

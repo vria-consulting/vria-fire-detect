@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Génère la session string Telegram de VigiFire (à exécuter UNE fois, localement).
+"""Génère la session string Telegram de Kanari (à exécuter UNE fois, localement).
 
     pip3 install telethon
     python3 scripts/telegram_login.py
@@ -17,6 +17,6 @@ API_ID = 37676736
 API_HASH = "653d632b05a486df5aad0b7c8d42e748"
 
 with TelegramClient(StringSession(), API_ID, API_HASH) as client:
-    print("\n=== Session string VigiFire (à me transmettre) ===\n")
+    print("\n=== Session string Kanari (à me transmettre) ===\n")
     print(client.session.save())
     print("\n===================================================")

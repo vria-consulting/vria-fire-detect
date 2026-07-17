@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Veille Telegram VigiFire — exécutée par GitHub Actions toutes les 10 min.
+"""Veille Telegram Kanari — exécutée par GitHub Actions toutes les 10 min.
 
 Recherche globale des messages publics récents mentionnant un feu de forêt
-(multilingue), puis POST vers l'API VigiFire qui les stocke sur Blob.
+(multilingue), puis POST vers l'API Kanari qui les stocke sur Blob.
 Env requis : TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_SESSION, CRON_SECRET.
 """
 

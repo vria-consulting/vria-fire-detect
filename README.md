@@ -1,9 +1,9 @@
-# VigiFire
+# Kanari — détection précoce des feux de forêt
 
 Carte mondiale en temps quasi réel des départs de feu détectés par satellite.
 Service d'information indépendant — projet à mission.
 
-**⚠️ VigiFire n'est pas un service d'alerte officiel. En cas d'urgence : 112 (Europe) / 18 (France).**
+**⚠️ Kanari n'est pas un service d'alerte officiel. En cas d'urgence : 112 (Europe) / 18 (France).**
 
 ## Sources de données
 

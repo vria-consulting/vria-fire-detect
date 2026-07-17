@@ -22,7 +22,7 @@ export type SocialResult = {
   searchStatuses?: number[];
 };
 
-const NOMINATIM_UA = "VigiFire/0.1 (https://vria-fire-detect.vercel.app)";
+const NOMINATIM_UA = "Kanari/0.1 (https://vria-fire-detect.vercel.app)";
 
 export const TERMS_BY_LANG: Record<string, string[]> = {
   fr: ["incendie", "feu", "fumée"],

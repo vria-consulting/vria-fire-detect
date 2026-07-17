@@ -1,14 +1,14 @@
-// Service worker VigiFire : réception des notifications push d'alerte feu.
+// Service worker Kanari : réception des notifications push d'alerte feu.
 
 self.addEventListener("push", (event) => {
   let data = {};
   try {
     data = event.data ? event.data.json() : {};
   } catch {
-    data = { title: "VigiFire", body: event.data ? event.data.text() : "" };
+    data = { title: "Kanari", body: event.data ? event.data.text() : "" };
   }
   event.waitUntil(
-    self.registration.showNotification(data.title || "🔥 VigiFire", {
+    self.registration.showNotification(data.title || "🔥 Kanari", {
       body: data.body || "Nouveau foyer détecté dans votre zone.",
       data: { url: data.url || "/" },
       badge: "/icon.png",

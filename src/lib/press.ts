@@ -54,7 +54,7 @@ export async function fetchPressArticles(sinceHours = 3): Promise<PressArticle[]
     });
     const url = `${GDELT_URL}?${params}`;
     const headers = {
-      "User-Agent": "VigiFire/0.1 (https://vria-fire-detect.vercel.app)",
+      "User-Agent": "Kanari/0.1 (https://vria-fire-detect.vercel.app)",
     };
     let res = await fetch(url, { headers });
     if (res.status === 429) {

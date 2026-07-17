@@ -4,7 +4,7 @@
 
 const PUBLIC_SEARCH = "https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts";
 const AUTH_BASE = "https://bsky.social/xrpc";
-const UA = "VigiFire/0.1 (https://vria-fire-detect.vercel.app)";
+const UA = "Kanari/0.1 (https://vria-fire-detect.vercel.app)";
 
 let session: { jwt: string; at: number } | null = null;
 let authInflight: Promise<string | null> | null = null;

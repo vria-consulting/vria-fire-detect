@@ -1,15 +1,15 @@
 import Link from "next/link";
 
-export const metadata = { title: "À propos — VigiFire" };
+export const metadata = { title: "À propos — Kanari" };
 
 export default function About() {
   return (
     <div className="mx-auto max-w-2xl overflow-y-auto px-6 py-10 text-zinc-300">
-      <h1 className="mb-6 text-2xl font-bold text-zinc-100">À propos de VigiFire</h1>
+      <h1 className="mb-6 text-2xl font-bold text-zinc-100">À propos de Kanari</h1>
 
       <section className="space-y-4 text-sm leading-relaxed">
         <p>
-          VigiFire est un service d&apos;information indépendant qui cartographie en temps quasi
+          Kanari est un service d&apos;information indépendant qui cartographie en temps quasi
           réel les départs de feu détectés par satellite, partout dans le monde. Notre mission :
           rendre visible chaque départ de feu le plus tôt possible, pour que citoyens, médias et
           services de secours disposent de la même information au même moment.
@@ -32,7 +32,7 @@ export default function About() {
           de nuit — mais ne passent que quelques fois par jour. Les satellites géostationnaires{" "}
           <strong>GOES</strong> (NOAA, Amériques) et <strong>Meteosat MTG</strong> (EUMETSAT,
           Europe/Afrique) surveillent en continu et rafraîchissent toutes les 10 minutes : moins
-          précis, mais décisifs pour la précocité. VigiFire y ajoute une veille des témoignages
+          précis, mais décisifs pour la précocité. Kanari y ajoute une veille des témoignages
           citoyens sur les réseaux sociaux, géolocalisés par nom de lieu.
         </p>
 
@@ -56,14 +56,14 @@ export default function About() {
 
         <h2 className="pt-4 text-lg font-semibold text-zinc-100">Avertissement</h2>
         <p className="rounded-lg border border-red-900 bg-red-950/50 p-3 text-red-200">
-          VigiFire n&apos;est pas un service d&apos;alerte officiel et ne remplace en aucun cas les
+          Kanari n&apos;est pas un service d&apos;alerte officiel et ne remplace en aucun cas les
           canaux d&apos;urgence. Si vous êtes témoin d&apos;un départ de feu, appelez immédiatement
           le <strong>112</strong> (Europe) ou le <strong>18</strong> (France).
         </p>
 
         <h2 className="pt-4 text-lg font-semibold text-zinc-100">Qui sommes-nous ?</h2>
         <p>
-          VigiFire est développé comme un projet à mission : l&apos;objectif est l&apos;intérêt
+          Kanari est développé comme un projet à mission : l&apos;objectif est l&apos;intérêt
           général, pas la monétisation des données. Le code est ouvert et les sources de données
           sont publiques.
         </p>
