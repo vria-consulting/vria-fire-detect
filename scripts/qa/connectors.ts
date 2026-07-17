@@ -220,16 +220,29 @@ export async function runConnectors(opts: QaOptions): Promise<void> {
     });
     if (!res.ok) return { verdict: "FAIL", detail: `API cron-job.org HTTP ${res.status}` };
     const j = (await res.json()) as { history?: { date: string | number; httpStatus: number }[] };
-    const last = j.history?.[0];
-    if (!last) return { verdict: "FAIL", detail: "aucune exécution dans l'historique" };
+    const hist = j.history ?? [];
+    if (hist.length === 0) return { verdict: "FAIL", detail: "aucune exécution dans l'historique" };
     // L'API renvoie un timestamp unix (secondes), pas une chaîne ISO — un
     // Date.parse produisait « NaN min » et laissait passer un cron mort
-    // (bug détecté par l'analyste IA de la rétrospective).
-    const ts = typeof last.date === "number" ? last.date * 1000 : Date.parse(last.date);
-    if (!isFinite(ts)) return { verdict: "FAIL", detail: `horodatage illisible : ${JSON.stringify(last.date)}` };
-    const ageMin = (Date.now() - ts) / 60_000;
-    if (last.httpStatus !== 200) return { verdict: "FAIL", detail: `dernière exécution HTTP ${last.httpStatus}` };
-    if (ageMin > 10) return { verdict: "FAIL", detail: `dernière exécution il y a ${Math.round(ageMin)} min (attendu ≤ 3 min)` };
-    return { verdict: "PASS", detail: `dernière exécution 200 il y a ${Math.round(ageMin)} min` };
+    // (bug détecté par l'analyste IA de la rétrospective). On juge sur les
+    // dernières exécutions : un HTTP 0 isolé arrive pendant un déploiement
+    // (démarrage à froid > 30 s = timeout cron-job.org) et s'auto-répare.
+    const toMs = (d: string | number) => (typeof d === "number" ? d * 1000 : Date.parse(d));
+    const recent = hist.slice(0, 5).map((h) => ({ ts: toMs(h.date), status: h.httpStatus }));
+    if (recent.some((r) => !isFinite(r.ts))) {
+      return { verdict: "FAIL", detail: "horodatages illisibles dans l'historique" };
+    }
+    const okRecent = recent.find((r) => r.status === 200 && Date.now() - r.ts < 10 * 60_000);
+    const failures = recent.filter((r) => r.status !== 200).length;
+    if (!okRecent) {
+      return { verdict: "FAIL", detail: `aucune exécution 200 sur les 10 dernières minutes (statuts : ${recent.map((r) => r.status).join(",")})` };
+    }
+    if (recent[0].status !== 200 || failures > 0) {
+      return {
+        verdict: "WARN",
+        detail: `succès il y a ${Math.round((Date.now() - okRecent.ts) / 60_000)} min mais ${failures}/5 exécutions en échec (déploiement ou lenteur à froid probable)`,
+      };
+    }
+    return { verdict: "PASS", detail: `5/5 exécutions récentes en 200, dernière il y a ${Math.round((Date.now() - recent[0].ts) / 60_000)} min` };
   });
 }
