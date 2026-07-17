@@ -15,7 +15,8 @@ import { judgeForQA } from "../../src/lib/triage";
 
 const L = "4-ia";
 
-const REVIEW_MODEL = process.env.TRIAGE_VERIFY_MODEL ?? "gpt-5.6-terra";
+// luna suffit largement pour la relecture (terra coûtait 2,5× plus cher).
+const REVIEW_MODEL = process.env.QA_REVIEW_MODEL ?? "gpt-5.6-luna";
 
 const REVIEW_SYSTEM = `Tu es le relecteur qualité de Kanari, service d'alerte précoce des feux de forêt. On te montre des posts qui SONT AFFICHÉS sur la carte publique, chacun ancré à un lieu. Ton travail : trouver les erreurs qu'un utilisateur nous reprocherait.
 
@@ -71,7 +72,8 @@ async function reviewBatch(apiKey: string, items: ReviewItem[]): Promise<(Review
     headers: { Authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
     body: JSON.stringify({
       model: REVIEW_MODEL,
-      max_completion_tokens: 16000,
+      reasoning_effort: "low",
+      max_completion_tokens: 4000,
       messages: [
         { role: "system", content: REVIEW_SYSTEM },
         {

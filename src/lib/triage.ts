@@ -22,16 +22,23 @@ export type TriageCandidate = {
 // v9 : règle d'ancrage durcie (voisin lointain, nom administratif de feu) —
 // détectée par la batterie QA IA (Ladybank/Tentsmuir, Fort Frances 14 Fire).
 const CACHE_PATH = "triage-cache-v9.json";
-const RETENTION_MS = 48 * 60 * 60 * 1000;
+// 7 jours : les bots repostent les mêmes URL pendant plusieurs jours — chaque
+// hit de cache est un jugement gratuit.
+const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const BATCH_SIZE = 25;
 const MAX_NEW_PER_SCAN = 50; // garde-fou de coût et de durée par rafraîchissement
+// Plafond de dépense ABSOLU : nombre max de posts jugés par jour UTC, toutes
+// instances confondues (compteur partagé dans le cache Blob). Au-delà, les
+// posts attendent le lendemain — jamais affichés sans jugement.
+const DAILY_MAX = parseInt(process.env.TRIAGE_DAILY_MAX ?? "3000", 10);
 
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
-// Double jugement : le petit modèle filtre tout le flux (rejette ~85 %), puis
-// le modèle de vérification contre-examine UNIQUEMENT les posts approuvés —
-// la précision d'un grand modèle pour ~15 % de son coût.
-const MODEL = process.env.TRIAGE_MODEL ?? "gpt-5.6-luna";
-const VERIFY_MODEL = process.env.TRIAGE_VERIFY_MODEL ?? "gpt-5.6-terra";
+// Double jugement économique : gpt-5.4-nano (0,20 $/1,25 $ le M de tokens)
+// filtre tout le flux et rejette ~85 % ; gpt-5.6-luna (1 $/6 $) ne
+// contre-examine QUE les posts approuvés. Le prompt système (~1,3k tokens),
+// identique à chaque appel, est servi du cache OpenAI à -90 %.
+const MODEL = process.env.TRIAGE_MODEL ?? "gpt-5.4-nano";
+const VERIFY_MODEL = process.env.TRIAGE_VERIFY_MODEL ?? "gpt-5.6-luna";
 
 const SYSTEM = `Tu es le filtre de pertinence de Kanari, un service d'alerte ultra-précoce des feux de forêt destiné aux secours. Chaque faux positif décrédibilise le service. Tu reçois une liste d'items : texte d'un post de réseau social ou titre d'article de presse, avec des lieux candidats.
 
@@ -103,7 +110,8 @@ async function judgeBatch(
   apiKey: string,
   batch: TriageCandidate[],
   model: string,
-  system: string = SYSTEM
+  system: string = SYSTEM,
+  effort: "minimal" | "low" = "minimal"
 ): Promise<Map<string, TriageVerdict>> {
   const out = new Map<string, TriageVerdict>();
   const payload = batch.map((c, i) => ({
@@ -111,31 +119,49 @@ async function judgeBatch(
     texte: c.text.slice(0, 500),
     lieux: c.places,
   }));
-  const res = await fetch(OPENAI_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      max_completion_tokens: 16000,
-      messages: [
-        { role: "system", content: system },
-        {
-          role: "user",
-          content: JSON.stringify({
-            maintenant: new Date().toISOString(),
-            items: payload,
-          }),
-        },
-      ],
-      response_format: {
-        type: "json_schema",
-        json_schema: { name: "triage", strict: true, schema: OUTPUT_SCHEMA },
+  // reasoning_effort minimal/low : la classification n'a pas besoin de longues
+  // chaînes de raisonnement — c'étaient des milliers de tokens facturés en
+  // SORTIE à chaque lot. max_completion_tokens réduit en conséquence.
+  const body = {
+    model,
+    max_completion_tokens: 4000,
+    reasoning_effort: effort as string | undefined,
+    messages: [
+      { role: "system", content: system },
+      {
+        role: "user",
+        content: JSON.stringify({
+          maintenant: new Date().toISOString(),
+          items: payload,
+        }),
       },
-    }),
-  });
+    ],
+    response_format: {
+      type: "json_schema",
+      json_schema: { name: "triage", strict: true, schema: OUTPUT_SCHEMA },
+    },
+  };
+  const call = () =>
+    fetch(OPENAI_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  let res = await call();
+  if (res.status === 400) {
+    const errText = await res.text();
+    if (errText.includes("reasoning_effort")) {
+      // Modèle sans paramètre de raisonnement : on réessaie sans.
+      delete body.reasoning_effort;
+      res = await call();
+    } else {
+      console.error("triage OpenAI HTTP 400", errText.slice(0, 300));
+      return out;
+    }
+  }
   if (!res.ok) {
     console.error("triage OpenAI HTTP", res.status, (await res.text()).slice(0, 300));
     return out;
@@ -171,7 +197,7 @@ export async function judgeForQA(
     const approved = batch.filter((c) => judged.get(c.url)?.fire);
     let verified = new Map<string, TriageVerdict>();
     if (approved.length > 0 && VERIFY_MODEL !== MODEL) {
-      verified = await judgeBatch(apiKey, approved, VERIFY_MODEL, VERIFY_SYSTEM);
+      verified = await judgeBatch(apiKey, approved, VERIFY_MODEL, VERIFY_SYSTEM, "low");
     }
     for (const c of batch) {
       const first = judged.get(c.url) ?? null;
@@ -196,6 +222,7 @@ export async function triageCandidates(
   if (candidates.length === 0) return new Map();
 
   type CacheEntry = { f: boolean; p: number | null; at: number };
+  type BudgetEntry = { d: string; n: number };
   let cache: Record<string, CacheEntry> = {};
   try {
     cache = await readJson<Record<string, CacheEntry>>(CACHE_PATH, {});
@@ -207,14 +234,23 @@ export async function triageCandidates(
   const uncached: TriageCandidate[] = [];
   for (const c of candidates) {
     const hit = cache[c.url];
-    if (hit) verdicts.set(c.url, { fire: hit.f, place: hit.p });
-    else uncached.push(c);
+    if (hit && "f" in hit) verdicts.set(c.url, { fire: hit.f, place: hit.p });
+    else if (!c.url.startsWith("_")) uncached.push(c);
+  }
+  // Plafond quotidien : compteur partagé entre instances via le cache Blob
+  // (clé réservée « _budget », épargnée par la purge de rétention).
+  const today = new Date().toISOString().slice(0, 10);
+  const bRaw = cache["_budget"] as unknown as BudgetEntry | undefined;
+  const budget: BudgetEntry = bRaw && bRaw.d === today ? bRaw : { d: today, n: 0 };
+  const remaining = Math.max(0, DAILY_MAX - budget.n);
+  if (remaining === 0) {
+    console.error(`triage : plafond quotidien atteint (${DAILY_MAX} posts) — jugements suspendus jusqu'à demain UTC`);
   }
   // Les posts les plus récents d'abord : la précocité est le produit. Le
   // surplus au-delà du plafond attendra le scan suivant (jamais affiché sans
   // jugement — l'appelant écarte les posts absents de la Map).
   uncached.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
-  const fresh = uncached.slice(0, MAX_NEW_PER_SCAN);
+  const fresh = uncached.slice(0, Math.min(MAX_NEW_PER_SCAN, remaining));
 
   for (let i = 0; i < fresh.length; i += BATCH_SIZE) {
     const batch = fresh.slice(i, i + BATCH_SIZE);
@@ -230,7 +266,7 @@ export async function triageCandidates(
       const approved = batch.filter((c) => judged.get(c.url)?.fire);
       if (approved.length > 0 && VERIFY_MODEL !== MODEL) {
         try {
-          const verified = await judgeBatch(apiKey, approved, VERIFY_MODEL, VERIFY_SYSTEM);
+          const verified = await judgeBatch(apiKey, approved, VERIFY_MODEL, VERIFY_SYSTEM, "low");
           for (const c of approved) {
             const v = verified.get(c.url);
             if (v) {
@@ -254,8 +290,10 @@ export async function triageCandidates(
         verdicts.set(url, v);
         if (!noCache.has(url)) cache[url] = { f: v.fire, p: v.place, at: now };
       }
+      budget.n += batch.length;
+      cache["_budget"] = budget as unknown as CacheEntry;
       for (const k of Object.keys(cache)) {
-        if (now - cache[k].at > RETENTION_MS) delete cache[k];
+        if (!k.startsWith("_") && now - cache[k].at > RETENTION_MS) delete cache[k];
       }
       // Persisté après CHAQUE lot : si la fonction serverless est tuée en
       // route (durée max), les verdicts déjà payés survivent au prochain appel.

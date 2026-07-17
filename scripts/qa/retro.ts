@@ -147,8 +147,9 @@ export async function runRetro(opts: QaOptions, results: CheckResult[]): Promise
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
         body: JSON.stringify({
-          model: process.env.TRIAGE_VERIFY_MODEL ?? "gpt-5.6-terra",
-          max_completion_tokens: 16000,
+          model: process.env.QA_REVIEW_MODEL ?? "gpt-5.6-luna",
+          reasoning_effort: "low",
+          max_completion_tokens: 4000,
           messages: [
             {
               role: "system",
