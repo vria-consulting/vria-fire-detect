@@ -168,6 +168,23 @@ export async function runEndpoints(opts: QaOptions): Promise<void> {
     return { verdict: "PASS", detail: `${data.signals.length} signalements, ${data.meta.scannedPosts} posts scannés, tous cohérents` };
   });
 
+  // ---- /api/social : recherche manuelle de témoins ------------------------------
+  await check(L, "/api/social recherche de témoins", async () => {
+    const res = await fetchT(`${t}/api/social?lat=41.9&lon=12.5`, 60_000);
+    if (!res.ok) return { verdict: "FAIL", detail: `HTTP ${res.status}` };
+    const j = (await res.json()) as { posts?: unknown[]; place?: string | null };
+    if (!Array.isArray(j.posts)) return { verdict: "FAIL", detail: "réponse sans tableau posts" };
+    return { verdict: "PASS", detail: `${j.posts.length} témoignage(s) autour de Rome, lieu=${j.place ?? "—"}` };
+  });
+
+  // ---- Lien profond des notifications --------------------------------------------
+  await check(L, "Lien profond /?lat&lon&z&ev", async () => {
+    const res = await fetchT(`${t}/?lat=43.3&lon=5.4&z=9&ev=test`, 30_000);
+    const html = await res.text();
+    if (!res.ok || !html.includes("kanari")) return { verdict: "FAIL", detail: `HTTP ${res.status}` };
+    return { verdict: "PASS", detail: "la page accepte les paramètres de lien profond" };
+  });
+
   // ---- Endpoints protégés / validation -----------------------------------------
   await check(L, "/api/cron/check protégé", async () => {
     const res = await fetchT(`${t}/api/cron/check`, 20_000);

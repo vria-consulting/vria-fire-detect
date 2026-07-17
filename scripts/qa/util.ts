@@ -13,6 +13,10 @@ export type CheckResult = {
 
 const results: CheckResult[] = [];
 
+export function getResults(): CheckResult[] {
+  return results;
+}
+
 export function record(level: string, name: string, verdict: Verdict, detail = ""): void {
   results.push({ level, name, verdict, detail });
   const icon =

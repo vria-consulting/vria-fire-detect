@@ -19,8 +19,9 @@ export type TriageCandidate = {
   createdAt: string; // les plus récents sont jugés en premier
 };
 
-// v7 : règles anti-chroniques + vérificateur adversarial dédié.
-const CACHE_PATH = "triage-cache-v7.json";
+// v8 : géoparsing corrigé (lieu en fin de texte, élision « d'Épouville ») —
+// les indices de lieux des verdicts v7 seraient désalignés.
+const CACHE_PATH = "triage-cache-v8.json";
 const RETENTION_MS = 48 * 60 * 60 * 1000;
 const BATCH_SIZE = 25;
 const MAX_NEW_PER_SCAN = 50; // garde-fou de coût et de durée par rafraîchissement

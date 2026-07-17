@@ -116,11 +116,19 @@ export async function runConnectors(opts: QaOptions): Promise<void> {
 
   // ---- GDELT (presse) --------------------------------------------------------
   await check(L, "GDELT presse", async () => {
-    const res = await fetchT(
-      "https://api.gdeltproject.org/api/v2/doc/doc?query=wildfire&mode=artlist&maxrecords=5&format=json&timespan=6h",
-      20_000,
-      { headers: { "User-Agent": "kanari-qa/1.0" } }
-    );
+    let res: Response;
+    try {
+      res = await fetchT(
+        "https://api.gdeltproject.org/api/v2/doc/doc?query=wildfire&mode=artlist&maxrecords=5&format=json&timespan=6h",
+        20_000,
+        { headers: { "User-Agent": "kanari-qa/1.0" } }
+      );
+    } catch (e) {
+      // GDELT limite à 1 req/5 s PAR IP et coupe brutalement : un échec réseau
+      // du poste de QA n'est pas une panne de l'app (retry + cache Blob côté
+      // serveur) — on avertit sans bloquer le commit.
+      return { verdict: "WARN", detail: `GDELT injoignable depuis ce poste (${(e as Error).message})` };
+    }
     const text = await res.text();
     if (text.includes("limit requests")) {
       return { verdict: "WARN", detail: "rate limit GDELT (1 req/5 s par IP) — l'app a un retry + cache Blob" };

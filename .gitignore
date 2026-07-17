@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Journal local du programme de QA (rétrospectives par machine)
+scripts/qa/history/

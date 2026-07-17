@@ -38,8 +38,10 @@ export const VALID_HOURS = [6, 12, 24, 48, 72] as const;
 // Le jour supplémentaire amortit aussi le retard de publication VIIRS au
 // changement de jour UTC (observé le 2026-07-17 : aucune donnée du jour à 8 h,
 // carte quasi vide hors GOES/MTG avec l'ancien calcul).
-function daysNeeded(hours: number): number {
-  const elapsedTodayH = (Date.now() % 86_400_000) / 3_600_000;
+// Exportée (avec horloge injectable) pour être testée par le programme de QA :
+// le bug « carte vide le matin » venait précisément de ce calcul.
+export function daysNeeded(hours: number, now: number = Date.now()): number {
+  const elapsedTodayH = (now % 86_400_000) / 3_600_000;
   return Math.min(10, Math.max(1, Math.ceil((hours - elapsedTodayH) / 24) + 1));
 }
 

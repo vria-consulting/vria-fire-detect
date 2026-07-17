@@ -16,7 +16,8 @@ export function normalizePlace(s: string): string {
   return s
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u2019\u02bc]/g, "'"); // apostrophes typographiques \u2192 droite (cl\u00e9s du gazetteer)
 }
 
 // Extrait les lieux mentionnés : n-grammes (1 à 3 mots) commençant par une
@@ -28,19 +29,26 @@ export function countPlaceNames(text: string): number {
 }
 
 function rawMatches(text: string): { key: string; entry: GazetteerEntry }[] {
-  const tokens = text.split(/[^\p{L}''-]+/u).filter(Boolean);
+  // L'élision française collée par apostrophe typographique (« d'Épouville »,
+  // « l'Aquila ») masquait la majuscule du nom : on la détache du token.
+  const tokens = text
+    .split(/[^\p{L}''ʼ-]+/u)
+    .filter(Boolean)
+    .map((t) => (/^\p{Ll}[''ʼ]\p{Lu}/u.test(t) ? t.slice(2) : t));
   const found = new Map<string, GazetteerEntry[]>();
   for (let i = 0; i < tokens.length; i++) {
     // Un nom de lieu commence par une majuscule.
     if (!/\p{Lu}/u.test(tokens[i][0])) continue;
-    for (let n = 3; n >= 1; n--) {
-      if (i + n > tokens.length) break;
+    // Le n-gramme le plus long gagne — borné par la fin du texte : un lieu en
+    // dernier mot doit être trouvé (l'ancien « break » sautait ce cas et
+    // manquait tout signalement du type « Incendio forestal en Guadalajara »).
+    for (let n = Math.min(3, tokens.length - i); n >= 1; n--) {
       const gram = tokens.slice(i, i + n).join(" ");
       const key = normalizePlace(gram);
       const entries = GAZETTEER[key];
       if (entries) {
         found.set(key, entries);
-        break; // le n-gramme le plus long gagne
+        break;
       }
     }
   }

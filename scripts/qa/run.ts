@@ -16,18 +16,23 @@
 //
 // Sortie : code 1 si au moins un FAIL — utilisable en hook pre-commit.
 
-import { parseOptions, summary } from "./util";
+import { parseOptions, summary, getResults } from "./util";
+import { runUnit } from "./unit";
 import { runConnectors } from "./connectors";
 import { runEndpoints } from "./endpoints";
 import { runCrosscheck } from "./crosscheck";
 import { runAi } from "./ai";
+import { runRetro } from "./retro";
 
 async function main() {
   const opts = parseOptions();
   console.log(`\n🐤 QA Kanari — cible : ${opts.target}`);
   console.log(`   échantillons : ${opts.eventSample} foyers vs FIRMS brut · ${opts.aiSample} posts max en IA\n`);
 
-  console.log("── Niveau 1 · Connecteurs ─────────────────────");
+  console.log("── Niveau 0 · Tests unitaires (bugs passés) ───");
+  await runUnit();
+
+  console.log("\n── Niveau 1 · Connecteurs ─────────────────────");
   await runConnectors(opts);
 
   console.log("\n── Niveau 2 · API & invariants ────────────────");
@@ -39,7 +44,11 @@ async function main() {
   console.log("\n── Niveau 4 · Pertinence IA ───────────────────");
   await runAi(opts);
 
-  process.exit(summary());
+  const code = summary();
+  // La rétrospective n'influence pas le code de sortie : elle nourrit
+  // l'amélioration continue du programme lui-même.
+  await runRetro(opts, getResults());
+  process.exit(code);
 }
 
 main().catch((e) => {
