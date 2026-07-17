@@ -12,8 +12,14 @@ Options : `--target=<url>`, `--event-sample=N` (foyers contre-vérifiés vs
 FIRMS brut, défaut 8), `--ai-sample=N` (posts re-jugés par IA, défaut 24),
 `--skip-ai`.
 
-## Les 4 niveaux
+## Les 5 niveaux
 
+0. **Tests unitaires « golden »** — chaque bug corrigé par le passé devient un
+   test permanent (géoparsing Épouville/Guadalajara/León, anti-mélange,
+   garde revue de presse, clustering, `daysNeeded` — le bug « carte vide le
+   matin »). Dès leur premier passage, ces tests ont trouvé deux bugs de
+   géoparsing présents depuis l'origine (lieu en fin de texte jamais extrait,
+   élision « d'Épouville » à apostrophe typographique).
 1. **Connecteurs** — chaque source est testée directement, comme un opérateur
    qui vérifie ses instruments : disponibilité et volume FIRMS (VIIRS N20/N21,
    GOES), produits Meteosat MTG des 2 dernières heures, recherche Bluesky,
@@ -37,6 +43,25 @@ FIRMS brut, défaut 8), `--ai-sample=N` (posts re-jugés par IA, défaut 24),
    reconfirmer « feu » ET le même lieu ; puis par un relecteur IA indépendant
    qui répond à trois questions — feu de végétation actuel ? lieu ancré
    correct ? dates cohérentes ? Tout écart est signalé avec le texte fautif.
+
+## Rétrospective : le programme s'améliore à chaque passage
+
+Chaque run est archivé dans `scripts/qa/history/` (local, hors git). En fin de
+passage, la rétrospective compare avec les runs précédents et imprime :
+
+- 🔴 les **régressions** (tests passés → échoués) et 🟢 les réparations ;
+- ⚠️ les tests aux **verdicts instables** (à fiabiliser ou isoler du réseau) ;
+- 👁️ les **tests aveugles** : SKIP chroniques (clé manquante) et vérifications
+  qui n'ont rien pu couvrir ce run (« aucun foyer corroboré ») ;
+- 🕳️ les **trous de couverture** : surfaces de l'app (routes, libs,
+  connecteurs) sans aucune vérification, via une carte des surfaces à tenir à
+  jour quand l'app grandit ;
+- 🤖 si `OPENAI_API_KEY` est présente : un **analyste IA** lit le bilan et
+  propose les tests à ajouter, ceux à durcir et les risques prioritaires.
+
+Le tout est journalisé dans `scripts/qa/history/retro.md`. Règle d'usage :
+appliquer les recommandations de la rétrospective (nouveaux tests, correctifs)
+avant le commit suivant — c'est ainsi que le programme apprend.
 
 ## Environnement requis (.env.local)
 
