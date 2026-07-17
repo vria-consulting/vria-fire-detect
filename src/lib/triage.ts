@@ -19,8 +19,8 @@ export type TriageCandidate = {
   createdAt: string; // les plus récents sont jugés en premier
 };
 
-// v6 : gazetteer multi-homonymes + règle du lieu englobant/voisin.
-const CACHE_PATH = "triage-cache-v6.json";
+// v7 : règles anti-chroniques + vérificateur adversarial dédié.
+const CACHE_PATH = "triage-cache-v7.json";
 const RETENTION_MS = 48 * 60 * 60 * 1000;
 const BATCH_SIZE = 25;
 const MAX_NEW_PER_SCAN = 50; // garde-fou de coût et de durée par rafraîchissement
@@ -51,7 +51,11 @@ Pour chaque item :
 - métaphores (« on fire »), fiction, films, musique, jeux vidéo ;
 - scénarios HYPOTHÉTIQUES ou conditionnels (« si un grand incendie se produisait… », exercices, simulations, plans de prévention) ;
 - revendications politiques ou associatives à propos de feux (demandes de démission, polémiques sur la gestion) sans signalement d'un feu précis en cours ;
+- CHRONIQUES, newsletters, lettres d'opinion, récits de voyage ou billets d'humeur qui mentionnent des feux EN PASSANT (« Letter from Scotland : de retour de vacances à vélo, pas une goutte de pluie de la semaine… et des feux ont éclaté » = false : le sujet est la météo, pas un signalement) ;
+- discussions sur la sécheresse, la canicule ou le RISQUE d'incendie sans feu précis actif signalé à l'instant ;
 - feu de bâtiment isolé sans enjeu de propagation à la végétation.
+
+Test décisif : le texte a-t-il pour OBJET de signaler un feu précis actif, tel qu'un pompier voudrait en être informé MAINTENANT ? Une mention incidente dans un texte qui parle d'autre chose = false, même si le mot « wildfire » apparaît.
 
 Pièges de lieu à déjouer :
 - un NOM DE PERSONNE qui ressemble à une ville (« Juanma Moreno » n'est pas Moreno en Argentine) ;
@@ -63,6 +67,13 @@ Pièges de lieu à déjouer :
 - Réponds null si AUCUN candidat n'est cohérent : là où la fumée dérive, là où l'on en parle, un nom de média, un siège d'organisation, ou un homonyme du mauvais pays.
 
 Règle d'or : au moindre doute sur l'un ou l'autre, réponds false / null. Manquer un signal ambigu coûte moins cher qu'une fausse alerte envoyée aux secours.`;
+
+// Le vérificateur reçoit une consigne ADVERSARIALE : les items qu'il voit ont
+// déjà été approuvés par le premier filtre, son travail est de trouver les
+// erreurs — pas de confirmer poliment.
+const VERIFY_SYSTEM = `${SYSTEM}
+
+RÔLE PARTICULIER : tu es le SECOND examinateur. Tous les items que tu reçois ont déjà été approuvés par un premier filtre moins rigoureux — statistiquement, une partie sont des erreurs. Ton travail est de les trouver. Pour chaque item, cherche ACTIVEMENT une raison de rejeter : chronique ou mention incidente ? ironie ? fait passé ou daté ? hypothèse ou risque ? mauvais lieu ou homonyme ? Ne confirme fire=true avec un lieu QUE si le texte, à lui seul, justifierait de déranger des secours maintenant.`;
 
 const OUTPUT_SCHEMA = {
   type: "object",
@@ -88,7 +99,8 @@ const OUTPUT_SCHEMA = {
 async function judgeBatch(
   apiKey: string,
   batch: TriageCandidate[],
-  model: string
+  model: string,
+  system: string = SYSTEM
 ): Promise<Map<string, TriageVerdict>> {
   const out = new Map<string, TriageVerdict>();
   const payload = batch.map((c, i) => ({
@@ -106,7 +118,7 @@ async function judgeBatch(
       model,
       max_completion_tokens: 16000,
       messages: [
-        { role: "system", content: SYSTEM },
+        { role: "system", content: system },
         {
           role: "user",
           content: JSON.stringify({
@@ -156,7 +168,7 @@ export async function judgeForQA(
     const approved = batch.filter((c) => judged.get(c.url)?.fire);
     let verified = new Map<string, TriageVerdict>();
     if (approved.length > 0 && VERIFY_MODEL !== MODEL) {
-      verified = await judgeBatch(apiKey, approved, VERIFY_MODEL);
+      verified = await judgeBatch(apiKey, approved, VERIFY_MODEL, VERIFY_SYSTEM);
     }
     for (const c of batch) {
       const first = judged.get(c.url) ?? null;
@@ -215,7 +227,7 @@ export async function triageCandidates(
       const approved = batch.filter((c) => judged.get(c.url)?.fire);
       if (approved.length > 0 && VERIFY_MODEL !== MODEL) {
         try {
-          const verified = await judgeBatch(apiKey, approved, VERIFY_MODEL);
+          const verified = await judgeBatch(apiKey, approved, VERIFY_MODEL, VERIFY_SYSTEM);
           for (const c of approved) {
             const v = verified.get(c.url);
             if (v) {

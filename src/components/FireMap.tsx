@@ -403,10 +403,18 @@ export default function FireMap() {
         }
       });
       map.on("click", (e) => {
-        const hits = map.queryRenderedFeatures(e.point, { layers: ["events-icons", "signals-icons"] });
-        if (hits.length === 0) {
-          setSelected(null);
-          setSelectedSignal(null);
+        // queryRenderedFeatures peut lever « Out of bounds » si le clic tombe
+        // pendant la reconstruction des tuiles (setData toutes les 2 min).
+        try {
+          const layers = ["events-icons", "signals-icons"].filter((l) => map.getLayer(l));
+          if (layers.length === 0) return;
+          const hits = map.queryRenderedFeatures(e.point, { layers });
+          if (hits.length === 0) {
+            setSelected(null);
+            setSelectedSignal(null);
+          }
+        } catch {
+          /* tuiles en cours de reconstruction : on ignore ce clic */
         }
       });
       for (const layer of ["events-icons", "signals-icons"]) {
