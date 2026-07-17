@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "qa": "tsx --env-file=.env.local scripts/qa/run.ts",
+    "qa:local": "tsx --env-file=.env.local scripts/qa/run.ts --local"
   },
   "dependencies": {
     "@vercel/blob": "^2.6.1",

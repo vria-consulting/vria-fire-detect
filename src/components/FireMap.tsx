@@ -87,6 +87,46 @@ function ageColor(lastAgeH: number): string {
   return AGE_COLORS.old;
 }
 
+// Icône flamme dessinée au canvas, teintée aux couleurs de la charte,
+// liseré blanc pour rester lisible sur le fond clair Positron.
+function flameImage(main: string, core: string): ImageData {
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const ctx = c.getContext("2d")!;
+  ctx.beginPath();
+  ctx.moveTo(32, 4);
+  ctx.bezierCurveTo(40, 18, 52, 24, 52, 40);
+  ctx.bezierCurveTo(52, 52, 43, 60, 32, 60);
+  ctx.bezierCurveTo(21, 60, 12, 52, 12, 40);
+  ctx.bezierCurveTo(12, 24, 24, 18, 32, 4);
+  ctx.closePath();
+  ctx.fillStyle = main;
+  ctx.strokeStyle = "rgba(255,255,255,0.95)";
+  ctx.lineWidth = 3;
+  ctx.fill();
+  ctx.stroke();
+  // cœur clair de la flamme
+  ctx.beginPath();
+  ctx.moveTo(32, 30);
+  ctx.bezierCurveTo(38, 38, 43, 40, 43, 47);
+  ctx.bezierCurveTo(43, 54, 38, 58, 32, 58);
+  ctx.bezierCurveTo(26, 58, 21, 54, 21, 47);
+  ctx.bezierCurveTo(21, 40, 26, 38, 32, 30);
+  ctx.closePath();
+  ctx.fillStyle = core;
+  ctx.fill();
+  return ctx.getImageData(0, 0, 64, 64);
+}
+
+// Palette charte : [flamme, cœur] — danger, braise, jaune fort, gris, citoyen.
+const FLAMES: Record<string, [string, string]> = {
+  "flame-active": ["#D64545", "#F9E0E0"],
+  "flame-recent": ["#E8622C", "#FBE5DA"],
+  "flame-watched": ["#F0B400", "#FFF1C9"],
+  "flame-old": ["#8A8880", "#F3F0E8"],
+  "flame-citizen": ["#4A90C2", "#DCEBF7"],
+};
+
 const AGE_BADGE: { max: number; label: string; bg: string; fg: string }[] = [
   { max: 3, label: "ACTIF", bg: "var(--danger-soft)", fg: "#9C2B2B" },
   { max: 12, label: "RÉCENT", bg: "var(--ember-soft)", fg: "#8C3A16" },
@@ -388,48 +428,51 @@ export default function FireMap() {
           "circle-blur": 1,
         },
       });
-      // Foyers : pastilles rondes bordées de blanc, couleur = âge du dernier
-      // signal, taille = nombre de détections (charte maquette v2 — plus
-      // d'emoji ni d'icône flamme).
+      // Icônes flamme aux couleurs de la charte (liseré blanc).
+      for (const [name, [main, core]] of Object.entries(FLAMES)) {
+        map.addImage(name, flameImage(main, core));
+      }
+      // Foyers : flamme teintée par âge du dernier signal, taille = nombre
+      // de détections.
       map.addLayer({
         id: "events-icons",
-        type: "circle",
+        type: "symbol",
         source: "events",
-        paint: {
-          "circle-color": [
+        layout: {
+          "icon-image": [
             "step",
             ["get", "lastAgeH"],
-            AGE_COLORS.active,
+            "flame-active",
             3,
-            AGE_COLORS.recent,
+            "flame-recent",
             12,
-            AGE_COLORS.watched,
+            "flame-watched",
             24,
-            AGE_COLORS.old,
+            "flame-old",
           ],
-          "circle-radius": [
+          "icon-size": [
             "interpolate",
             ["linear"],
             ["zoom"],
             2,
-            ["interpolate", ["linear"], ["ln", ["+", ["get", "count"], 1]], 0, 3.5, 3, 5.5, 7, 9],
+            ["interpolate", ["linear"], ["ln", ["+", ["get", "count"], 1]], 0, 0.18, 3, 0.32, 7, 0.55],
             9,
-            ["interpolate", ["linear"], ["ln", ["+", ["get", "count"], 1]], 0, 6.5, 3, 10, 7, 16],
+            ["interpolate", ["linear"], ["ln", ["+", ["get", "count"], 1]], 0, 0.4, 3, 0.72, 7, 1.25],
           ],
-          "circle-stroke-color": "#ffffff",
-          "circle-stroke-width": 2,
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
         },
       });
-      // Signalements citoyens : bleu source humaine.
+      // Signalements citoyens : flamme bleue source humaine.
       map.addLayer({
         id: "signals-icons",
-        type: "circle",
+        type: "symbol",
         source: "signals",
-        paint: {
-          "circle-color": AGE_COLORS.citizen,
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 5, 9, 8],
-          "circle-stroke-color": "#ffffff",
-          "circle-stroke-width": 2,
+        layout: {
+          "icon-image": "flame-citizen",
+          "icon-size": ["interpolate", ["linear"], ["zoom"], 2, 0.26, 9, 0.5],
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
         },
       });
 
