@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { getSignals } from "@/lib/signalcache";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// À froid, scan Bluesky + double jugement IA peuvent dépasser 60 s.
+export const maxDuration = 300;
 
 // Signalements citoyens géolocalisés (veille Bluesky multilingue).
 export async function GET() {

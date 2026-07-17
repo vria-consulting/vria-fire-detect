@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getEvents, staleEvents } from "@/lib/eventscache";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// Démarrage à froid (juste après un déploiement) : fetch FIRMS mondial +
+// clustering peuvent dépasser 60 s avant que le cron ne réchauffe les caches.
+export const maxDuration = 300;
 
 export async function GET(req: NextRequest) {
   // ?hours=6|12|24|48|72 (l'ancien ?days=1|2|3 reste accepté)

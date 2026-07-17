@@ -11,7 +11,9 @@ import {
 import type { FireEvent } from "@/lib/cluster";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// Le cron réchauffe les caches 24 h + 6 h : à froid c'est le passage le plus
+// lourd de l'app.
+export const maxDuration = 300;
 
 // Fenêtre de nouveauté : un foyer déclenche une alerte si son premier signal
 // date de moins d'une heure (le cron passe toutes les 5 min, la déduplication

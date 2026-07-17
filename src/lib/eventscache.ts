@@ -82,9 +82,17 @@ export async function getEvents(hours: number): Promise<EventsPayload> {
   );
   const events = clusterFires(features);
 
-  // Corroboration par la veille sociale — ne doit jamais faire échouer les foyers.
+  // Corroboration par la veille sociale — ne doit jamais faire échouer NI
+  // retarder les foyers : à froid, un scan social complet (Bluesky + triage
+  // IA) peut prendre > 30 s. Au-delà de 10 s on sert les foyers sans
+  // corroboration ; le rafraîchissement suivant (2 min) l'ajoutera.
   try {
-    const { signals } = await getSignals();
+    const { signals } = await Promise.race([
+      getSignals(),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("SIGNALS_SLOW_COLD_START")), 10_000)
+      ),
+    ]);
     for (const ev of events) {
       ev.confidence = baseConfidence(ev);
       for (const sig of signals) {
