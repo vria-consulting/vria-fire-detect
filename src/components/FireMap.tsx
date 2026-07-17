@@ -136,8 +136,11 @@ function formatDelta(ms: number): string {
 function PostList({ posts }: { posts: SocialPost[] }) {
   return (
     <ul className="space-y-2">
-      {posts.map((post) => (
-        <li key={post.url} className="rounded-md bg-zinc-800/80 p-2 text-xs">
+      {posts.map((post, i) => (
+        // Clé suffixée par l'index : une URL dupliquée dans la liste (bug
+        // amont) casserait la réconciliation React — enfants « dupliqués ou
+        // omis », posts périmés affichés sous le mauvais signal (vu en prod).
+        <li key={`${post.url}#${i}`} className="rounded-md bg-zinc-800/80 p-2 text-xs">
           <a
             href={post.url}
             target="_blank"
@@ -163,7 +166,9 @@ export default function FireMap() {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const eventsRef = useRef<FireEvent[]>([]);
   const signalsRef = useRef<SocialSignal[]>([]);
-  const [hours, setHours] = useState(24);
+  // 6 h par défaut : fenêtre la plus légère (chargement initial rapide) et la
+  // plus « temps réel » — le cron réchauffe ce cache en continu.
+  const [hours, setHours] = useState(6);
   const [status, setStatus] = useState<Status>({ kind: "loading" });
   const [events, setEvents] = useState<FireEvent[]>([]);
   const [selected, setSelected] = useState<FireEvent | null>(null);
@@ -262,11 +267,14 @@ export default function FireMap() {
       if (sigSrc)
         sigSrc.setData({
           type: "FeatureCollection",
-          features: signals.map((s, i) => ({
+          features: signals.map((s) => ({
             type: "Feature" as const,
             geometry: { type: "Point" as const, coordinates: [s.lon, s.lat] },
             properties: {
-              idx: i,
+              // Identité stable du signal : les tuiles se reconstruisent en
+              // asynchrone après setData, un simple index peut donc pointer
+              // vers le mauvais élément du tableau rafraîchi entre-temps.
+              sigKey: `${s.place}|${s.countryCode}|${s.lat}|${s.lon}`,
               postCount: s.postCount,
               ageMin: Math.round(hoursAgo(s.lastPost) * 60),
               firstAgeMin: Math.round(hoursAgo(s.firstPost) * 60),
@@ -396,7 +404,9 @@ export default function FireMap() {
       map.on("click", "signals-icons", (e) => {
         const f = e.features?.[0];
         if (!f) return;
-        const sig = signalsRef.current[f.properties.idx];
+        const sig = signalsRef.current.find(
+          (s) => `${s.place}|${s.countryCode}|${s.lat}|${s.lon}` === f.properties.sigKey
+        );
         if (sig) {
           setSelectedSignal(sig);
           setSelected(null);
@@ -421,7 +431,7 @@ export default function FireMap() {
         map.on("mouseenter", layer, () => (map.getCanvas().style.cursor = "pointer"));
         map.on("mouseleave", layer, () => (map.getCanvas().style.cursor = ""));
       }
-      loadData(map, 24);
+      loadData(map, 6);
     });
 
     return () => {

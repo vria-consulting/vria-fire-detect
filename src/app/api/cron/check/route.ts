@@ -40,10 +40,14 @@ export async function GET(req: NextRequest) {
     priv
   );
 
+  // Réchauffe les caches AVANT tout : 24 h (base des alertes) puis 6 h (vue
+  // par défaut du site) — le second réutilise les détections brutes du premier,
+  // donc coût FIRMS quasi nul. Le premier visiteur ne paie jamais le scan.
+  const { events } = await getEvents(24);
+  await getEvents(6);
+
   const subs = await readJson<PushSubscriptionRecord[]>(SUBS_PATH, []);
   if (subs.length === 0) return NextResponse.json({ ok: true, subs: 0, sent: 0 });
-
-  const { events } = await getEvents(24);
   const now = Date.now();
   // Seuls les foyers récents et au moins "probables" déclenchent une alerte
   // (un pixel isolé de confiance basse ferait fuir les utilisateurs).

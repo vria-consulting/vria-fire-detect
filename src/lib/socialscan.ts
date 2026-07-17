@@ -5,7 +5,7 @@
 // prochain passage satellite.
 
 import { searchPosts, postUrl } from "./bsky";
-import { extractPlaces } from "./geoparse";
+import { extractPlaces, normalizePlace } from "./geoparse";
 import { fetchPressArticles } from "./press";
 import { fetchTelegramPosts } from "./telegram";
 import { triageCandidates } from "./triage";
@@ -98,6 +98,9 @@ export async function scanSocial(sinceHours = 12): Promise<{
   const addToPlace = (key: string, entry: [number, number, string, string], post: SocialPost) => {
     const sig = byPlace.get(key);
     if (sig) {
+      // Jamais deux fois le même post dans un signal (reposts de bots,
+      // candidats répétés) : l'URL est l'identité du post.
+      if (sig.posts.some((p) => p.url === post.url)) return;
       sig.postCount++;
       sig.posts.push(post);
       if (post.createdAt < sig.firstPost) sig.firstPost = post.createdAt;
@@ -204,19 +207,31 @@ export async function scanSocial(sinceHours = 12): Promise<{
     }))
   );
 
+  // Précision d'abord : sans juge IA (clé OpenAI absente de l'environnement),
+  // on n'affiche RIEN plutôt que du non-trié. Le repli mots-clés historique
+  // ajoutait chaque post une fois PAR HOMONYME et sans aucun jugement — c'est
+  // lui qui a montré en prod un feu d'appartement parisien dupliqué 4 fois.
+  if (!verdicts) {
+    console.error(
+      "triage IA indisponible (OPENAI_API_KEY absente) : aucun signalement affiché"
+    );
+    return { signals: [], scannedPosts, statuses };
+  }
+
   for (const c of candidates) {
-    if (verdicts) {
-      // Tri IA actif : AUCUN post non jugé ne s'affiche. Un post au-delà du
-      // plafond de jugements attend simplement le scan suivant (3 min) —
-      // précision d'abord, c'est la promesse du produit.
-      const v = verdicts.get(c.post.url);
-      if (!v || !v.fire || v.place == null) continue;
-      const chosen = c.places[v.place];
-      if (chosen) addToPlace(chosen.key, chosen.entry, c.post);
-      continue;
-    }
-    // Sans tri IA (pas de clé API) : comportement mots-clés historique.
-    for (const { key, entry } of c.places) addToPlace(key, entry, c.post);
+    // AUCUN post non jugé ne s'affiche. Un post au-delà du plafond de
+    // jugements attend simplement le scan suivant (3 min).
+    const v = verdicts.get(c.post.url);
+    if (!v || !v.fire || v.place == null) continue;
+    const chosen = c.places[v.place];
+    if (!chosen) continue;
+    // Invariant de sûreté : le nom de lieu retenu doit apparaître dans le
+    // texte du post. Toujours vrai quand l'indice du juge est aligné sur
+    // extractPlaces(texte) — bloque structurellement tout post ancré sur un
+    // lieu étranger (cache désaligné, régression future).
+    const txt = normalizePlace(c.post.text).replace(/\s+/g, " ");
+    if (!txt.includes(chosen.key)) continue;
+    addToPlace(chosen.key, chosen.entry, c.post);
   }
 
   const signals = [...byPlace.values()].map((s) => ({
