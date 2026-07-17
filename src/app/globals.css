@@ -1,8 +1,9 @@
 @import "tailwindcss";
+@import "./tokens.css";
 
-/* Thème sombre unique : l'app est une carte de veille, le fond sombre est le produit. */
+/* Thème clair Kanari : la carte de veille vit sur blancs chauds (charte). */
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 html,
@@ -10,12 +11,19 @@ body {
   height: 100%;
 }
 
-/* Le chant du kanari : les ondes s'allument en cascade */
+/* Anneau de focus jaune — jamais supprimé (charte accessibilité). */
+button:focus-visible,
+input:focus-visible,
+a:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Le chant du kanari : les ondes s'allument en cascade (logo animé). */
 .kanari-w1,
 .kanari-w2,
 .kanari-w3 {
-  opacity: 0.3;
-  animation: kanari-chant 2.4s ease-in-out infinite;
+  animation: kanari-wave 2.4s ease-out infinite;
 }
 .kanari-w2 {
   animation-delay: 0.3s;
@@ -23,34 +31,89 @@ body {
 .kanari-w3 {
   animation-delay: 0.6s;
 }
-@keyframes kanari-chant {
-  0%, 100% { opacity: 0.3; }
-  25% { opacity: 1; }
+
+/* Point « écoute en cours » (kanari écoute, CTA d'alerte). */
+.k-listen {
+  animation: kanari-wave 1.8s ease-out infinite;
 }
 
-/* Marqueur pulsant des départs de feu très récents (< 20 min) */
+/* Anneau pulsant des feux actifs / départs très récents. */
+@keyframes kping {
+  0% { transform: scale(1); opacity: 0.7; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
+/* Entrée douce des cartes et popovers. */
+@keyframes krise {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.k-rise {
+  animation: krise var(--duration-base) var(--ease-out);
+}
+
+/* Marqueur DOM pulsant : départ de feu < 20 min (rouge) / signalement (bleu). */
 .pulse-marker {
-  width: 18px;
-  height: 18px;
-  border-radius: 9999px;
-  background: #ef4444;
-  border: 2px solid #fff;
-  box-shadow: 0 0 0 rgba(239, 68, 68, 0.6);
-  animation: vigi-pulse 1.6s ease-out infinite;
+  position: relative;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--danger);
+  border: 2.5px solid #fff;
+  box-shadow: var(--shadow-s);
   cursor: pointer;
 }
+.pulse-marker::before {
+  content: "";
+  position: absolute;
+  inset: -2.5px;
+  border-radius: 50%;
+  background: var(--danger);
+  animation: kping 1.6s ease-out infinite;
+  z-index: -1;
+}
 .pulse-marker.pulse-social {
-  background: #0ea5e9;
-  box-shadow: 0 0 0 rgba(14, 165, 233, 0.6);
-  animation-name: vigi-pulse-blue;
+  background: #4a90c2;
 }
-@keyframes vigi-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
-  70% { box-shadow: 0 0 0 22px rgba(239, 68, 68, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+.pulse-marker.pulse-social::before {
+  background: #4a90c2;
 }
-@keyframes vigi-pulse-blue {
-  0% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.6); }
-  70% { box-shadow: 0 0 0 22px rgba(14, 165, 233, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0); }
+
+/* Contrôles MapLibre au style de la maquette : ronds blancs, ombre douce. */
+.maplibregl-ctrl-group {
+  background: transparent !important;
+  box-shadow: none !important;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.maplibregl-ctrl-group button {
+  width: 42px !important;
+  height: 42px !important;
+  border-radius: 50% !important;
+  background: var(--white) !important;
+  box-shadow: var(--shadow-m);
+  border: none !important;
+  color: var(--ink);
+}
+.maplibregl-ctrl-group button + button {
+  border-top: none !important;
+}
+/* Sur desktop, le zoom se décale à gauche du flux « En direct ». */
+@media (min-width: 768px) {
+  .maplibregl-ctrl-bottom-right {
+    right: 390px;
+    bottom: 16px;
+  }
+}
+.maplibregl-ctrl-attrib {
+  background: rgba(251, 249, 244, 0.8) !important;
+  border-radius: var(--radius-s);
+  font-size: 10px;
+}
+
+/* Barres de défilement discrètes dans les panneaux clairs. */
+.k-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
 }

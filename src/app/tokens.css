@@ -1,0 +1,120 @@
+/* Design tokens Kanari — copie fidèle de handoff/styles.css + tokens/
+   (charte « Le chant qui alerte »). Ne pas modifier les valeurs ici :
+   la source de vérité est le pack handoff/. */
+
+/* Fredoka + DM Sans sont chargées via next/font (layout.tsx), qui définit
+   --font-display et --font-body sur <html> avec leurs fallbacks. */
+
+:root {
+  /* Base — marque */
+  --canary: #FFC72E;
+  --canary-strong: #F0B400;
+  --canary-soft: #FFF1C9;
+  --canary-tint: #FFFAEC;
+  --charcoal: #1B1C1E;
+  --charcoal-2: #26272A;
+
+  /* Neutres chauds */
+  --paper: #FBF9F4;
+  --paper-2: #F3F0E8;
+  --white: #FFFFFF;
+  --line: #E8E4D9;
+  --ink: #1B1C1E;
+  --ink-2: #55544E;
+  --ink-3: #8A8880;
+
+  /* Sémantique alerte */
+  --ember: #E8622C;
+  --ember-soft: #FBE5DA;
+  --danger: #D64545;
+  --danger-soft: #F9E0E0;
+  --safe: #3E9B6E;
+  --safe-soft: #DFF0E7;
+
+  /* Alias sémantiques */
+  --surface-page: var(--paper);
+  --surface-card: var(--white);
+  --surface-dark: var(--charcoal);
+  --text-body: var(--ink);
+  --text-muted: var(--ink-2);
+  --text-faint: var(--ink-3);
+  --text-on-canary: var(--charcoal);
+  --text-on-dark: var(--paper);
+  --border-default: var(--line);
+  --focus-ring: 0 0 0 3px rgba(255, 199, 46, 0.55);
+  --link: #B04A1E;
+  --link-hover: var(--ember);
+
+  /* Typo */
+  --text-hero: 56px;
+  --text-h1: 40px;
+  --text-h2: 28px;
+  --text-h3: 20px;
+  --text-lead: 19px;
+  --text-body-size: 16px;
+  --text-small: 14px;
+  --text-caption: 12px;
+  --text-overline: 12px;
+  --leading-tight: 1.1;
+  --leading-normal: 1.6;
+
+  /* Espacement — base 4 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+
+  /* Rayons */
+  --radius-s: 8px;
+  --radius-m: 14px;
+  --radius-l: 22px;
+  --radius-xl: 32px;
+  --radius-pill: 999px;
+
+  /* Ombres */
+  --shadow-s: 0 1px 3px rgba(27, 28, 30, 0.06);
+  --shadow-m: 0 4px 16px rgba(27, 28, 30, 0.08);
+  --shadow-l: 0 12px 36px rgba(27, 28, 30, 0.12);
+
+  /* Mouvement */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.3, 1);
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+  --duration-slow: 450ms;
+
+  /* Layout */
+  --container-max: 1160px;
+  --header-height: 72px;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--text-body-size);
+  line-height: var(--leading-normal);
+  color: var(--text-body);
+  background: var(--surface-page);
+  margin: 0;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  color: var(--text-body);
+  margin: 0;
+}
+h1 { font-size: var(--text-h1); font-weight: 600; letter-spacing: -0.5px; line-height: 1.1; }
+h2 { font-size: var(--text-h2); line-height: 1.2; }
+h3 { font-size: var(--text-h3); line-height: 1.3; }
+
+/* Onde signature — pulsation des arcs du logo et des éléments « signal » */
+@keyframes kanari-wave {
+  0% { opacity: 0.12; }
+  25% { opacity: 1; }
+  60% { opacity: 0.12; }
+  100% { opacity: 0.12; }
+}

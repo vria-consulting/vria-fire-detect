@@ -1,0 +1,80 @@
+<!-- @dsCard group="Website" viewport="1280x800" subtitle="Homepage kanari.io — référence d'application de la charte" name="Homepage" -->
+<!-- @startingPoint section="Site web" subtitle="Homepage kanari.io" viewport="1280x800" -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>kanari — le canari chante avant la sirène</title>
+<link rel="icon" href="../../assets/favicon.svg">
+<link rel="stylesheet" href="../../styles.css">
+</head>
+<body>
+<header style="position:sticky;top:0;height:72px;background:rgba(251,249,244,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 40px;z-index:10;">
+  <div style="display:flex;align-items:center;gap:8px;">
+    <img src="../../assets/logo-symbole.svg" width="36" height="36" alt="kanari">
+    <span style="font-family:var(--font-display);font-weight:500;font-size:24px;letter-spacing:-0.5px;">kanari</span>
+  </div>
+  <nav style="display:flex;align-items:center;gap:28px;font-size:15px;font-weight:500;">
+    <a href="#" style="color:var(--ink);">Comment ça marche</a>
+    <a href="#" style="color:var(--ink);">Couverture</a>
+    <a href="#" style="color:var(--ink);">Communauté</a>
+    <button style="height:44px;padding:0 22px;font-family:var(--font-body);font-weight:500;font-size:15px;background:var(--canary);color:var(--charcoal);border:none;border-radius:999px;cursor:pointer;">Télécharger l'app</button>
+  </nav>
+</header>
+
+<main>
+  <section style="max-width:1160px;margin:0 auto;padding:96px 40px 64px;display:grid;grid-template-columns:1.1fr 0.9fr;gap:64px;align-items:center;">
+    <div style="display:flex;flex-direction:column;gap:24px;align-items:flex-start;">
+      <span style="display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 12px;border-radius:999px;background:var(--canary-soft);color:#7A5A00;font-size:13px;font-weight:500;"><span style="width:7px;height:7px;border-radius:50%;background:var(--canary-strong);animation:kanari-wave 1.8s ease-out infinite;"></span>Kanari écoute, en ce moment</span>
+      <h1 style="font-size:56px;font-weight:600;letter-spacing:-1px;line-height:1.05;">Le canari chante avant la sirène.</h1>
+      <p style="font-size:19px;line-height:1.6;color:var(--ink-2);margin:0;max-width:480px;text-wrap:pretty;">Kanari capte les premières mentions d'un départ de feu sur les réseaux, les confirme par satellite et météo, et t'alerte avant les canaux officiels.</p>
+      <div style="display:flex;gap:12px;">
+        <button style="height:52px;padding:0 28px;font-family:var(--font-body);font-weight:500;font-size:16px;background:var(--canary);color:var(--charcoal);border:none;border-radius:999px;cursor:pointer;">Protéger ma zone</button>
+        <button style="height:52px;padding:0 28px;font-family:var(--font-body);font-weight:500;font-size:16px;background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:999px;cursor:pointer;">Voir la carte</button>
+      </div>
+      <span style="font-size:13px;color:var(--ink-3);">Gratuit · France, US, Australie, Espagne</span>
+    </div>
+    <div style="background:var(--charcoal);border-radius:var(--radius-xl);padding:32px;display:flex;flex-direction:column;gap:20px;align-items:center;">
+      <img src="../../assets/logo-mono-jaune-anime.svg" width="150" height="150" alt="">
+      <div style="background:var(--charcoal-2);border-radius:var(--radius-m);padding:14px 18px;display:flex;gap:12px;align-self:stretch;">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--canary);margin-top:6px;flex-shrink:0;animation:kanari-wave 1.8s ease-out infinite;"></span>
+        <div style="display:flex;flex-direction:column;gap:2px;color:var(--paper);"><strong style="font-size:15px;">Départ de feu probable à 6 km</strong><span style="font-size:13px;opacity:.7;">signalé il y a 9 min · confirmé par satellite</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section style="background:var(--canary-tint);padding:64px 40px;">
+    <div style="max-width:1160px;margin:0 auto;display:flex;flex-direction:column;gap:32px;">
+      <span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--ink-3);">Comment ça marche</span>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;">
+        <div style="background:var(--white);border-radius:var(--radius-l);padding:28px;box-shadow:var(--shadow-s);display:flex;flex-direction:column;gap:10px;">
+          <span style="font-family:var(--font-display);font-weight:600;font-size:28px;color:var(--canary-strong);">01</span>
+          <h3 style="font-size:20px;">Kanari écoute</h3>
+          <p style="margin:0;font-size:15px;color:var(--ink-2);line-height:1.6;">Les réseaux sociaux, en continu, dans 4 langues. Les premières mentions arrivent souvent des minutes avant les capteurs.</p>
+        </div>
+        <div style="background:var(--white);border-radius:var(--radius-l);padding:28px;box-shadow:var(--shadow-s);display:flex;flex-direction:column;gap:10px;">
+          <span style="font-family:var(--font-display);font-weight:600;font-size:28px;color:var(--canary-strong);">02</span>
+          <h3 style="font-size:20px;">Kanari vérifie</h3>
+          <p style="margin:0;font-size:15px;color:var(--ink-2);line-height:1.6;">Chaque signal est corroboré par satellite et météo. Pas de confirmation, pas d'alerte : zéro panique inutile.</p>
+        </div>
+        <div style="background:var(--white);border-radius:var(--radius-l);padding:28px;box-shadow:var(--shadow-s);display:flex;flex-direction:column;gap:10px;">
+          <span style="font-family:var(--font-display);font-weight:600;font-size:28px;color:var(--canary-strong);">03</span>
+          <h3 style="font-size:20px;">Kanari chante</h3>
+          <p style="margin:0;font-size:15px;color:var(--ink-2);line-height:1.6;">Tu reçois l'alerte avant les canaux officiels, avec la distance, les sources et les gestes à faire.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer style="background:var(--charcoal);color:var(--paper);padding:48px 40px;">
+    <div style="max-width:1160px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <img src="../../assets/logo-mono-jaune.svg" width="32" height="32" alt="">
+        <span style="font-family:var(--font-display);font-weight:500;font-size:20px;">kanari</span>
+      </div>
+      <span style="font-size:13px;opacity:.6;">kanari.io · l'alerte précoce, pour tout le monde</span>
+    </div>
+  </footer>
+</main>
+</body>
+</html>

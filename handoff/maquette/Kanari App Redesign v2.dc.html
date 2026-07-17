@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<title>kanari — carte de veille</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="icon" href="../assets/favicon.svg">
+<style>
+  @keyframes kping { 0% { transform:scale(1); opacity:.7; } 100% { transform:scale(2.6); opacity:0; } }
+  @keyframes krise { from { transform:translateY(8px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+</style>
+</helmet>
+<div style="width:100vw; min-width:1280px; height:100vh; min-height:860px; position:relative; overflow:hidden; background:var(--paper); display:flex; flex-direction:column; font-family:var(--font-body);">
+
+  <header style="height:64px; flex-shrink:0; background:rgba(251,249,244,.9); backdrop-filter:blur(12px); border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; padding:0 24px; z-index:40;">
+    <div style="display:flex; align-items:baseline; gap:14px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <img src="../assets/logo-symbole.svg" width="34" height="34" alt="kanari">
+        <span style="font-family:var(--font-display); font-weight:500; font-size:23px; letter-spacing:-0.5px; color:var(--ink);">kanari</span>
+      </div>
+      <span style="font-size:13px; color:var(--ink-3);">l'alerte feu de forêt, avant tout le monde</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:20px;">
+      <a href="#" style="font-size:14px; font-weight:500; color:var(--ink);">Comment ça marche</a>
+      <a href="#" style="font-size:14px; font-weight:500; color:var(--ink);">À propos</a>
+      <button style="height:38px; padding:0 18px; font-family:var(--font-body); font-weight:500; font-size:14px; background:var(--ember); color:#fff; border:none; border-radius:var(--radius-pill); cursor:pointer;" style-hover="background:#D5551F">Urgence ? 112</button>
+    </div>
+  </header>
+
+  <div style="flex:1; position:relative;">
+    <div style="position:absolute; inset:0; background:repeating-linear-gradient(45deg, #EDF1E9 0px, #EDF1E9 22px, #E9EEE5 22px, #E9EEE5 44px);">
+      <span style="position:absolute; bottom:14px; left:50%; transform:translateX(-50%); font-family:monospace; font-size:12px; color:#9AA396;">fond de carte clair (MapLibre / OSM light) — remplace ce placeholder</span>
+    </div>
+
+    <!-- Marqueurs -->
+    <div style="position:absolute; left:46%; top:64%;"><span style="position:absolute; width:16px; height:16px; border-radius:50%; background:var(--danger); animation:kping 1.6s ease-out infinite;"></span><span style="position:relative; display:block; width:16px; height:16px; border-radius:50%; background:var(--danger); border:2.5px solid #fff; box-shadow:var(--shadow-s);"></span></div>
+    <div style="position:absolute; left:38%; top:70%;"><span style="display:block; width:14px; height:14px; border-radius:50%; background:var(--ember); border:2.5px solid #fff; box-shadow:var(--shadow-s);"></span></div>
+    <div style="position:absolute; left:55%; top:32%;"><span style="display:block; width:14px; height:14px; border-radius:50%; background:var(--ember); border:2.5px solid #fff; box-shadow:var(--shadow-s);"></span></div>
+    <div style="position:absolute; left:52%; top:58%;"><span style="display:block; width:13px; height:13px; border-radius:50%; background:var(--canary-strong); border:2.5px solid #fff; box-shadow:var(--shadow-s);"></span></div>
+    <div style="position:absolute; left:42%; top:40%;"><span style="display:block; width:12px; height:12px; border-radius:50%; background:#4A90C2; border:2.5px solid #fff; box-shadow:var(--shadow-s);"></span></div>
+    <div style="position:absolute; left:35%; top:52%;"><span style="display:block; width:12px; height:12px; border-radius:50%; background:#4A90C2; border:2.5px solid #fff; box-shadow:var(--shadow-s);"></span></div>
+    <div style="position:absolute; left:61%; top:66%;"><span style="display:block; width:12px; height:12px; border-radius:50%; background:var(--ink-3); border:2.5px solid #fff; box-shadow:var(--shadow-s);"></span></div>
+    <div style="position:absolute; left:49%; top:48%;"><span style="display:block; width:13px; height:13px; border-radius:50%; background:var(--canary-strong); border:2.5px solid #fff; box-shadow:var(--shadow-s);"></span></div>
+
+    <!-- Fiche foyer (progressive disclosure) -->
+    <sc-if value="{{ popoverOpen }}" hint-placeholder-val="{{ true }}">
+      <div style="position:absolute; left:46%; top:64%; transform:translate(-50%, calc(-100% - 18px)); width:300px; background:var(--white); border-radius:var(--radius-l); box-shadow:var(--shadow-l); padding:18px 20px; display:flex; flex-direction:column; gap:10px; z-index:25; animation:krise .3s var(--ease-out);">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="height:22px; padding:0 9px; border-radius:var(--radius-pill); background:var(--danger-soft); color:#9C2B2B; font-size:11px; font-weight:700; display:inline-flex; align-items:center; letter-spacing:.4px;">ACTIF</span>
+          <strong style="font-size:16px; flex:1;">Épouville (FR)</strong>
+          <button onClick="{{ closePopover }}" aria-label="Fermer" style="width:28px; height:28px; border-radius:50%; background:var(--paper-2); border:none; color:var(--ink-2); cursor:pointer; font-size:13px;">✕</button>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--ink-2);">
+          <span style="display:flex; gap:8px; align-items:center;"><span style="width:7px; height:7px; border-radius:50%; background:var(--ember);"></span>1ère mention Bluesky · il y a 26 min</span>
+          <span style="display:flex; gap:8px; align-items:center;"><span style="width:7px; height:7px; border-radius:50%; background:#4A90C2;"></span>Confirmé satellite · il y a 11 min</span>
+          <span style="display:flex; gap:8px; align-items:center;"><span style="width:7px; height:7px; border-radius:50%; background:var(--ink-3);"></span>Vent 35 km/h vers le nord-est</span>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button style="flex:1; height:38px; font-family:var(--font-body); font-weight:500; font-size:13px; background:var(--charcoal); color:var(--paper); border:none; border-radius:var(--radius-pill); cursor:pointer;">Voir le détail</button>
+          <button style="flex:1; height:38px; font-family:var(--font-body); font-weight:500; font-size:13px; background:transparent; color:var(--ink); border:1px solid var(--line); border-radius:var(--radius-pill); cursor:pointer;">Partager</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- Recherche + filtres (haut gauche) -->
+    <div style="position:absolute; top:20px; left:20px; display:flex; flex-direction:column; gap:10px; z-index:30;">
+      <div style="width:320px; height:48px; background:var(--white); border-radius:var(--radius-pill); box-shadow:var(--shadow-m); display:flex; align-items:center; gap:10px; padding:0 8px 0 18px;">
+        <svg width="17" height="17" viewBox="0 0 17 17"><circle cx="7" cy="7" r="5.5" fill="none" stroke="#8A8880" stroke-width="2"></circle><line x1="11.5" y1="11.5" x2="16" y2="16" stroke="#8A8880" stroke-width="2" stroke-linecap="round"></line></svg>
+        <input placeholder="Rechercher une ville ou une zone" style="flex:1; border:none; outline:none; font-size:14.5px; font-family:var(--font-body); background:transparent; color:var(--ink);">
+        <button style="height:36px; padding:0 14px; font-family:var(--font-body); font-weight:500; font-size:13px; background:var(--canary); color:var(--charcoal); border:none; border-radius:var(--radius-pill); cursor:pointer;" style-hover="background:var(--canary-strong)">Ma position</button>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <sc-for list="{{ periodes }}" as="p" hint-placeholder-count="3">
+          <button onClick="{{ p.pick }}" style="{{ p.style }}" style-hover="box-shadow:var(--shadow-m)">{{ p.label }}</button>
+        </sc-for>
+        <button onClick="{{ toggleLegend }}" style="height:38px; padding:0 16px; white-space:nowrap; font-family:var(--font-body); font-weight:500; font-size:13px; background:var(--white); color:var(--ink-2); border:none; border-radius:var(--radius-pill); box-shadow:var(--shadow-s); cursor:pointer;" style-hover="box-shadow:var(--shadow-m)">Légende</button>
+      </div>
+      <sc-if value="{{ legendOpen }}" hint-placeholder-val="{{ false }}">
+        <div style="width:250px; background:var(--white); border-radius:var(--radius-l); box-shadow:var(--shadow-m); padding:16px 18px; display:flex; flex-direction:column; gap:9px; font-size:13px; color:var(--ink-2); animation:krise .25s var(--ease-out);">
+          <span style="display:flex; align-items:center; gap:9px;"><span style="width:11px; height:11px; border-radius:50%; background:var(--danger);"></span>Feu actif · moins de 3 h</span>
+          <span style="display:flex; align-items:center; gap:9px;"><span style="width:11px; height:11px; border-radius:50%; background:var(--ember);"></span>Récent · 3 – 12 h</span>
+          <span style="display:flex; align-items:center; gap:9px;"><span style="width:11px; height:11px; border-radius:50%; background:var(--canary-strong);"></span>Surveillé · 12 – 24 h</span>
+          <span style="display:flex; align-items:center; gap:9px;"><span style="width:11px; height:11px; border-radius:50%; background:var(--ink-3);"></span>Ancien · plus de 24 h</span>
+          <span style="display:flex; align-items:center; gap:9px;"><span style="width:11px; height:11px; border-radius:50%; background:#4A90C2;"></span>Signalement citoyen</span>
+        </div>
+      </sc-if>
+    </div>
+
+    <!-- Flux (droite) -->
+    <aside style="position:absolute; top:20px; right:20px; bottom:20px; width:350px; background:var(--white); border-radius:var(--radius-l); box-shadow:var(--shadow-m); display:flex; flex-direction:column; overflow:hidden; z-index:20;">
+      <div style="padding:16px 18px 14px; display:flex; flex-direction:column; gap:12px; border-bottom:1px solid var(--line);">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <h3 style="font-size:17px; flex:1;">En direct</h3>
+          <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-3);"><span style="width:7px; height:7px; border-radius:50%; background:var(--canary-strong); animation:kanari-wave 1.8s ease-out infinite;"></span>kanari écoute</span>
+        </div>
+        <div style="display:flex; gap:3px; background:var(--paper-2); border-radius:var(--radius-pill); padding:3px;">
+          <button onClick="{{ pickTout }}" style="{{ tabToutStyle }}">Tout · 40</button>
+          <button onClick="{{ pickUrgent }}" style="{{ tabUrgentStyle }}">Urgents · 5</button>
+        </div>
+      </div>
+      <div style="flex:1; overflow-y:auto; display:flex; flex-direction:column;">
+        <sc-for list="{{ feed }}" as="f" hint-placeholder-count="7">
+          <sc-if value="{{ f.isGroup }}" hint-placeholder-val="{{ false }}">
+            <span style="padding:14px 18px 6px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:var(--ink-3);">{{ f.label }}</span>
+          </sc-if>
+          <sc-if value="{{ f.isItem }}" hint-placeholder-val="{{ true }}">
+            <div style="padding:11px 18px; display:flex; align-items:flex-start; gap:11px; cursor:pointer; border-radius:14px; margin:0 6px;" style-hover="background:var(--canary-tint)">
+              <span style="width:9px; height:9px; border-radius:50%; background:{{ f.color }}; flex-shrink:0; margin-top:5px;"></span>
+              <div style="display:flex; flex-direction:column; gap:2px; flex:1;">
+                <strong style="font-size:14.5px;">{{ f.lieu }}</strong>
+                <span style="font-size:12.5px; color:var(--ink-2);">{{ f.meta }}</span>
+              </div>
+              <span style="font-size:12px; color:var(--ink-3); white-space:nowrap; margin-top:2px;">{{ f.temps }}</span>
+            </div>
+          </sc-if>
+        </sc-for>
+      </div>
+      <div style="padding:12px 18px; border-top:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; font-size:12px; color:var(--ink-3);">
+        <span>1 763 foyers · 145 signalements</span>
+        <span>maj il y a 81 s</span>
+      </div>
+    </aside>
+
+    <!-- CTA principal (zone d'attention basse) -->
+    <div style="position:absolute; bottom:28px; left:50%; transform:translateX(-50%); z-index:30;">
+      <sc-if value="{{ alertOff }}" hint-placeholder-val="{{ true }}">
+        <button onClick="{{ toggleAlert }}" style="height:54px; padding:0 30px; display:flex; align-items:center; gap:11px; font-family:var(--font-body); font-weight:500; font-size:16px; background:var(--canary); color:var(--charcoal); border:none; border-radius:var(--radius-pill); box-shadow:var(--shadow-l); cursor:pointer;" style-hover="background:var(--canary-strong); transform:translateY(-1px)">
+          <span style="width:9px; height:9px; border-radius:50%; background:var(--charcoal); animation:kanari-wave 1.8s ease-out infinite;"></span>
+          M'alerter sur cette zone
+        </button>
+      </sc-if>
+      <sc-if value="{{ alertOn }}" hint-placeholder-val="{{ false }}">
+        <button onClick="{{ toggleAlert }}" style="height:54px; padding:0 30px; display:flex; align-items:center; gap:11px; font-family:var(--font-body); font-weight:500; font-size:16px; background:var(--charcoal); color:var(--paper); border:none; border-radius:var(--radius-pill); box-shadow:var(--shadow-l); cursor:pointer;">
+          <span style="width:9px; height:9px; border-radius:50%; background:var(--canary);"></span>
+          Zone sous alerte — kanari veille ✓
+        </button>
+      </sc-if>
+    </div>
+
+    <!-- Zoom -->
+    <div style="position:absolute; right:390px; bottom:28px; display:flex; flex-direction:column; gap:6px; z-index:20;">
+      <button style="width:42px; height:42px; border-radius:50%; background:var(--white); border:none; box-shadow:var(--shadow-m); font-size:18px; color:var(--ink); cursor:pointer;">+</button>
+      <button style="width:42px; height:42px; border-radius:50%; background:var(--white); border:none; box-shadow:var(--shadow-m); font-size:18px; color:var(--ink); cursor:pointer;">−</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { periode: '24 h', tab: 'tout', alert: false, legend: false, popover: true };
+  renderVals() {
+    const styleStr = (s) => { const o = {}; s.split(';').forEach(d => { const i = d.indexOf(':'); if (i > 0) { const k = d.slice(0, i).trim().replace(/-([a-z])/g, (m, c) => c.toUpperCase()); o[k] = d.slice(i + 1).trim(); } }); return o; };
+    const chip = 'height:38px;padding:0 18px;white-space:nowrap;font-size:13px;font-weight:500;font-family:var(--font-body);border:none;border-radius:999px;cursor:pointer;box-shadow:var(--shadow-s);transition:background 150ms;';
+    const periodes = ['6 h', '24 h', '72 h'].map(label => ({
+      label,
+      pick: () => this.setState({ periode: label }),
+      style: styleStr(chip + (label === this.state.periode ? 'background:var(--charcoal);color:var(--paper);' : 'background:var(--white);color:var(--ink-2);')),
+    }));
+    const tab = 'flex:1;height:34px;font-size:13px;font-weight:500;font-family:var(--font-body);border:none;border-radius:999px;cursor:pointer;';
+    const tout = this.state.tab === 'tout';
+    const items = [
+      { isGroup: true, label: "À l'instant" },
+      { lieu: 'Départ probable — Arba (IT)', meta: '1 post Bluesky · en cours de vérification', temps: '12 min', color: 'var(--danger)', urgent: true },
+      { lieu: 'Départ probable — Malpica (ES)', meta: '2 posts · vérification satellite', temps: '12 min', color: 'var(--danger)', urgent: true },
+      { lieu: 'Départ probable — Côme (IT)', meta: '4 posts · signal fort', temps: '14 min', color: 'var(--danger)', urgent: true },
+      { lieu: 'Départ probable — Duomo (IT)', meta: '1 post Bluesky', temps: '15 min', color: 'var(--ember)', urgent: true },
+      { lieu: 'Départ probable — Levél (HU)', meta: '1 post Bluesky', temps: '15 min', color: 'var(--ember)', urgent: true },
+      { isGroup: true, label: 'Dernière heure' },
+      { lieu: 'Épouville (FR)', meta: 'Confirmé satellite · vent 35 km/h', temps: '26 min', color: 'var(--ember)' },
+      { lieu: 'Petilla de Aragón (ES)', meta: '1 post Bluesky', temps: '28 min', color: 'var(--canary-strong)' },
+      { lieu: 'Weil (DE)', meta: '1 post Bluesky', temps: '35 min', color: 'var(--canary-strong)' },
+      { lieu: 'Détection satellite — 36.72, 5.03', meta: '2 détections · 540.8 MW max', temps: '46 min', color: '#4A90C2' },
+      { lieu: 'Sudbury (GB)', meta: '6 posts Bluesky', temps: '56 min', color: 'var(--ink-3)' },
+      { lieu: 'Castilla (ES)', meta: '2 posts Bluesky', temps: '56 min', color: 'var(--ink-3)' },
+    ].map(x => ({ ...x, isItem: !x.isGroup }));
+    const feed = tout ? items : items.filter(x => x.urgent);
+    return {
+      periodes, feed,
+      pickTout: () => this.setState({ tab: 'tout' }),
+      pickUrgent: () => this.setState({ tab: 'urgent' }),
+      tabToutStyle: styleStr(tab + (tout ? 'background:var(--white);color:var(--ink);box-shadow:var(--shadow-s);' : 'background:transparent;color:var(--ink-2);')),
+      tabUrgentStyle: styleStr(tab + (!tout ? 'background:var(--ember);color:#fff;' : 'background:transparent;color:var(--ink-2);')),
+      alertOn: this.state.alert, alertOff: !this.state.alert,
+      toggleAlert: () => this.setState(s => ({ alert: !s.alert })),
+      legendOpen: this.state.legend,
+      toggleLegend: () => this.setState(s => ({ legend: !s.legend })),
+      popoverOpen: this.state.popover,
+      closePopover: () => this.setState({ popover: false }),
+    };
+  }
+}
+</script>
+</body>
+</html>

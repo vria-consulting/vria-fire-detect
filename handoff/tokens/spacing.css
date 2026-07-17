@@ -1,0 +1,42 @@
+:root {
+  /* Espacement — base 4 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+
+  /* Rayons — ronds et amicaux, jamais anguleux */
+  --radius-s: 8px;    /* champs, tags */
+  --radius-m: 14px;   /* boutons rectangulaires, inputs */
+  --radius-l: 22px;   /* cartes */
+  --radius-xl: 32px;  /* panneaux, sections héro */
+  --radius-pill: 999px; /* boutons principaux, badges */
+
+  /* Ombres — chaudes et douces, jamais dures */
+  --shadow-s: 0 1px 3px rgba(27, 28, 30, 0.06);
+  --shadow-m: 0 4px 16px rgba(27, 28, 30, 0.08);
+  --shadow-l: 0 12px 36px rgba(27, 28, 30, 0.12);
+
+  /* Mouvement */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.3, 1);
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+  --duration-slow: 450ms;
+
+  /* Layout */
+  --container-max: 1160px;
+  --header-height: 72px;
+}
+
+/* Onde signature — pulsation des arcs du logo et des éléments "signal" */
+@keyframes kanari-wave {
+  0% { opacity: 0.12; }
+  25% { opacity: 1; }
+  60% { opacity: 0.12; }
+  100% { opacity: 0.12; }
+}

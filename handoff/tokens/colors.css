@@ -1,0 +1,40 @@
+:root {
+  /* Base — marque */
+  --canary: #FFC72E;        /* jaune canari, couleur signature */
+  --canary-strong: #F0B400; /* hover / états pressés sur jaune */
+  --canary-soft: #FFF1C9;   /* fonds de badges, surlignages */
+  --canary-tint: #FFFAEC;   /* fonds de sections teintés */
+  --charcoal: #1B1C1E;      /* charbon, texte + surfaces sombres */
+  --charcoal-2: #26272A;    /* surfaces élevées sur sombre */
+
+  /* Neutres chauds */
+  --paper: #FBF9F4;         /* fond de page */
+  --paper-2: #F3F0E8;       /* fond alternatif de section */
+  --white: #FFFFFF;         /* cartes */
+  --line: #E8E4D9;          /* bordures, séparateurs */
+  --ink: #1B1C1E;           /* texte principal */
+  --ink-2: #55544E;         /* texte secondaire */
+  --ink-3: #8A8880;         /* texte tertiaire, légendes */
+
+  /* Sémantique alerte (chroma/luminosité harmonisées) */
+  --ember: #E8622C;         /* braise — alerte active, avec parcimonie */
+  --ember-soft: #FBE5DA;
+  --danger: #D64545;        /* danger confirmé */
+  --danger-soft: #F9E0E0;
+  --safe: #3E9B6E;          /* tout va bien / feu maîtrisé */
+  --safe-soft: #DFF0E7;
+
+  /* Alias sémantiques */
+  --surface-page: var(--paper);
+  --surface-card: var(--white);
+  --surface-dark: var(--charcoal);
+  --text-body: var(--ink);
+  --text-muted: var(--ink-2);
+  --text-faint: var(--ink-3);
+  --text-on-canary: var(--charcoal);
+  --text-on-dark: var(--paper);
+  --border-default: var(--line);
+  --focus-ring: 0 0 0 3px rgba(255, 199, 46, 0.55);
+  --link: #B04A1E;
+  --link-hover: var(--ember);
+}

@@ -17,15 +17,16 @@ const REGIONS: Record<string, { center: [number, number]; zoom: number }> = {
   Australie: { center: [134, -26], zoom: 3.5 },
 };
 
+// Fond clair (maquette « Kanari App Redesign v2 ») : CARTO Positron.
 const MAP_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
     carto: {
       type: "raster",
       tiles: [
-        "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
-        "https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
-        "https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
+        "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
+        "https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
+        "https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
       ],
       tileSize: 256,
       attribution:
@@ -47,9 +48,16 @@ function formatAge(h: number): string {
   return `il y a ${Math.round(h / 24)} j`;
 }
 
+// Horodatage court, aligné à droite dans le flux (« 12 min », « 3 h »).
+function formatShort(h: number): string {
+  if (h < 1) return `${Math.max(1, Math.round(h * 60))} min`;
+  if (h < 48) return `${Math.round(h)} h`;
+  return `${Math.round(h / 24)} j`;
+}
+
 const NEW_EVENT_HOURS = 12; // un foyer est "nouveau" si son 1er signal a < 12 h
-const DEPART_WATCH_MIN = 120; // mode départs : 1er signalement il y a 2 h max
-const DEPART_HOT_MIN = 20; // pulsation rouge : signal de moins de 20 min
+const DEPART_WATCH_MIN = 120; // urgents : 1er signalement il y a 2 h max
+const DEPART_HOT_MIN = 20; // pulsation : signal de moins de 20 min
 
 // Clé publique VAPID (non sensible) — la clé privée reste côté serveur.
 const VAPID_PUBLIC_KEY =
@@ -62,61 +70,35 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
   return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
 }
 
-// Icône flamme dessinée au canvas, teintée par âge (même code couleur que les
-// anciens points), liseré blanc pour rester lisible sur fond clair.
-function flameImage(main: string, core: string): ImageData {
-  const c = document.createElement("canvas");
-  c.width = c.height = 64;
-  const ctx = c.getContext("2d")!;
-  ctx.beginPath();
-  ctx.moveTo(32, 4);
-  ctx.bezierCurveTo(40, 18, 52, 24, 52, 40);
-  ctx.bezierCurveTo(52, 52, 43, 60, 32, 60);
-  ctx.bezierCurveTo(21, 60, 12, 52, 12, 40);
-  ctx.bezierCurveTo(12, 24, 24, 18, 32, 4);
-  ctx.closePath();
-  ctx.fillStyle = main;
-  ctx.strokeStyle = "rgba(255,255,255,0.95)";
-  ctx.lineWidth = 3;
-  ctx.fill();
-  ctx.stroke();
-  // cœur clair de la flamme
-  ctx.beginPath();
-  ctx.moveTo(32, 30);
-  ctx.bezierCurveTo(38, 38, 43, 40, 43, 47);
-  ctx.bezierCurveTo(43, 54, 38, 58, 32, 58);
-  ctx.bezierCurveTo(26, 58, 21, 54, 21, 47);
-  ctx.bezierCurveTo(21, 40, 26, 38, 32, 30);
-  ctx.closePath();
-  ctx.fillStyle = core;
-  ctx.fill();
-  return ctx.getImageData(0, 0, 64, 64);
+// Code couleur d'âge de la charte : danger < 3 h, braise 3-12 h,
+// jaune fort 12-24 h, gris au-delà. Bleu = signalement citoyen.
+const AGE_COLORS = {
+  active: "#D64545",
+  recent: "#E8622C",
+  watched: "#F0B400",
+  old: "#8A8880",
+  citizen: "#4A90C2",
+};
+
+function ageColor(lastAgeH: number): string {
+  if (lastAgeH < 3) return AGE_COLORS.active;
+  if (lastAgeH < 12) return AGE_COLORS.recent;
+  if (lastAgeH < 24) return AGE_COLORS.watched;
+  return AGE_COLORS.old;
 }
 
-const FLAMES: Record<string, [string, string]> = {
-  "flame-red": ["#ff2d00", "#ffd166"],
-  "flame-orange": ["#ff7a00", "#ffe08a"],
-  "flame-yellow": ["#ffc400", "#fff3bf"],
-  "flame-brown": ["#8a6d3b", "#d9c9a3"],
-  "flame-blue": ["#0ea5e9", "#bae6fd"],
+const AGE_BADGE: { max: number; label: string; bg: string; fg: string }[] = [
+  { max: 3, label: "ACTIF", bg: "var(--danger-soft)", fg: "#9C2B2B" },
+  { max: 12, label: "RÉCENT", bg: "var(--ember-soft)", fg: "#8C3A16" },
+  { max: 24, label: "SURVEILLÉ", bg: "var(--canary-soft)", fg: "#7A5A00" },
+  { max: Infinity, label: "ANCIEN", bg: "var(--paper-2)", fg: "var(--ink-2)" },
+];
+
+const CONF_LABEL: Record<Confidence, { text: string; bg: string; fg: string }> = {
+  possible: { text: "possible", bg: "var(--paper-2)", fg: "var(--ink-2)" },
+  probable: { text: "probable", bg: "var(--canary-soft)", fg: "#7A5A00" },
+  corrobore: { text: "corroboré", bg: "var(--safe-soft)", fg: "#22684A" },
 };
-
-const CONF_LABEL: Record<Confidence, { text: string; cls: string }> = {
-  possible: { text: "possible", cls: "bg-zinc-700 text-zinc-300" },
-  probable: { text: "probable", cls: "bg-amber-700 text-amber-100" },
-  corrobore: { text: "corroboré", cls: "bg-emerald-700 text-emerald-100" },
-};
-
-type Status =
-  | { kind: "loading" }
-  | { kind: "ready"; events: number; detections: number; signals: number }
-  | { kind: "error"; code: string };
-
-type SocialState =
-  | { kind: "idle" }
-  | { kind: "loading" }
-  | { kind: "done"; result: SocialResult }
-  | { kind: "error" };
 
 type Wind = { speed: number; gusts: number; direction: number };
 
@@ -133,6 +115,12 @@ function formatDelta(ms: number): string {
   return `${h} h${min % 60 ? ` ${min % 60}` : ""}`;
 }
 
+function sourceLabel(posts: SocialPost[]): string {
+  if (posts.some((p) => p.source === "bluesky")) return "Bluesky";
+  if (posts.some((p) => p.source === "telegram")) return "Telegram";
+  return "presse";
+}
+
 function PostList({ posts }: { posts: SocialPost[] }) {
   return (
     <ul className="space-y-2">
@@ -140,25 +128,65 @@ function PostList({ posts }: { posts: SocialPost[] }) {
         // Clé suffixée par l'index : une URL dupliquée dans la liste (bug
         // amont) casserait la réconciliation React — enfants « dupliqués ou
         // omis », posts périmés affichés sous le mauvais signal (vu en prod).
-        <li key={`${post.url}#${i}`} className="rounded-md bg-zinc-800/80 p-2 text-xs">
+        <li
+          key={`${post.url}#${i}`}
+          className="rounded-[14px] p-2.5 text-xs"
+          style={{ background: "var(--paper-2)" }}
+        >
           <a
             href={post.url}
             target="_blank"
             rel="noreferrer"
-            className="font-medium text-sky-400 hover:underline"
+            className="font-medium"
+            style={{ color: "var(--link)" }}
           >
-            {post.source === "presse"
-              ? `📰 ${post.handle}`
-              : post.source === "telegram"
-                ? `✈️ ${post.handle}`
-                : `@${post.handle}`}
+            {post.source === "presse" ? post.handle : `@${post.handle}`}
           </a>{" "}
-          <span className="text-zinc-500">· {formatAge(hoursAgo(post.createdAt))}</span>
-          <p className="mt-1 whitespace-pre-wrap text-zinc-300">{post.text}</p>
+          <span style={{ color: "var(--ink-3)" }}>
+            · {post.source} · {formatAge(hoursAgo(post.createdAt))}
+          </span>
+          <p className="mt-1 whitespace-pre-wrap" style={{ color: "var(--ink-2)" }}>
+            {post.text}
+          </p>
         </li>
       ))}
     </ul>
   );
+}
+
+type Status =
+  | { kind: "loading" }
+  | { kind: "ready"; events: number; detections: number; signals: number }
+  | { kind: "error"; code: string };
+
+type SocialState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "done"; result: SocialResult }
+  | { kind: "error" };
+
+// Recherche de lieu (Photon / OSM — gratuit, CORS ouvert, typeahead).
+type Suggestion = { label: string; sub: string; lon: number; lat: number; zoom: number };
+
+function photonZoom(type: string | undefined): number {
+  switch (type) {
+    case "country":
+      return 4.3;
+    case "state":
+      return 6;
+    case "county":
+      return 7.5;
+    case "city":
+      return 9.5;
+    case "district":
+    case "town":
+      return 10.5;
+    case "village":
+    case "locality":
+      return 11.5;
+    default:
+      return 10;
+  }
 }
 
 export default function FireMap() {
@@ -175,19 +203,31 @@ export default function FireMap() {
   const [selectedSignal, setSelectedSignal] = useState<SocialSignal | null>(null);
   const [social, setSocial] = useState<SocialState>({ kind: "idle" });
   const [wind, setWind] = useState<Wind | null>(null);
-  const [listOpen, setListOpen] = useState(true);
   const [alertState, setAlertState] = useState<"off" | "busy" | "on">("off");
   const [alertMsg, setAlertMsg] = useState<string | null>(null);
   const pendingSelectRef = useRef<string | null>(null);
-  // Mode "départs de feu" : ne montrer que les signaux < 1 h, pulsation < 20 min
+  // Onglet du flux : « Tout » = vue globale, « Urgents » = départs de feu
+  // (< 2 h) — l'onglet pilote aussi les filtres de la carte.
   const [mode, setMode] = useState<"tout" | "departs">("tout");
   const [signals, setSignals] = useState<SocialSignal[]>([]);
   const pulseMarkersRef = useRef<maplibregl.Marker[]>([]);
   const [, setTick] = useState(0); // re-rendu périodique des "il y a X min"
-  // Emprise affichée [ouest, sud, est, nord] : filtre les listes de droite.
+  // Emprise affichée [ouest, sud, est, nord] : filtre le flux de droite.
   const [viewBounds, setViewBounds] = useState<[number, number, number, number] | null>(
     null
   );
+  // UI maquette v2
+  const [legendOpen, setLegendOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false); // flux sur mobile
+  const [detailOpen, setDetailOpen] = useState(false); // fiche foyer étendue
+  const [shareMsg, setShareMsg] = useState<string | null>(null);
+  // Recherche de ville / zone
+  const [query, setQuery] = useState("");
+  const [sugs, setSugs] = useState<Suggestion[]>([]);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [geoBusy, setGeoBusy] = useState(false);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const posMarkerRef = useRef<maplibregl.Marker | null>(null);
 
   useEffect(() => {
     if (localStorage.getItem("vigifire-alert-endpoint")) setAlertState("on");
@@ -307,8 +347,9 @@ export default function FireMap() {
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: MAP_STYLE,
-      center: hasDeepLink ? [pLon, pLat] : REGIONS["Europe du Sud"].center,
-      zoom: hasDeepLink ? (isFinite(pZ) ? pZ : 9) : REGIONS["Europe du Sud"].zoom,
+      // La France par défaut : le premier marché de kanari.
+      center: hasDeepLink ? [pLon, pLat] : REGIONS["France"].center,
+      zoom: hasDeepLink ? (isFinite(pZ) ? pZ : 9) : REGIONS["France"].zoom,
       attributionControl: { compact: true },
     });
     mapRef.current = map;
@@ -334,60 +375,61 @@ export default function FireMap() {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       });
+      // Halo doux sous les feux actifs (< 3 h).
       map.addLayer({
         id: "events-glow",
         type: "circle",
         source: "events",
-        filter: ["<", ["get", "lastAgeH"], 6],
+        filter: ["<", ["get", "lastAgeH"], 3],
         paint: {
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 10, 8, 26],
-          "circle-color": "#ff3b00",
-          "circle-opacity": 0.15,
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 12, 8, 30],
+          "circle-color": AGE_COLORS.active,
+          "circle-opacity": 0.14,
           "circle-blur": 1,
         },
       });
-      for (const [name, [main, core]] of Object.entries(FLAMES)) {
-        map.addImage(name, flameImage(main, core));
-      }
-      // Foyers : icône flamme teintée par âge, taille selon le nombre de détections
+      // Foyers : pastilles rondes bordées de blanc, couleur = âge du dernier
+      // signal, taille = nombre de détections (charte maquette v2 — plus
+      // d'emoji ni d'icône flamme).
       map.addLayer({
         id: "events-icons",
-        type: "symbol",
+        type: "circle",
         source: "events",
-        layout: {
-          "icon-image": [
+        paint: {
+          "circle-color": [
             "step",
             ["get", "lastAgeH"],
-            "flame-red",
-            3, "flame-orange",
-            12, "flame-yellow",
-            24, "flame-brown",
+            AGE_COLORS.active,
+            3,
+            AGE_COLORS.recent,
+            12,
+            AGE_COLORS.watched,
+            24,
+            AGE_COLORS.old,
           ],
-          "icon-size": [
+          "circle-radius": [
             "interpolate",
             ["linear"],
             ["zoom"],
             2,
-            ["interpolate", ["linear"], ["ln", ["+", ["get", "count"], 1]],
-              0, 0.18, 3, 0.32, 7, 0.55],
+            ["interpolate", ["linear"], ["ln", ["+", ["get", "count"], 1]], 0, 3.5, 3, 5.5, 7, 9],
             9,
-            ["interpolate", ["linear"], ["ln", ["+", ["get", "count"], 1]],
-              0, 0.4, 3, 0.72, 7, 1.25],
+            ["interpolate", ["linear"], ["ln", ["+", ["get", "count"], 1]], 0, 6.5, 3, 10, 7, 16],
           ],
-          "icon-allow-overlap": true,
-          "icon-ignore-placement": true,
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 2,
         },
       });
-      // Signalements citoyens (veille Bluesky) — flamme bleue
+      // Signalements citoyens : bleu source humaine.
       map.addLayer({
         id: "signals-icons",
-        type: "symbol",
+        type: "circle",
         source: "signals",
-        layout: {
-          "icon-image": "flame-blue",
-          "icon-size": ["interpolate", ["linear"], ["zoom"], 2, 0.26, 9, 0.5],
-          "icon-allow-overlap": true,
-          "icon-ignore-placement": true,
+        paint: {
+          "circle-color": AGE_COLORS.citizen,
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 5, 9, 8],
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 2,
         },
       });
 
@@ -399,6 +441,7 @@ export default function FireMap() {
           setSelected(ev);
           setSelectedSignal(null);
           setSocial({ kind: "idle" });
+          setDetailOpen(false);
         }
       });
       map.on("click", "signals-icons", (e) => {
@@ -455,6 +498,7 @@ export default function FireMap() {
     setSelected(ev);
     setSelectedSignal(null);
     setSocial({ kind: "idle" });
+    setDetailOpen(false);
     mapRef.current?.flyTo({ center: ev.centroid, zoom: 8.5 });
   };
 
@@ -503,7 +547,7 @@ export default function FireMap() {
       const perm = await Notification.requestPermission();
       if (perm !== "granted") {
         setAlertState("off");
-        setAlertMsg("Autorisez les notifications pour activer les alertes.");
+        setAlertMsg("Autorise les notifications pour activer les alertes.");
         return;
       }
       const reg = await navigator.serviceWorker.register("/sw.js");
@@ -523,11 +567,11 @@ export default function FireMap() {
       if (!res.ok) throw new Error("subscribe failed");
       localStorage.setItem("vigifire-alert-endpoint", sub.endpoint);
       setAlertState("on");
-      setAlertMsg("Alertes actives : nouveaux foyers probables dans cette vue (vérification toutes les 5 min).");
+      setAlertMsg("Zone sous alerte : tu seras prévenu·e des nouveaux foyers probables ici.");
     } catch (e) {
       console.error(e);
       setAlertState(localStorage.getItem("vigifire-alert-endpoint") ? "on" : "off");
-      setAlertMsg("Échec de l'activation — réessayez.");
+      setAlertMsg("Échec de l'activation — réessaie.");
     }
   };
 
@@ -535,6 +579,127 @@ export default function FireMap() {
     setSelectedSignal(sig);
     setSelected(null);
     mapRef.current?.flyTo({ center: [sig.lon, sig.lat], zoom: 9 });
+  };
+
+  // Partage d'un feu ou d'un signalement : lien profond natif ou presse-papiers.
+  const share = async (title: string, url: string) => {
+    const full = `${window.location.origin}${url}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, url: full });
+      } catch {
+        /* partage annulé par l'utilisateur */
+      }
+      return;
+    }
+    try {
+      // Course avec un délai court : dans certains webviews la demande de
+      // permission ne se résout jamais — le retour visuel doit toujours venir.
+      await Promise.race([
+        navigator.clipboard.writeText(full),
+        new Promise((_, reject) => setTimeout(reject, 800)),
+      ]);
+    } catch {
+      // Repli sans permission Clipboard (navigateurs stricts / webviews).
+      const ta = document.createElement("textarea");
+      ta.value = full;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand("copy");
+      } catch {
+        /* dernier recours : rien à faire, le lien reste dans l'URL */
+      }
+      ta.remove();
+    }
+    setShareMsg("Lien copié ✓");
+    setTimeout(() => setShareMsg(null), 2500);
+  };
+
+  // Recherche de ville / pays / zone (Photon, données OSM).
+  const runSearch = (q: string) => {
+    setQuery(q);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (q.trim().length < 2) {
+      setSugs([]);
+      return;
+    }
+    searchTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=6&lang=fr`
+        );
+        if (!res.ok) return;
+        const j = await res.json();
+        type PhotonFeature = {
+          geometry: { coordinates: [number, number] };
+          properties: {
+            name?: string;
+            country?: string;
+            state?: string;
+            type?: string;
+            osm_value?: string;
+          };
+        };
+        const seen = new Set<string>();
+        const out: Suggestion[] = [];
+        for (const f of (j.features ?? []) as PhotonFeature[]) {
+          const p = f.properties;
+          if (!p.name) continue;
+          const sub = [p.state, p.country].filter(Boolean).join(" · ");
+          const key = `${p.name}|${sub}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          out.push({
+            label: p.name,
+            sub,
+            lon: f.geometry.coordinates[0],
+            lat: f.geometry.coordinates[1],
+            zoom: photonZoom(p.type),
+          });
+        }
+        setSugs(out);
+      } catch {
+        /* recherche silencieusement indisponible */
+      }
+    }, 300);
+  };
+
+  const pickSuggestion = (s: Suggestion) => {
+    setQuery(s.label);
+    setSearchOpen(false);
+    setSugs([]);
+    mapRef.current?.flyTo({ center: [s.lon, s.lat], zoom: s.zoom });
+  };
+
+  const locateMe = () => {
+    if (!navigator.geolocation) {
+      setAlertMsg("Géolocalisation non supportée par ce navigateur.");
+      return;
+    }
+    setGeoBusy(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGeoBusy(false);
+        const { longitude, latitude } = pos.coords;
+        posMarkerRef.current?.remove();
+        const el = document.createElement("div");
+        el.style.cssText =
+          "width:14px;height:14px;border-radius:50%;background:var(--charcoal);border:3px solid #fff;box-shadow:var(--shadow-m)";
+        el.title = "Ta position";
+        posMarkerRef.current = new maplibregl.Marker({ element: el })
+          .setLngLat([longitude, latitude])
+          .addTo(mapRef.current!);
+        mapRef.current?.flyTo({ center: [longitude, latitude], zoom: 10 });
+      },
+      () => {
+        setGeoBusy(false);
+        setAlertMsg("Position indisponible — vérifie l'autorisation de localisation.");
+      },
+      { timeout: 8000 }
+    );
   };
 
   // Applique le mode aux couches carte + marqueurs pulsants des départs < 20 min
@@ -570,6 +735,7 @@ export default function FireMap() {
           setSelected(ev);
           setSelectedSignal(null);
           setSocial({ kind: "idle" });
+          setDetailOpen(false);
         });
         pulseMarkersRef.current.push(
           new maplibregl.Marker({ element: el }).setLngLat(ev.centroid).addTo(map)
@@ -591,7 +757,7 @@ export default function FireMap() {
       }
     } else {
       map.setFilter("events-icons", null);
-      map.setFilter("events-glow", ["<", ["get", "lastAgeH"], 6]);
+      map.setFilter("events-glow", ["<", ["get", "lastAgeH"], 3]);
       map.setFilter("signals-icons", null);
     }
   }, [mode, events, signals]);
@@ -605,7 +771,7 @@ export default function FireMap() {
     return () => clearInterval(id);
   }, [hours, loadData]);
 
-  // Les listes de droite suivent la zone affichée à l'écran.
+  // Le flux de droite suit la zone affichée à l'écran.
   const inView = (lon: number, lat: number) =>
     !viewBounds ||
     (lon >= viewBounds[0] &&
@@ -613,8 +779,8 @@ export default function FireMap() {
       lat >= viewBounds[1] &&
       lat <= viewBounds[3]);
 
-  // Vue globale : foyers satellite ET signalements humains dans la même liste,
-  // triés par premier signal / première mention.
+  // Onglet « Tout » : foyers satellite ET signalements humains, triés par
+  // premier signal / première mention.
   type GlobalItem =
     | { kind: "foyer"; when: string; ev: FireEvent }
     | { kind: "signal"; when: string; sig: SocialSignal };
@@ -629,12 +795,10 @@ export default function FireMap() {
     .sort((a, b) => Date.parse(b.when) - Date.parse(a.when))
     .slice(0, 40);
 
-  // Fil des départs : foyers ET signalements < 1 h, triés du plus frais au moins frais
+  // Onglet « Urgents » : foyers ET signalements dont le 1er signal a < 2 h.
   type DepartItem =
     | { kind: "sat"; ageMin: number; ev: FireEvent }
     | { kind: "social"; ageMin: number; sig: SocialSignal };
-  // Calculé dans tous les modes : le badge du bouton « Départs » et l'alerte
-  // doivent vivre même depuis la vue globale.
   const departItems: DepartItem[] = [
     ...events
       .map((ev) => ({ kind: "sat" as const, ageMin: hoursAgo(ev.firstSeen) * 60, ev }))
@@ -650,175 +814,383 @@ export default function FireMap() {
   ].sort((a, b) => a.ageMin - b.ageMin);
   const hotCount = departItems.filter((x) => x.ageMin <= DEPART_HOT_MIN).length;
 
+  // Groupes temporels du flux (maquette : « À l'instant », « Dernière heure »).
+  const bucketOf = (h: number) =>
+    h < 0.25 ? "À l'instant" : h < 1 ? "Dernière heure" : "Plus tôt";
+
+  const eventTitle = (ev: FireEvent) =>
+    ev.social?.place ??
+    `Détection satellite — ${ev.centroid[1].toFixed(2)}, ${ev.centroid[0].toFixed(2)}`;
+
+  const eventBadge = (ev: FireEvent) =>
+    AGE_BADGE.find((b) => hoursAgo(ev.lastSeen) < b.max)!;
+
+  // Ligne « 1ère mention citoyenne » de la fiche foyer : plus ancien post attaché.
+  const firstMention = (ev: FireEvent): string | null => {
+    const posts = ev.social?.posts;
+    if (!posts || posts.length === 0) return null;
+    return posts.reduce((min, p) => (p.createdAt < min ? p.createdAt : min), posts[0].createdAt);
+  };
+
+  const chip =
+    "flex h-[38px] items-center whitespace-nowrap rounded-full px-[18px] text-[13px] font-medium transition-all duration-150 cursor-pointer";
+  const card = { background: "var(--white)", boxShadow: "var(--shadow-m)" };
+
   return (
-    <div className="relative h-full w-full">
+    <div className="relative h-full w-full" style={{ fontFamily: "var(--font-body)" }}>
       <div ref={containerRef} className="h-full w-full" />
 
-      {/* Commutateur de mode */}
-      <div className="absolute left-1/2 top-3 z-10 flex -translate-x-1/2 rounded-full bg-zinc-900/95 p-1 text-sm shadow-lg backdrop-blur">
-        <button
-          onClick={() => setMode("tout")}
-          className={`rounded-full px-3 py-1.5 font-medium ${
-            mode === "tout" ? "bg-zinc-700 text-white" : "text-zinc-400 hover:text-zinc-200"
-          }`}
+      {/* Recherche + filtres (haut gauche, maquette v2) */}
+      <div className="absolute left-3 top-3 z-30 flex flex-col gap-2.5 sm:left-5 sm:top-5">
+        <div
+          className="flex h-12 w-[min(320px,calc(100vw-150px))] items-center gap-2.5 rounded-full pl-[18px] pr-2 sm:w-[320px]"
+          style={card}
         >
-          🌍 Vue globale
-        </button>
-        <button
-          onClick={() => setMode("departs")}
-          className={`rounded-full px-3 py-1.5 font-medium ${
-            mode === "departs" ? "bg-red-600 text-white" : "text-zinc-400 hover:text-zinc-200"
-          }`}
-        >
-          ⚡ Départs de feu
-          {mode !== "departs" && hotCount > 0 ? ` (${hotCount})` : ""}
-        </button>
-      </div>
+          <svg width="17" height="17" viewBox="0 0 17 17" aria-hidden="true">
+            <circle cx="7" cy="7" r="5.5" fill="none" stroke="#8A8880" strokeWidth="2" />
+            <line
+              x1="11.5"
+              y1="11.5"
+              x2="16"
+              y2="16"
+              stroke="#8A8880"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
+          <input
+            value={query}
+            onChange={(e) => runSearch(e.target.value)}
+            onFocus={() => setSearchOpen(true)}
+            onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+            placeholder="Rechercher une ville ou une zone"
+            className="min-w-0 flex-1 border-none bg-transparent text-[14.5px] outline-none"
+            style={{ color: "var(--ink)" }}
+            aria-label="Rechercher une ville ou une zone"
+          />
+          <button
+            onClick={locateMe}
+            className="flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium transition-colors sm:px-3.5"
+            style={{ background: "var(--canary)", color: "var(--charcoal)" }}
+            aria-label="Ma position"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="12" cy="12" r="3.5" stroke="currentColor" strokeWidth="2.5" />
+              <path
+                d="M12 2v4M12 18v4M2 12h4M18 12h4"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+              />
+            </svg>
+            <span className="hidden sm:inline">{geoBusy ? "…" : "Ma position"}</span>
+          </button>
+        </div>
 
-      {/* Barre de contrôle */}
-      <div className="absolute left-3 top-3 flex flex-col gap-2 rounded-xl bg-zinc-900/90 p-3 text-sm text-zinc-100 shadow-lg backdrop-blur">
+        {/* Suggestions de recherche / accès rapides régions */}
+        {searchOpen && (sugs.length > 0 || query.trim().length < 2) && (
+          <div
+            className="k-rise flex w-[min(320px,calc(100vw-150px))] flex-col overflow-hidden rounded-[22px] py-2 sm:w-[320px]"
+            style={card}
+          >
+            {sugs.length > 0
+              ? sugs.map((s) => (
+                  <button
+                    key={`${s.label}|${s.sub}|${s.lat}`}
+                    onMouseDown={() => pickSuggestion(s)}
+                    className="flex items-baseline gap-2 px-[18px] py-2 text-left transition-colors hover:bg-[var(--canary-tint)]"
+                  >
+                    <span className="text-[14px] font-medium" style={{ color: "var(--ink)" }}>
+                      {s.label}
+                    </span>
+                    <span className="truncate text-xs" style={{ color: "var(--ink-3)" }}>
+                      {s.sub}
+                    </span>
+                  </button>
+                ))
+              : Object.keys(REGIONS).map((r) => (
+                  <button
+                    key={r}
+                    onMouseDown={() => {
+                      jumpTo(r);
+                      setSearchOpen(false);
+                    }}
+                    className="px-[18px] py-2 text-left text-[14px] transition-colors hover:bg-[var(--canary-tint)]"
+                    style={{ color: "var(--ink-2)" }}
+                  >
+                    {r}
+                  </button>
+                ))}
+          </div>
+        )}
+
         <div className="flex items-center gap-2">
-          <span className="text-zinc-400">Période</span>
-          {[6, 12, 24, 48, 72].map((h) => (
+          {[6, 24, 72].map((h) => (
             <button
               key={h}
               onClick={() => changeHours(h)}
-              className={`rounded-md px-1.5 py-1 text-xs ${
-                hours === h ? "bg-orange-600 text-white" : "bg-zinc-800 hover:bg-zinc-700"
-              }`}
+              className={chip}
+              style={
+                hours === h
+                  ? { background: "var(--charcoal)", color: "var(--paper)" }
+                  : { background: "var(--white)", color: "var(--ink-2)", boxShadow: "var(--shadow-s)" }
+              }
             >
               {h} h
             </button>
           ))}
-        </div>
-        <select
-          onChange={(e) => jumpTo(e.target.value)}
-          defaultValue="Europe du Sud"
-          className="rounded-md bg-zinc-800 px-2 py-1"
-          aria-label="Aller à une région"
-        >
-          {Object.keys(REGIONS).map((r) => (
-            <option key={r}>{r}</option>
-          ))}
-        </select>
-        <div className="flex flex-col gap-1 border-t border-zinc-700 pt-2 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#ff2d00]" /> actif &lt; 3 h
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#ff7a00]" /> 3 – 12 h
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#ffc400]" /> 12 – 24 h
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#8a6d3b]" /> plus de 24 h
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="inline-block h-2.5 w-2.5 rounded-full border border-sky-200 bg-sky-500" />
-            signalement citoyen (Bluesky)
-          </div>
-        </div>
-        <div className="border-t border-zinc-700 pt-2">
           <button
-            onClick={toggleAlerts}
-            disabled={alertState === "busy"}
-            className={`w-full rounded-md px-2 py-1.5 text-xs font-medium ${
-              alertState === "on"
-                ? "bg-emerald-800 text-emerald-100 hover:bg-emerald-700"
-                : "bg-zinc-800 hover:bg-zinc-700"
-            }`}
+            onClick={() => setLegendOpen(!legendOpen)}
+            className={chip}
+            style={
+              legendOpen
+                ? { background: "var(--paper-2)", color: "var(--ink)", boxShadow: "var(--shadow-s)" }
+                : { background: "var(--white)", color: "var(--ink-2)", boxShadow: "var(--shadow-s)" }
+            }
           >
-            {alertState === "on"
-              ? "🔔 Alertes actives — désactiver"
-              : alertState === "busy"
-                ? "…"
-                : "🔔 M'alerter sur cette vue"}
+            Légende
           </button>
-          {alertMsg && <p className="mt-1 text-[11px] text-zinc-400">{alertMsg}</p>}
         </div>
-        <div className="border-t border-zinc-700 pt-2 text-xs text-zinc-400">
-          {status.kind === "loading" && (
-            <span className="flex items-center gap-2">
-              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-zinc-500 border-t-orange-500" />
-              Récupération et analyse en cours…
-            </span>
-          )}
-          {status.kind === "ready" && (
-            <>
-              <span className="font-semibold text-zinc-200">
-                {status.events.toLocaleString("fr-FR")}
-              </span>{" "}
-              foyers ·{" "}
-              <span className="font-semibold text-zinc-200">
-                {status.detections.toLocaleString("fr-FR")}
-              </span>{" "}
-              détections ·{" "}
-              <span className="font-semibold text-sky-300">{status.signals}</span>{" "}
-              signalements
-            </>
-          )}
-          {status.kind === "error" && (
-            <span className="text-red-400">
-              {status.code.startsWith("FIRMS_MAP_KEY")
-                ? "Clé NASA FIRMS manquante ou invalide (variable FIRMS_MAP_KEY)."
-                : "Données FIRMS momentanément indisponibles."}
-            </span>
-          )}
-          {lastUpdate && (
-            <div className="mt-1 flex items-center justify-between text-[11px] text-zinc-500">
-              <span>
-                Mise à jour{" "}
-                {Date.now() - lastUpdate < 15_000
-                  ? "à l'instant"
-                  : `il y a ${Math.round((Date.now() - lastUpdate) / 1000)} s`}{" "}
-                · auto toutes les 2 min
+
+        {legendOpen && (
+          <div
+            className="k-rise flex w-[250px] flex-col gap-[9px] rounded-[22px] px-[18px] py-4 text-[13px]"
+            style={{ ...card, color: "var(--ink-2)" }}
+          >
+            {(
+              [
+                [AGE_COLORS.active, "Feu actif · moins de 3 h"],
+                [AGE_COLORS.recent, "Récent · 3 – 12 h"],
+                [AGE_COLORS.watched, "Surveillé · 12 – 24 h"],
+                [AGE_COLORS.old, "Ancien · plus de 24 h"],
+                [AGE_COLORS.citizen, "Signalement citoyen"],
+              ] as const
+            ).map(([color, label]) => (
+              <span key={label} className="flex items-center gap-[9px]">
+                <span
+                  className="inline-block h-[11px] w-[11px] rounded-full"
+                  style={{ background: color }}
+                />
+                {label}
               </span>
-              <button
-                onClick={() => mapRef.current && loadData(mapRef.current, hours, true)}
-                className="rounded px-1.5 py-0.5 hover:bg-zinc-800"
-                title="Rafraîchir maintenant"
-                aria-label="Rafraîchir maintenant"
-              >
-                ↻
-              </button>
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
+
+        {/* État de chargement / erreur */}
+        {status.kind === "loading" && (
+          <div
+            className="flex h-[38px] items-center gap-2 self-start rounded-full px-4 text-[13px]"
+            style={{ ...card, color: "var(--ink-2)" }}
+          >
+            <span
+              className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-t-transparent"
+              style={{ borderColor: "var(--canary)", borderTopColor: "transparent" }}
+            />
+            kanari analyse les signaux…
+          </div>
+        )}
+        {status.kind === "error" && (
+          <div
+            className="w-[min(320px,calc(100vw-24px))] rounded-[14px] px-4 py-3 text-[13px]"
+            style={{ background: "var(--danger-soft)", color: "#9C2B2B" }}
+          >
+            {status.code.startsWith("FIRMS_MAP_KEY")
+              ? "Clé NASA FIRMS manquante ou invalide (variable FIRMS_MAP_KEY)."
+              : "Données satellite momentanément indisponibles — nouvel essai dans 2 min."}
+          </div>
+        )}
       </div>
 
-      {/* Fil des départs de feu (< 1 h) */}
-      {mode === "departs" && (
-        <div className="absolute right-3 top-3 flex max-h-[70%] w-80 flex-col rounded-xl bg-zinc-900/95 text-sm text-zinc-100 shadow-lg backdrop-blur">
-          <div className="border-b border-zinc-800 px-3 py-2">
-            <span className="font-semibold">⚡ Départs de feu (&lt; 2 h)</span>
-            <span className="ml-1 text-[10px] text-zinc-500">· dans la vue affichée</span>
-            {hotCount > 0 ? (
-              <div className="mt-1 animate-pulse rounded-md bg-red-600 px-2 py-1.5 text-xs font-bold text-white">
-                🚨 {hotCount} départ{hotCount > 1 ? "s" : ""} signalé
-                {hotCount > 1 ? "s" : ""} il y a moins de 20 min
-              </div>
-            ) : (
-              <p className="text-xs text-zinc-400">
-                Aucun signal &lt; 20 min pour l&apos;instant · rafraîchi toutes les 2 min
-              </p>
-            )}
+      {/* Bouton flux sur mobile */}
+      <button
+        onClick={() => setPanelOpen(!panelOpen)}
+        className="absolute right-3 top-3 z-30 flex h-[38px] items-center gap-2 rounded-full px-4 text-[13px] font-medium md:hidden"
+        style={{ ...card, color: "var(--ink)" }}
+      >
+        <span
+          className="k-listen inline-block h-[7px] w-[7px] rounded-full"
+          style={{ background: "var(--canary-strong)" }}
+        />
+        En direct{hotCount > 0 ? ` · ${hotCount}` : ""}
+      </button>
+
+      {/* Flux « En direct » (droite, maquette v2) */}
+      <aside
+        className={`${panelOpen ? "flex" : "hidden md:flex"} absolute z-20 flex-col overflow-hidden rounded-[22px] max-md:inset-x-3 max-md:bottom-24 max-md:top-16 md:bottom-4 md:right-4 md:top-4 md:w-[350px]`}
+        style={card}
+      >
+        <div className="flex flex-col gap-3 border-b px-[18px] pb-3.5 pt-4" style={{ borderColor: "var(--line)" }}>
+          <div className="flex items-center gap-2">
+            <h3 className="flex-1 text-[17px]">En direct</h3>
+            <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--ink-3)" }}>
+              <span
+                className="k-listen inline-block h-[7px] w-[7px] rounded-full"
+                style={{ background: "var(--canary-strong)" }}
+              />
+              kanari écoute
+            </span>
+            <button
+              onClick={() => setPanelOpen(false)}
+              className="flex h-7 w-7 items-center justify-center rounded-full text-[13px] md:hidden"
+              style={{ background: "var(--paper-2)", color: "var(--ink-2)" }}
+              aria-label="Fermer le flux"
+            >
+              ✕
+            </button>
           </div>
-          <div className="overflow-y-auto">
-            {status.kind === "loading" && departItems.length === 0 && (
-              <p className="flex items-center gap-2 p-3 text-xs text-zinc-400">
-                <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-500 border-t-orange-500" />
+          <div
+            className="flex gap-[3px] rounded-full p-[3px]"
+            style={{ background: "var(--paper-2)" }}
+          >
+            <button
+              onClick={() => setMode("tout")}
+              className="h-[34px] flex-1 rounded-full text-[13px] font-medium transition-colors"
+              style={
+                mode === "tout"
+                  ? { background: "var(--white)", color: "var(--ink)", boxShadow: "var(--shadow-s)" }
+                  : { background: "transparent", color: "var(--ink-2)" }
+              }
+            >
+              Tout · {globalItems.length}
+            </button>
+            <button
+              onClick={() => setMode("departs")}
+              className="h-[34px] flex-1 rounded-full text-[13px] font-medium transition-colors"
+              style={
+                mode === "departs"
+                  ? { background: "var(--ember)", color: "#fff" }
+                  : { background: "transparent", color: "var(--ink-2)" }
+              }
+            >
+              Urgents · {departItems.length}
+            </button>
+          </div>
+        </div>
+
+        <div className="k-scroll flex flex-1 flex-col overflow-y-auto pb-2">
+          {mode === "departs" && hotCount > 0 && (
+            <div
+              className="mx-3 mt-3 rounded-[14px] px-3.5 py-2.5 text-[13px] font-bold text-white"
+              style={{ background: "var(--danger)" }}
+            >
+              {hotCount} départ{hotCount > 1 ? "s" : ""} signalé{hotCount > 1 ? "s" : ""} il y a
+              moins de 20 min
+            </div>
+          )}
+
+          {status.kind === "loading" &&
+            (mode === "tout" ? globalItems : departItems).length === 0 && (
+              <p className="flex items-center gap-2 p-4 text-xs" style={{ color: "var(--ink-3)" }}>
+                <span
+                  className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2"
+                  style={{ borderColor: "var(--line)", borderTopColor: "var(--canary-strong)" }}
+                />
                 Récupération des satellites et analyse IA des signaux…
               </p>
             )}
-            {status.kind !== "loading" && departItems.length === 0 && (
-              <p className="p-3 text-xs text-zinc-500">
-                Aucun départ (1er signalement &lt; 2 h) dans la vue affichée. Élargissez
-                la carte ou changez de région : la couverture la plus rapide vient de
-                GOES (Amériques), Meteosat (Europe/Afrique) et des témoignages.
-              </p>
-            )}
-            {departItems.map((item) => {
+          {status.kind !== "loading" && mode === "tout" && globalItems.length === 0 && (
+            <p className="p-4 text-[13px]" style={{ color: "var(--ink-3)" }}>
+              Rien à signaler dans la vue affichée. kanari écoute — déplace la carte ou
+              élargis la période.
+            </p>
+          )}
+          {status.kind !== "loading" && mode === "departs" && departItems.length === 0 && (
+            <p className="p-4 text-[13px]" style={{ color: "var(--ink-3)" }}>
+              Aucun départ de feu (1er signal &lt; 2 h) dans la vue affichée. Élargis la
+              carte : la couverture la plus rapide vient de GOES (Amériques), Meteosat
+              (Europe/Afrique) et des témoignages citoyens.
+            </p>
+          )}
+
+          {mode === "tout" &&
+            globalItems.map((item, i) => {
+              const h = hoursAgo(item.when);
+              const bucket = bucketOf(h);
+              const prevBucket = i > 0 ? bucketOf(hoursAgo(globalItems[i - 1].when)) : null;
+              const header =
+                bucket !== prevBucket ? (
+                  <span
+                    key={`g:${bucket}`}
+                    className="px-[18px] pb-1.5 pt-3.5 text-[11px] font-bold uppercase"
+                    style={{ letterSpacing: "1.5px", color: "var(--ink-3)" }}
+                  >
+                    {bucket}
+                  </span>
+                ) : null;
+              if (item.kind === "foyer") {
+                const ev = item.ev;
+                const isSel = selected?.id === ev.id;
+                return (
+                  <div key={ev.id} className="flex flex-col">
+                    {header}
+                    <button
+                      onClick={() => selectEvent(ev)}
+                      className="mx-1.5 flex items-start gap-[11px] rounded-[14px] px-3 py-[11px] text-left transition-colors hover:bg-[var(--canary-tint)]"
+                      style={isSel ? { background: "var(--canary-tint)" } : undefined}
+                    >
+                      <span
+                        className="mt-[5px] h-[9px] w-[9px] shrink-0 rounded-full"
+                        style={{ background: ageColor(hoursAgo(ev.lastSeen)) }}
+                      />
+                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <strong className="truncate text-[14.5px]" style={{ color: "var(--ink)" }}>
+                          {eventTitle(ev)}
+                        </strong>
+                        <span className="text-[12.5px]" style={{ color: "var(--ink-2)" }}>
+                          {ev.count} détection{ev.count > 1 ? "s" : ""} satellite · {ev.maxFrp} MW
+                          max
+                          {ev.confidence === "corrobore" ? " · corroboré" : ""}
+                        </span>
+                      </span>
+                      <span
+                        className="mt-0.5 whitespace-nowrap text-xs"
+                        style={{ color: "var(--ink-3)" }}
+                      >
+                        {formatShort(h)}
+                      </span>
+                    </button>
+                  </div>
+                );
+              }
+              const sig = item.sig;
+              const isSel = selectedSignal?.place === sig.place;
+              return (
+                <div key={`sig:${sig.place}:${sig.countryCode}`} className="flex flex-col">
+                  {header}
+                  <button
+                    onClick={() => selectSignal(sig)}
+                    className="mx-1.5 flex items-start gap-[11px] rounded-[14px] px-3 py-[11px] text-left transition-colors hover:bg-[var(--canary-tint)]"
+                    style={isSel ? { background: "var(--canary-tint)" } : undefined}
+                  >
+                    <span
+                      className="mt-[5px] h-[9px] w-[9px] shrink-0 rounded-full"
+                      style={{ background: AGE_COLORS.citizen }}
+                    />
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <strong className="truncate text-[14.5px]" style={{ color: "var(--ink)" }}>
+                        {sig.newFire ? "Départ probable — " : ""}
+                        {sig.place} ({sig.countryCode.toUpperCase()})
+                      </strong>
+                      <span className="text-[12.5px]" style={{ color: "var(--ink-2)" }}>
+                        {sig.postCount} post{sig.postCount > 1 ? "s" : ""}{" "}
+                        {sourceLabel(sig.posts)} · dernière mention{" "}
+                        {formatAge(hoursAgo(sig.lastPost))}
+                      </span>
+                    </span>
+                    <span
+                      className="mt-0.5 whitespace-nowrap text-xs"
+                      style={{ color: "var(--ink-3)" }}
+                    >
+                      {formatShort(h)}
+                    </span>
+                  </button>
+                </div>
+              );
+            })}
+
+          {mode === "departs" &&
+            departItems.map((item) => {
               const hot = item.ageMin <= DEPART_HOT_MIN;
               const key = item.kind === "sat" ? item.ev.id : `s:${item.sig.place}`;
               return (
@@ -827,262 +1199,311 @@ export default function FireMap() {
                   onClick={() =>
                     item.kind === "sat" ? selectEvent(item.ev) : selectSignal(item.sig)
                   }
-                  className="block w-full border-b border-zinc-800/60 px-3 py-2 text-left hover:bg-zinc-800"
+                  className="mx-1.5 mt-1 flex items-start gap-[11px] rounded-[14px] px-3 py-[11px] text-left transition-colors hover:bg-[var(--canary-tint)]"
                 >
-                  <div className="flex items-center justify-between">
-                    <span
-                      className={`text-base font-bold ${hot ? "text-red-400" : "text-orange-300"}`}
-                    >
-                      {item.kind === "sat" ? "🛰️ 1er signal" : "💬 1ère mention"} il y a{" "}
-                      {Math.max(1, Math.round(item.ageMin))} min
+                  <span
+                    className="mt-[5px] h-[9px] w-[9px] shrink-0 rounded-full"
+                    style={{ background: hot ? AGE_COLORS.active : AGE_COLORS.recent }}
+                  />
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <strong className="truncate text-[14.5px]" style={{ color: "var(--ink)" }}>
+                      {item.kind === "sat"
+                        ? item.ev.social?.place ??
+                          `Détection satellite — ${item.ev.centroid[1].toFixed(2)}, ${item.ev.centroid[0].toFixed(2)}`
+                        : `Départ probable — ${item.sig.place} (${item.sig.countryCode.toUpperCase()})`}
+                    </strong>
+                    <span className="text-[12.5px]" style={{ color: "var(--ink-2)" }}>
+                      {item.kind === "sat" ? (
+                        <>
+                          Satellite · {item.ev.count} détection{item.ev.count > 1 ? "s" : ""} ·{" "}
+                          {item.ev.maxFrp} MW
+                        </>
+                      ) : (
+                        <>
+                          {item.sig.postCount} post{item.sig.postCount > 1 ? "s" : ""}{" "}
+                          {sourceLabel(item.sig.posts)} · en cours de vérification
+                        </>
+                      )}
                     </span>
-                    {hot && (
-                      <span className="animate-pulse rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold">
-                        URGENT
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-xs text-zinc-400">
-                    {item.kind === "sat" ? (
-                      <>
-                        Détection satellite
-                        {item.ev.social?.place ? ` · ${item.ev.social.place}` : ""} ·{" "}
-                        {item.ev.centroid[1].toFixed(2)}, {item.ev.centroid[0].toFixed(2)} ·{" "}
-                        {item.ev.maxFrp} MW
-                      </>
-                    ) : (
-                      <>
-                        Témoignage Bluesky · {item.sig.place} ({item.sig.countryCode.toUpperCase()}) ·{" "}
-                        {item.sig.postCount} post{item.sig.postCount > 1 ? "s" : ""}
-                      </>
-                    )}
-                  </div>
+                  </span>
+                  <span
+                    className="mt-0.5 whitespace-nowrap text-xs font-medium"
+                    style={{ color: hot ? "var(--danger)" : "var(--ink-3)" }}
+                  >
+                    {Math.max(1, Math.round(item.ageMin))} min
+                  </span>
                 </button>
               );
             })}
-          </div>
         </div>
-      )}
 
-      {/* Liste des nouveaux foyers */}
-      {mode === "tout" && (
-      <div className="absolute right-3 top-3 flex max-h-[70%] w-72 flex-col rounded-xl bg-zinc-900/90 text-sm text-zinc-100 shadow-lg backdrop-blur">
-        <button
-          onClick={() => setListOpen(!listOpen)}
-          className="flex items-center justify-between px-3 py-2 text-left"
+        <div
+          className="flex items-center justify-between border-t px-[18px] py-3 text-xs"
+          style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}
         >
-          <span className="font-semibold">
-            🔥 Nouveaux foyers &amp; signalements{" "}
-            <span className="text-zinc-400">({globalItems.length})</span>
-            <span className="ml-1 text-[10px] font-normal text-zinc-500">
-              · dans la vue affichée
-            </span>
+          <span>
+            {status.kind === "ready"
+              ? `${status.events.toLocaleString("fr-FR")} foyers · ${status.signals} signalements`
+              : "…"}
           </span>
-          <span className="text-zinc-500">{listOpen ? "▾" : "▸"}</span>
-        </button>
-        {listOpen && (
-          <div className="overflow-y-auto border-t border-zinc-800">
-            {status.kind === "loading" && globalItems.length === 0 && (
-              <p className="flex items-center gap-2 p-3 text-xs text-zinc-400">
-                <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-500 border-t-orange-500" />
-                Récupération des satellites et analyse IA des signaux…
-              </p>
-            )}
-            {globalItems.length === 0 && status.kind === "ready" && (
-              <p className="p-3 text-xs text-zinc-500">
-                Aucun foyer ni signalement récent dans la vue affichée — déplacez la
-                carte ou changez de région.
-              </p>
-            )}
-            {globalItems.map((item) =>
-              item.kind === "foyer" ? (
-                <button
-                  key={item.ev.id}
-                  onClick={() => selectEvent(item.ev)}
-                  className={`block w-full border-b border-zinc-800/60 px-3 py-2 text-left hover:bg-zinc-800 ${
-                    selected?.id === item.ev.id ? "bg-zinc-800" : ""
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-orange-400">
-                      🛰️ 1er signal {formatAge(hoursAgo(item.ev.firstSeen))}
-                    </span>
-                    <span className="flex gap-1">
-                      {item.ev.confidence && (
-                        <span
-                          className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${CONF_LABEL[item.ev.confidence].cls}`}
-                        >
-                          {CONF_LABEL[item.ev.confidence].text}
-                        </span>
-                      )}
-                      {hoursAgo(item.ev.firstSeen) < NEW_EVENT_HOURS && (
-                        <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold">
-                          NOUVEAU
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                  <div className="text-xs text-zinc-400">
-                    {item.ev.social?.place ? `${item.ev.social.place} · ` : ""}
-                    {item.ev.centroid[1].toFixed(2)}, {item.ev.centroid[0].toFixed(2)} ·{" "}
-                    {item.ev.count} détection{item.ev.count > 1 ? "s" : ""} · {item.ev.maxFrp}{" "}
-                    MW max
-                  </div>
-                </button>
-              ) : (
-                <button
-                  key={`sig:${item.sig.place}:${item.sig.countryCode}`}
-                  onClick={() => selectSignal(item.sig)}
-                  className={`block w-full border-b border-zinc-800/60 px-3 py-2 text-left hover:bg-zinc-800 ${
-                    selectedSignal?.place === item.sig.place ? "bg-zinc-800" : ""
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-sky-400">
-                      {item.sig.posts.some((p) => p.source === "bluesky")
-                        ? "💬"
-                        : item.sig.posts.some((p) => p.source === "telegram")
-                          ? "✈️"
-                          : "📰"}{" "}
-                      1ère
-                      mention {formatAge(hoursAgo(item.sig.firstPost))}
-                    </span>
-                    {item.sig.newFire && (
-                      <span className="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold">
-                        NOUVEAU FEU
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-xs text-zinc-400">
-                    {item.sig.place} ({item.sig.countryCode.toUpperCase()}) ·{" "}
-                    {item.sig.postCount} mention{item.sig.postCount > 1 ? "s" : ""} · dernière{" "}
-                    {formatAge(hoursAgo(item.sig.lastPost))}
-                  </div>
-                </button>
-              )
-            )}
+          <span className="flex items-center gap-1.5">
+            {lastUpdate &&
+              (Date.now() - lastUpdate < 15_000
+                ? "maj à l'instant"
+                : `maj il y a ${Math.round((Date.now() - lastUpdate) / 1000)} s`)}
+            <button
+              onClick={() => mapRef.current && loadData(mapRef.current, hours, true)}
+              className="rounded-full px-1.5 py-0.5 transition-colors hover:bg-[var(--paper-2)]"
+              title="Rafraîchir maintenant"
+              aria-label="Rafraîchir maintenant"
+            >
+              ↻
+            </button>
+          </span>
+        </div>
+      </aside>
+
+      {/* CTA principal : alerte sur la zone affichée (maquette v2) */}
+      <div className="absolute bottom-6 left-1/2 z-30 flex -translate-x-1/2 flex-col items-center gap-2">
+        {alertMsg && (
+          <div
+            className="k-rise max-w-[min(420px,calc(100vw-24px))] rounded-[14px] px-4 py-2.5 text-center text-[13px]"
+            style={{ ...card, color: "var(--ink-2)" }}
+          >
+            {alertMsg}
           </div>
         )}
+        <button
+          onClick={toggleAlerts}
+          disabled={alertState === "busy"}
+          className="flex h-[54px] items-center gap-[11px] whitespace-nowrap rounded-full px-[30px] text-[15px] font-medium transition-all sm:text-base"
+          style={
+            alertState === "on"
+              ? { background: "var(--charcoal)", color: "var(--paper)", boxShadow: "var(--shadow-l)" }
+              : { background: "var(--canary)", color: "var(--charcoal)", boxShadow: "var(--shadow-l)" }
+          }
+        >
+          <span
+            className={alertState === "on" ? "" : "k-listen"}
+            style={{
+              width: 9,
+              height: 9,
+              borderRadius: "50%",
+              background: alertState === "on" ? "var(--canary)" : "var(--charcoal)",
+            }}
+          />
+          {alertState === "busy"
+            ? "Activation…"
+            : alertState === "on"
+              ? "Zone sous alerte — kanari veille ✓"
+              : "M'alerter sur cette zone"}
+        </button>
       </div>
-      )}
 
-      {/* Panneau signalement citoyen */}
+      {/* Fiche signalement citoyen */}
       {selectedSignal && (
-        <div className="absolute bottom-8 left-3 max-h-[60%] w-80 overflow-y-auto rounded-xl bg-zinc-900/95 p-4 text-sm text-zinc-100 shadow-xl backdrop-blur">
-          <div className="mb-2 flex items-start justify-between">
-            <h2 className="font-semibold text-sky-400">
-              Signalement citoyen — {selectedSignal.place}
-            </h2>
+        <div
+          className="k-rise k-scroll absolute bottom-24 left-3 z-30 max-h-[60%] w-80 max-w-[calc(100vw-24px)] overflow-y-auto rounded-[22px] p-5 sm:left-5"
+          style={{ background: "var(--white)", boxShadow: "var(--shadow-l)" }}
+        >
+          <div className="mb-2.5 flex items-center gap-2">
+            <span
+              className="flex h-[22px] items-center rounded-full px-[9px] text-[11px] font-bold"
+              style={
+                selectedSignal.newFire
+                  ? { background: "var(--danger-soft)", color: "#9C2B2B", letterSpacing: ".4px" }
+                  : { background: "#E3F0FA", color: "#2C6E9E", letterSpacing: ".4px" }
+              }
+            >
+              {selectedSignal.newFire ? "NOUVEAU FEU" : "SIGNALEMENT"}
+            </span>
+            <strong className="flex-1 truncate text-base" style={{ color: "var(--ink)" }}>
+              {selectedSignal.place} ({selectedSignal.countryCode.toUpperCase()})
+            </strong>
             <button
               onClick={() => setSelectedSignal(null)}
-              className="text-zinc-500 hover:text-zinc-200"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[13px]"
+              style={{ background: "var(--paper-2)", color: "var(--ink-2)" }}
               aria-label="Fermer"
             >
               ✕
             </button>
           </div>
-          {selectedSignal.newFire && (
-            <span className="mb-2 inline-block animate-pulse rounded bg-red-600 px-2 py-0.5 text-xs font-bold">
-              NOUVEAU FEU — 1ère mention {formatAge(hoursAgo(selectedSignal.firstPost))}
+          <div className="mb-2.5 flex flex-col gap-1.5 text-[13px]" style={{ color: "var(--ink-2)" }}>
+            <span className="flex items-center gap-2">
+              <span className="h-[7px] w-[7px] rounded-full" style={{ background: "var(--ember)" }} />
+              1ère mention · {formatAge(hoursAgo(selectedSignal.firstPost))}
             </span>
-          )}
-          <p className="mb-2 text-xs text-zinc-400">
-            {selectedSignal.postCount} post{selectedSignal.postCount > 1 ? "s" : ""} Bluesky
-            (12 h) mentionnant un feu près de {selectedSignal.place} — 1ère mention{" "}
-            {formatAge(hoursAgo(selectedSignal.firstPost))}, dernière{" "}
-            {formatAge(hoursAgo(selectedSignal.lastPost))}. Position = centre de la
-            commune citée, pas du feu.
-          </p>
+            <span className="flex items-center gap-2">
+              <span className="h-[7px] w-[7px] rounded-full" style={{ background: AGE_COLORS.citizen }} />
+              {selectedSignal.postCount} post{selectedSignal.postCount > 1 ? "s" : ""}{" "}
+              {sourceLabel(selectedSignal.posts)} (12 h) · dernière{" "}
+              {formatAge(hoursAgo(selectedSignal.lastPost))}
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="h-[7px] w-[7px] rounded-full" style={{ background: "var(--ink-3)" }} />
+              Position = centre de la commune citée, pas du feu
+            </span>
+          </div>
+          <div className="mb-3 flex gap-2">
+            <button
+              onClick={() =>
+                share(
+                  `kanari — signalement à ${selectedSignal.place}`,
+                  `/?lat=${selectedSignal.lat.toFixed(3)}&lon=${selectedSignal.lon.toFixed(3)}&z=10`
+                )
+              }
+              className="h-[38px] flex-1 rounded-full border text-[13px] font-medium transition-colors hover:bg-[var(--paper-2)]"
+              style={{ borderColor: "var(--line)", color: "var(--ink)", background: "transparent" }}
+            >
+              {shareMsg ?? "Partager"}
+            </button>
+          </div>
           <PostList posts={selectedSignal.posts} />
-          <p className="mt-3 border-t border-zinc-700 pt-2 text-xs text-zinc-500">
-            Témoignage non confirmé par satellite : soit le feu est trop petit ou trop
-            récent pour être vu (précocité !), soit il ne s&apos;agit pas d&apos;un feu de
-            forêt.
+          <p className="mt-3 border-t pt-2.5 text-xs" style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}>
+            Témoignage non confirmé par satellite : soit le feu est trop petit ou trop récent
+            pour être vu (précocité !), soit il ne s&apos;agit pas d&apos;un feu de forêt.
           </p>
         </div>
       )}
 
-      {/* Panneau de détail du foyer */}
+      {/* Fiche foyer (progressive disclosure : résumé -> détail) */}
       {selected && (
-        <div className="absolute bottom-8 left-3 max-h-[60%] w-80 overflow-y-auto rounded-xl bg-zinc-900/95 p-4 text-sm text-zinc-100 shadow-xl backdrop-blur">
-          <div className="mb-2 flex items-start justify-between">
-            <h2 className="font-semibold text-orange-400">
-              Foyer — 1er signal {formatAge(hoursAgo(selected.firstSeen))}
-            </h2>
+        <div
+          className="k-rise k-scroll absolute bottom-24 left-3 z-30 max-h-[65%] w-80 max-w-[calc(100vw-24px)] overflow-y-auto rounded-[22px] p-5 sm:left-5"
+          style={{ background: "var(--white)", boxShadow: "var(--shadow-l)" }}
+        >
+          <div className="mb-2.5 flex items-center gap-2">
+            <span
+              className="flex h-[22px] shrink-0 items-center rounded-full px-[9px] text-[11px] font-bold"
+              style={{
+                background: eventBadge(selected).bg,
+                color: eventBadge(selected).fg,
+                letterSpacing: ".4px",
+              }}
+            >
+              {eventBadge(selected).label}
+            </span>
+            <strong className="flex-1 truncate text-base" style={{ color: "var(--ink)" }}>
+              {eventTitle(selected)}
+            </strong>
             <button
               onClick={() => setSelected(null)}
-              className="text-zinc-500 hover:text-zinc-200"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[13px]"
+              style={{ background: "var(--paper-2)", color: "var(--ink-2)" }}
               aria-label="Fermer"
             >
               ✕
             </button>
           </div>
-          {selected.confidence && (
-            <span
-              className={`mb-2 inline-block rounded px-2 py-0.5 text-xs font-bold ${CONF_LABEL[selected.confidence].cls}`}
-            >
-              {CONF_LABEL[selected.confidence].text}
-            </span>
-          )}
-          {selected.social?.firstPress &&
-            Date.parse(selected.social.firstPress) > Date.parse(selected.firstSeen) && (
-              <span className="mb-2 ml-1 inline-block rounded bg-emerald-800 px-2 py-0.5 text-xs font-bold text-emerald-100">
-                ⏱️ Détecté{" "}
-                {formatDelta(
-                  Date.parse(selected.social.firstPress) - Date.parse(selected.firstSeen)
-                )}{" "}
-                avant le 1er article de presse
+
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            {selected.confidence && (
+              <span
+                className="flex h-[22px] items-center rounded-full px-[9px] text-[11px] font-bold"
+                style={{
+                  background: CONF_LABEL[selected.confidence].bg,
+                  color: CONF_LABEL[selected.confidence].fg,
+                }}
+              >
+                {CONF_LABEL[selected.confidence].text}
               </span>
             )}
-          <dl className="space-y-1.5">
-            <div className="flex justify-between">
-              <dt className="text-zinc-400">Premier signal (UTC)</dt>
-              <dd>{new Date(selected.firstSeen).toISOString().slice(0, 16).replace("T", " ")}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-zinc-400">Dernier signal</dt>
-              <dd>{formatAge(hoursAgo(selected.lastSeen))}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-zinc-400">Détections</dt>
-              <dd>
-                {selected.count} ({selected.viirsCount} VIIRS
-                {selected.goesCount > 0 ? ` + ${selected.goesCount} GOES` : ""}
-                {selected.mtgCount > 0 ? ` + ${selected.mtgCount} MTG` : ""})
-              </dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-zinc-400">Puissance max</dt>
-              <dd>{selected.maxFrp} MW</dd>
-            </div>
+            {selected.social?.firstPress &&
+              Date.parse(selected.social.firstPress) > Date.parse(selected.firstSeen) && (
+                <span
+                  className="flex h-[22px] items-center rounded-full px-[9px] text-[11px] font-bold"
+                  style={{ background: "var(--safe-soft)", color: "#22684A" }}
+                >
+                  détecté{" "}
+                  {formatDelta(
+                    Date.parse(selected.social.firstPress) - Date.parse(selected.firstSeen)
+                  )}{" "}
+                  avant la presse
+                </span>
+              )}
+          </div>
+
+          {/* Mini-timeline sourcée (maquette v2) */}
+          <div className="mb-3 flex flex-col gap-1.5 text-[13px]" style={{ color: "var(--ink-2)" }}>
+            {firstMention(selected) && (
+              <span className="flex items-center gap-2">
+                <span className="h-[7px] w-[7px] rounded-full" style={{ background: "var(--ember)" }} />
+                1ère mention citoyenne · {formatAge(hoursAgo(firstMention(selected)!))}
+              </span>
+            )}
+            <span className="flex items-center gap-2">
+              <span className="h-[7px] w-[7px] rounded-full" style={{ background: AGE_COLORS.citizen }} />
+              1er signal satellite · {formatAge(hoursAgo(selected.firstSeen))}
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="h-[7px] w-[7px] rounded-full" style={{ background: ageColor(hoursAgo(selected.lastSeen)) }} />
+              Dernier signal · {formatAge(hoursAgo(selected.lastSeen))}
+            </span>
             {wind && (
+              <span className="flex items-center gap-2">
+                <span className="h-[7px] w-[7px] rounded-full" style={{ background: "var(--ink-3)" }} />
+                Vent {wind.speed} km/h de {compass(wind.direction)}
+                {wind.gusts > wind.speed + 10 ? ` · rafales ${wind.gusts}` : ""}
+              </span>
+            )}
+          </div>
+
+          <div className="mb-1 flex gap-2">
+            <button
+              onClick={() => setDetailOpen(!detailOpen)}
+              className="h-[38px] flex-1 rounded-full text-[13px] font-medium transition-colors"
+              style={{ background: "var(--charcoal)", color: "var(--paper)" }}
+            >
+              {detailOpen ? "Masquer le détail" : "Voir le détail"}
+            </button>
+            <button
+              onClick={() =>
+                share(
+                  `kanari — foyer ${eventTitle(selected)}`,
+                  `/?lat=${selected.centroid[1].toFixed(3)}&lon=${selected.centroid[0].toFixed(3)}&z=9&ev=${encodeURIComponent(selected.id)}`
+                )
+              }
+              className="h-[38px] flex-1 rounded-full border text-[13px] font-medium transition-colors hover:bg-[var(--paper-2)]"
+              style={{ borderColor: "var(--line)", color: "var(--ink)", background: "transparent" }}
+            >
+              {shareMsg ?? "Partager"}
+            </button>
+          </div>
+
+          {detailOpen && (
+            <dl className="mt-3 space-y-1.5 border-t pt-3 text-[13px]" style={{ borderColor: "var(--line)" }}>
               <div className="flex justify-between">
-                <dt className="text-zinc-400">Vent</dt>
-                <dd>
-                  <span
-                    className="mr-1 inline-block font-bold text-sky-300"
-                    style={{ transform: `rotate(${wind.direction}deg)` }}
-                    title={`Vent venant du ${compass(wind.direction)}`}
-                  >
-                    ↓
-                  </span>
-                  {wind.speed} km/h de {compass(wind.direction)}
-                  {wind.gusts > wind.speed + 10 ? ` · rafales ${wind.gusts}` : ""}
+                <dt style={{ color: "var(--ink-3)" }}>Premier signal (UTC)</dt>
+                <dd style={{ color: "var(--ink)" }}>
+                  {new Date(selected.firstSeen).toISOString().slice(0, 16).replace("T", " ")}
                 </dd>
               </div>
-            )}
-            <div className="flex justify-between">
-              <dt className="text-zinc-400">Position</dt>
-              <dd>
-                {selected.centroid[1].toFixed(3)}, {selected.centroid[0].toFixed(3)}
-              </dd>
-            </div>
-          </dl>
+              <div className="flex justify-between">
+                <dt style={{ color: "var(--ink-3)" }}>Détections</dt>
+                <dd style={{ color: "var(--ink)" }}>
+                  {selected.count} ({selected.viirsCount} VIIRS
+                  {selected.goesCount > 0 ? ` + ${selected.goesCount} GOES` : ""}
+                  {selected.mtgCount > 0 ? ` + ${selected.mtgCount} MTG` : ""})
+                </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt style={{ color: "var(--ink-3)" }}>Puissance max</dt>
+                <dd style={{ color: "var(--ink)" }}>{selected.maxFrp} MW</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt style={{ color: "var(--ink-3)" }}>Position</dt>
+                <dd style={{ color: "var(--ink)" }}>
+                  {selected.centroid[1].toFixed(3)}, {selected.centroid[0].toFixed(3)}
+                </dd>
+              </div>
+            </dl>
+          )}
 
           {/* Témoignages attachés automatiquement (corroboration) */}
-          {selected.social && (
-            <div className="mt-3 border-t border-zinc-700 pt-3">
-              <p className="mb-2 text-xs font-medium text-emerald-400">
+          {detailOpen && selected.social && (
+            <div className="mt-3 border-t pt-3" style={{ borderColor: "var(--line)" }}>
+              <p className="mb-2 text-xs font-medium" style={{ color: "#22684A" }}>
                 Corroboré par {selected.social.postCount} témoignage
                 {selected.social.postCount > 1 ? "s" : ""} près de {selected.social.place}
               </p>
@@ -1091,51 +1512,58 @@ export default function FireMap() {
           )}
 
           {/* Recherche manuelle complémentaire */}
-          <div className="mt-3 border-t border-zinc-700 pt-3">
-            {social.kind === "idle" && (
-              <button
-                onClick={() => searchWitnesses(selected)}
-                className="w-full rounded-md bg-sky-700 px-3 py-1.5 font-medium hover:bg-sky-600"
-              >
-                🔎 Chercher {selected.social ? "plus de " : "des "}témoignages
-              </button>
-            )}
-            {social.kind === "loading" && (
-              <p className="text-xs text-zinc-400">Recherche de témoignages en cours…</p>
-            )}
-            {social.kind === "error" && (
-              <p className="text-xs text-red-400">Recherche indisponible pour le moment.</p>
-            )}
-            {social.kind === "done" && (
-              <div>
-                <p className="mb-2 text-xs text-zinc-400">
-                  {social.result.place ? (
-                    <>
-                      Zone : <span className="text-zinc-200">{social.result.place}</span> —{" "}
-                    </>
-                  ) : null}
-                  {social.result.posts.length} témoignage
-                  {social.result.posts.length !== 1 ? "s" : ""} trouvé
-                  {social.result.posts.length !== 1 ? "s" : ""} (48 h)
+          {detailOpen && (
+            <div className="mt-3 border-t pt-3" style={{ borderColor: "var(--line)" }}>
+              {social.kind === "idle" && (
+                <button
+                  onClick={() => searchWitnesses(selected)}
+                  className="h-[38px] w-full rounded-full text-[13px] font-medium transition-colors"
+                  style={{ background: "var(--canary)", color: "var(--charcoal)" }}
+                >
+                  Chercher {selected.social ? "plus de " : "des "}témoignages
+                </button>
+              )}
+              {social.kind === "loading" && (
+                <p className="text-xs" style={{ color: "var(--ink-3)" }}>
+                  Recherche de témoignages en cours…
                 </p>
-                {social.result.posts.length === 0 &&
-                  (social.result.searchStatuses?.every((s) => s >= 400 || s === 0) ? (
-                    <p className="text-xs text-amber-400">
-                      La recherche Bluesky est momentanément inaccessible depuis nos
-                      serveurs — réessayez plus tard.
-                    </p>
-                  ) : (
-                    <p className="text-xs text-zinc-500">
-                      Aucune mention sur Bluesky pour cette zone. Ça ne veut pas dire
-                      qu&apos;il n&apos;y a pas de feu — juste pas de témoin connecté.
-                    </p>
-                  ))}
-                <PostList posts={social.result.posts} />
-              </div>
-            )}
-          </div>
+              )}
+              {social.kind === "error" && (
+                <p className="text-xs" style={{ color: "var(--danger)" }}>
+                  Recherche indisponible pour le moment.
+                </p>
+              )}
+              {social.kind === "done" && (
+                <div>
+                  <p className="mb-2 text-xs" style={{ color: "var(--ink-3)" }}>
+                    {social.result.place ? (
+                      <>
+                        Zone : <span style={{ color: "var(--ink)" }}>{social.result.place}</span> —{" "}
+                      </>
+                    ) : null}
+                    {social.result.posts.length} témoignage
+                    {social.result.posts.length !== 1 ? "s" : ""} trouvé
+                    {social.result.posts.length !== 1 ? "s" : ""} (48 h)
+                  </p>
+                  {social.result.posts.length === 0 &&
+                    (social.result.searchStatuses?.every((s) => s >= 400 || s === 0) ? (
+                      <p className="text-xs" style={{ color: "#8C3A16" }}>
+                        La recherche Bluesky est momentanément inaccessible depuis nos
+                        serveurs — réessaie plus tard.
+                      </p>
+                    ) : (
+                      <p className="text-xs" style={{ color: "var(--ink-3)" }}>
+                        Aucune mention sur Bluesky pour cette zone. Ça ne veut pas dire
+                        qu&apos;il n&apos;y a pas de feu — juste pas de témoin connecté.
+                      </p>
+                    ))}
+                  <PostList posts={social.result.posts} />
+                </div>
+              )}
+            </div>
+          )}
 
-          <p className="mt-3 border-t border-zinc-700 pt-2 text-xs text-zinc-500">
+          <p className="mt-3 border-t pt-2.5 text-xs" style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}>
             Le « 1er signal » est l&apos;heure du premier passage satellite ayant vu ce foyer —
             l&apos;ignition réelle peut être antérieure.
           </p>

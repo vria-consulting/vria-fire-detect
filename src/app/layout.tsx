@@ -1,71 +1,86 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Fredoka, DM_Sans } from "next/font/google";
 import Link from "next/link";
+import Image from "next/image";
 import "./globals.css";
 
-const geist = Geist({ subsets: ["latin"] });
+// Charte Kanari : Fredoka (titres) + DM Sans (corps) — jamais d'autres familles.
+const fredoka = Fredoka({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-display",
+});
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  variable: "--font-body",
+});
 
 export const metadata: Metadata = {
-  title: "Kanari — détection précoce des feux de forêt",
+  title: "kanari — l'alerte feu de forêt, avant tout le monde",
   description:
-    "Le canari qui chante avant tout le monde : carte mondiale en temps quasi réel des départs de feu, détectés par satellite et témoignages citoyens. Service d'information indépendant.",
+    "Le canari chante avant la sirène : carte mondiale en temps quasi réel des départs de feu, détectés par satellite et témoignages citoyens. Service d'information indépendant.",
 };
-
-// Le kanari qui chante : corps jaune, bec et ondes crème (lisibles sur fond
-// sombre), ondes animées en cascade — voir globals.css (kanari-chant).
-function KanariLogo({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 100 100" className={className} aria-hidden="true">
-      <circle cx="36" cy="56" r="22" fill="#FFC72E" />
-      <polygon points="56,50 70,56 56,62" fill="#FBF9F4" />
-      <circle cx="45" cy="48" r="4" fill="#1B1C1E" />
-      <path
-        className="kanari-w1"
-        d="M70,44.5 A14,14 0 0 1 70,67.5"
-        fill="none"
-        stroke="#FBF9F4"
-        strokeWidth="5"
-        strokeLinecap="round"
-      />
-      <path
-        className="kanari-w2"
-        d="M74.6,38 A22,22 0 0 1 74.6,74"
-        fill="none"
-        stroke="#FBF9F4"
-        strokeWidth="5"
-        strokeLinecap="round"
-      />
-      <path
-        className="kanari-w3"
-        d="M79.2,31.4 A30,30 0 0 1 79.2,80.6"
-        fill="none"
-        stroke="#FBF9F4"
-        strokeWidth="5"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr">
-      <body className={`${geist.className} flex h-dvh flex-col bg-zinc-950 text-zinc-100 antialiased`}>
-        <header className="z-10 flex items-center justify-between border-b border-zinc-800 bg-zinc-950 px-4 py-2">
-          <Link href="/" className="flex items-center gap-2">
-            <KanariLogo className="h-8 w-8" />
-            <span className="text-lg font-bold tracking-tight text-[#FFC72E]">Kanari</span>
-            <span className="hidden text-xs text-zinc-500 sm:inline">
-              détection précoce des feux de forêt
+    <html lang="fr" className={`${fredoka.variable} ${dmSans.variable}`}>
+      <body className="flex h-dvh flex-col antialiased">
+        <header
+          className="z-40 flex h-16 shrink-0 items-center justify-between border-b px-4 sm:px-6"
+          style={{
+            background: "rgba(251,249,244,.9)",
+            backdropFilter: "blur(12px)",
+            borderColor: "var(--line)",
+          }}
+        >
+          <div className="flex items-baseline gap-3.5">
+            <Link href="/" className="flex items-center gap-2">
+              {/* Logo officiel de la charte — ne jamais redessiner. */}
+              <Image
+                src="/brand/logo-symbole.svg"
+                width={34}
+                height={34}
+                alt=""
+                priority
+              />
+              <span
+                className="text-[23px] font-medium"
+                style={{
+                  fontFamily: "var(--font-display)",
+                  letterSpacing: "-0.5px",
+                  color: "var(--ink)",
+                }}
+              >
+                kanari
+              </span>
+            </Link>
+            <span className="hidden text-[13px] sm:inline" style={{ color: "var(--ink-3)" }}>
+              l&apos;alerte feu de forêt, avant tout le monde
             </span>
-          </Link>
-          <nav className="flex items-center gap-4 text-sm">
-            <Link href="/a-propos" className="text-zinc-400 hover:text-zinc-100">
+          </div>
+          <nav className="flex items-center gap-5">
+            <Link
+              href="/a-propos#comment"
+              className="hidden text-sm font-medium sm:inline"
+              style={{ color: "var(--ink)" }}
+            >
+              Comment ça marche
+            </Link>
+            <Link
+              href="/a-propos"
+              className="hidden text-sm font-medium sm:inline"
+              style={{ color: "var(--ink)" }}
+            >
               À propos
             </Link>
-            <span className="rounded-md bg-red-950 px-2 py-1 text-xs font-medium text-red-300">
-              Urgence ? Appelez le 112
-            </span>
+            <a
+              href="tel:112"
+              className="flex h-[38px] items-center rounded-full px-[18px] text-sm font-medium text-white transition-colors"
+              style={{ background: "var(--ember)" }}
+            >
+              Urgence ? 112
+            </a>
           </nav>
         </header>
         <main className="min-h-0 flex-1">{children}</main>
