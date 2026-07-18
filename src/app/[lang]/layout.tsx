@@ -5,6 +5,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { DICT, LANGS, isValidLang, type Lang } from "@/lib/i18n";
 import { LangSwitch } from "@/components/LangSwitch";
+import { EmergencyButton } from "@/components/EmergencyButton";
 import "../globals.css";
 
 // Charte Kanari : Fredoka (titres) + DM Sans (corps) — jamais d'autres familles.
@@ -153,28 +154,7 @@ export default async function RootLayout({
               {t.navAbout}
             </Link>
             <LangSwitch current={lang} />
-            <a
-              href="tel:112"
-              className="flex h-[38px] items-center gap-2 rounded-full px-[18px] text-sm font-medium text-white transition-colors"
-              style={{ background: "var(--ember)" }}
-            >
-              {/* Combiné téléphonique (trait rond, charte Lucide) : le 112
-                  est un numéro à appeler — l'icône le dit d'un coup d'œil. */}
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-              </svg>
-              {t.emergency}
-            </a>
+            <EmergencyButton lang={lang} />
           </nav>
         </header>
         <main className="min-h-0 flex-1">{children}</main>

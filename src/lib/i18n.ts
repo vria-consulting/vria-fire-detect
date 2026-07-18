@@ -16,12 +16,32 @@ export function isValidLang(x: string | undefined): x is Lang {
   return x === "fr" || x === "en";
 }
 
+// Numéro d'urgence selon le pays du visiteur (cookie kanari-geo posé par le
+// middleware). Le 112 (norme GSM) fonctionne dans la plupart des pays : il
+// sert de repli — sauf en anglais sans géo, où l'audience est majoritairement
+// nord-américaine (911).
+const EMERGENCY_BY_COUNTRY: Record<string, string> = {
+  US: "911", CA: "911", MX: "911", PH: "911",
+  GB: "999", IE: "999",
+  AU: "000",
+  NZ: "111",
+  IN: "112", BR: "190", JP: "119", CN: "119", KR: "119",
+};
+
+export function emergencyNumber(country: string | null, lang: Lang): string {
+  if (country && EMERGENCY_BY_COUNTRY[country.toUpperCase()]) {
+    return EMERGENCY_BY_COUNTRY[country.toUpperCase()];
+  }
+  if (country) return "112"; // norme GSM, valable dans la plupart des pays
+  return lang === "fr" ? "112" : "911";
+}
+
 const fr = {
   // Layout
   tagline: "l'alerte feu de forêt, avant tout le monde",
   navHow: "Comment ça marche",
   navAbout: "À propos",
-  emergency: "Urgence ? 112",
+  emergency: (n: string) => `Urgence ? ${n}`,
   metaTitle: "kanari — l'alerte feu de forêt, avant tout le monde",
   metaDescription:
     "Carte mondiale en temps quasi réel des départs de feu de forêt : détection satellite (NASA FIRMS, Meteosat), témoignages citoyens vérifiés par IA, alertes gratuites par zone. Le canari chante avant la sirène.",
@@ -138,7 +158,7 @@ const en: typeof fr = {
   tagline: "the wildfire alert, before anyone else",
   navHow: "How it works",
   navAbout: "About",
-  emergency: "Emergency? 112",
+  emergency: (n: string) => `Emergency? ${n}`,
   metaTitle: "kanari — the wildfire alert, before anyone else",
   metaDescription:
     "Near real-time world map of wildfire ignitions: satellite detection (NASA FIRMS, Meteosat), AI-verified citizen reports, free area alerts. The canary sings before the siren.",

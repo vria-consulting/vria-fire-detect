@@ -33,7 +33,7 @@ function faqJsonLd(l: Lang) {
           ["What is kanari?", "kanari is a free near real-time world map of wildfires. It combines satellite detections (NASA FIRMS/VIIRS, GOES, Meteosat MTG) with AI-verified citizen reports to spot fire starts as early as possible, often before the media."],
           ["Where does kanari's data come from?", "From VIIRS satellite instruments (375 m resolution, NASA FIRMS), the GOES (Americas) and Meteosat MTG (Europe/Africa, refreshed every 10 minutes) geostationary satellites, and social media monitoring (Bluesky, press, Telegram) where every report is judged twice by AI before being displayed."],
           ["Is kanari free?", "Yes. kanari is a mission-driven project: the map, area alerts and all features are free."],
-          ["Does kanari replace emergency services?", "No. kanari is an independent information service, not an official alert channel. In an emergency, call 112 (Europe) or your local emergency number."],
+          ["Does kanari replace emergency services?", "No. kanari is an independent information service, not an official alert channel. In an emergency, call 911 (US & Canada), 112 (Europe) or your local emergency number."],
         ];
   return {
     "@context": "https://schema.org",
@@ -169,8 +169,8 @@ export default async function About({ params }: { params: Promise<{ lang: string
               <H2>Disclaimer</H2>
               <p className="rounded-[14px] p-4" style={{ background: "var(--ember-soft)", color: "#8C3A16" }}>
                 kanari is not an official alert service and never replaces emergency channels. If
-                you witness a fire start, immediately call <strong>112</strong> (Europe) or your
-                local emergency number.
+                you witness a fire start, immediately call <strong>911</strong> (US &amp; Canada),{" "}
+                <strong>112</strong> (Europe) or your local emergency number.
               </p>
               <H2>Who are we?</H2>
               <p>
