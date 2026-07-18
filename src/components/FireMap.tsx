@@ -468,38 +468,55 @@ export default function FireMap({ lang }: { lang: Lang }) {
         },
       });
 
-      map.on("click", "events-icons", (e) => {
-        const f = e.features?.[0];
-        if (!f) return;
-        const ev = eventsRef.current.find((x) => x.id === f.properties.id);
-        if (ev) {
-          setSelected(ev);
-          setSelectedSignal(null);
-          setSocial({ kind: "idle" });
-          setDetailOpen(false);
-        }
-      });
-      map.on("click", "signals-icons", (e) => {
-        const f = e.features?.[0];
-        if (!f) return;
-        const sig = signalsRef.current.find(
-          (s) => `${s.place}|${s.countryCode}|${s.lat}|${s.lon}` === f.properties.sigKey
-        );
-        if (sig) {
-          setSelectedSignal(sig);
-          setSelected(null);
-        }
-      });
+      // Un seul gestionnaire de clic avec ZONE DE TOLÉRANCE : au zoom monde,
+      // les flammes font ~10 px et exiger le pixel exact rendait la sélection
+      // impossible sans zoomer. On cherche dans un carré de ±12 px et on
+      // sélectionne l'élément le plus proche du clic.
       map.on("click", (e) => {
         // queryRenderedFeatures peut lever « Out of bounds » si le clic tombe
         // pendant la reconstruction des tuiles (setData toutes les 2 min).
         try {
           const layers = ["events-icons", "signals-icons"].filter((l) => map.getLayer(l));
           if (layers.length === 0) return;
-          const hits = map.queryRenderedFeatures(e.point, { layers });
+          const pad = 12;
+          const bbox: [maplibregl.PointLike, maplibregl.PointLike] = [
+            [e.point.x - pad, e.point.y - pad],
+            [e.point.x + pad, e.point.y + pad],
+          ];
+          const hits = map.queryRenderedFeatures(bbox, { layers });
           if (hits.length === 0) {
             setSelected(null);
             setSelectedSignal(null);
+            return;
+          }
+          let best: maplibregl.GeoJSONFeature | null = null;
+          let bestDist = Infinity;
+          for (const f of hits) {
+            if (f.geometry.type !== "Point") continue;
+            const p = map.project(f.geometry.coordinates as [number, number]);
+            const d = (p.x - e.point.x) ** 2 + (p.y - e.point.y) ** 2;
+            if (d < bestDist) {
+              bestDist = d;
+              best = f;
+            }
+          }
+          if (!best) return;
+          if (best.layer.id === "signals-icons") {
+            const sig = signalsRef.current.find(
+              (s) => `${s.place}|${s.countryCode}|${s.lat}|${s.lon}` === best!.properties.sigKey
+            );
+            if (sig) {
+              setSelectedSignal(sig);
+              setSelected(null);
+            }
+          } else {
+            const ev = eventsRef.current.find((x) => x.id === best!.properties.id);
+            if (ev) {
+              setSelected(ev);
+              setSelectedSignal(null);
+              setSocial({ kind: "idle" });
+              setDetailOpen(false);
+            }
           }
         } catch {
           /* tuiles en cours de reconstruction : on ignore ce clic */
