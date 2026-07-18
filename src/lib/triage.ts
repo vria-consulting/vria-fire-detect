@@ -19,9 +19,9 @@ export type TriageCandidate = {
   createdAt: string; // les plus récents sont jugés en premier
 };
 
-// v9 : règle d'ancrage durcie (voisin lointain, nom administratif de feu) —
-// détectée par la batterie QA IA (Ladybank/Tentsmuir, Fort Frances 14 Fire).
-const CACHE_PATH = "triage-cache-v9.json";
+// v10 : règle anti « réaction institutionnelle » (le roi appelle au sujet du
+// feu ≠ signalement) — divergence détectée par le re-jugement QA sur Orés.
+const CACHE_PATH = "triage-cache-v10.json";
 // 7 jours : les bots repostent les mêmes URL pendant plusieurs jours — chaque
 // hit de cache est un jugement gratuit.
 const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
@@ -59,6 +59,7 @@ Pour chaque item :
 - métaphores (« on fire »), fiction, films, musique, jeux vidéo ;
 - scénarios HYPOTHÉTIQUES ou conditionnels (« si un grand incendie se produisait… », exercices, simulations, plans de prévention) ;
 - revendications politiques ou associatives à propos de feux (demandes de démission, polémiques sur la gestion) sans signalement d'un feu précis en cours ;
+- réactions INSTITUTIONNELLES à un feu déjà connu : appels, visites, condoléances ou messages de soutien d'élus, ministres, rois (« le roi appelle le président de région au sujet de l'incendie de X ») — l'objet du post est la réaction, pas le signalement ;
 - CHRONIQUES, newsletters, lettres d'opinion, récits de voyage ou billets d'humeur qui mentionnent des feux EN PASSANT (« Letter from Scotland : de retour de vacances à vélo, pas une goutte de pluie de la semaine… et des feux ont éclaté » = false : le sujet est la météo, pas un signalement) ;
 - discussions sur la sécheresse, la canicule ou le RISQUE d'incendie sans feu précis actif signalé à l'instant ;
 - feu de bâtiment isolé sans enjeu de propagation à la végétation.

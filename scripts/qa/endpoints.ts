@@ -161,9 +161,17 @@ export async function runEndpoints(opts: QaOptions): Promise<void> {
       if (errs.length > 0) problems.push(`${s.place} (${s.countryCode}) : ${errs.join(" ; ")}`);
     }
     const badStatus = data.meta.statuses.filter((x) => x >= 400 || x === 0);
-    if (badStatus.length > 0) problems.push(`${badStatus.length}/16 requêtes Bluesky en échec`);
+    // Un 5xx isolé sur 16 requêtes est un aléa Bluesky rattrapé au scan
+    // suivant (3 min) : WARN. Plusieurs échecs = vraie dégradation : FAIL.
+    if (badStatus.length > 1) problems.push(`${badStatus.length}/16 requêtes Bluesky en échec`);
     if (problems.length > 0) {
       return { verdict: "FAIL", detail: problems.slice(0, 3).join(" | ") };
+    }
+    if (badStatus.length === 1) {
+      return {
+        verdict: "WARN",
+        detail: `${data.signals.length} signalements cohérents · 1/16 requête Bluesky en échec transitoire (${badStatus[0]})`,
+      };
     }
     return { verdict: "PASS", detail: `${data.signals.length} signalements, ${data.meta.scannedPosts} posts scannés, tous cohérents` };
   });

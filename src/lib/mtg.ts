@@ -19,11 +19,11 @@ const WINDOW_MS = 2 * 60 * 60 * 1000;
 
 let token: { value: string; at: number } | null = null;
 
-async function getToken(): Promise<string | null> {
+async function getToken(force = false): Promise<string | null> {
   const key = process.env.EUMETSAT_CONSUMER_KEY;
   const secret = process.env.EUMETSAT_CONSUMER_SECRET;
   if (!key || !secret) return null;
-  if (token && Date.now() - token.at < 50 * 60 * 1000) return token.value;
+  if (!force && token && Date.now() - token.at < 50 * 60 * 1000) return token.value;
   const res = await fetch(TOKEN_URL, {
     method: "POST",
     headers: {
@@ -76,7 +76,14 @@ async function fetchProduct(tok: string, id: string): Promise<FireFeature[]> {
   const hit = productCache.get(id);
   if (hit) return hit;
   const url = `${DOWNLOAD_BASE}/${encodeURIComponent(COLLECTION)}/products/${encodeURIComponent(id)}`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${tok}` } });
+  let res = await fetch(url, { headers: { Authorization: `Bearer ${tok}` } });
+  if (res.status === 401) {
+    // Token révoqué entre-temps (une seule session active par application
+    // côté gateway EUMETSAT : chaque instance serverless qui en forge un
+    // révoque celui des autres) — on re-forge et on réessaie une fois.
+    const fresh = await getToken(true);
+    if (fresh) res = await fetch(url, { headers: { Authorization: `Bearer ${fresh}` } });
+  }
   if (!res.ok) {
     console.error("MTG download failed", res.status, id.slice(0, 60));
     return [];
@@ -105,12 +112,16 @@ async function fetchProduct(tok: string, id: string): Promise<FireFeature[]> {
 
 export async function fetchMtgFires(): Promise<FireFeature[]> {
   try {
-    const tok = await getToken();
+    let tok = await getToken();
     if (!tok) return [];
-    const res = await fetch(
-      `${SEARCH_URL}?format=json&pi=${encodeURIComponent(COLLECTION)}&c=20`,
-      { headers: { Authorization: `Bearer ${tok}` } }
-    );
+    const searchUrl = `${SEARCH_URL}?format=json&pi=${encodeURIComponent(COLLECTION)}&c=20`;
+    let res = await fetch(searchUrl, { headers: { Authorization: `Bearer ${tok}` } });
+    if (res.status === 401) {
+      // Token en cache révoqué par une autre instance : re-forge + retry.
+      tok = await getToken(true);
+      if (!tok) return [];
+      res = await fetch(searchUrl, { headers: { Authorization: `Bearer ${tok}` } });
+    }
     if (!res.ok) {
       console.error("MTG search failed", res.status);
       return [];
