@@ -1,0 +1,35 @@
+# kanari
+
+> kanari (https://kanari.io) is a free, near real-time world map of wildfire
+> ignitions. It fuses satellite fire detections — NASA FIRMS (VIIRS 375 m,
+> NOAA-20/21), GOES (Americas) and Meteosat MTG (Europe/Africa, 10-minute
+> refresh) — with citizen reports from social networks (Bluesky, press,
+> Telegram), each verified twice by AI before display. Goal: surface fire
+> starts as early as possible, often before the media. Free area push alerts.
+> Available in French (https://kanari.io/fr) and English (https://kanari.io/en).
+> kanari is an independent, mission-driven information service — NOT an
+> official emergency channel. In an emergency call 112 (Europe) or the local
+> emergency number.
+
+## Pages
+
+- [Live wildfire map (EN)](https://kanari.io/en): interactive world map,
+  fire starts feed, area alerts, city search.
+- [Carte des feux en direct (FR)](https://kanari.io/fr) : carte mondiale
+  interactive, fil des départs de feu, alertes par zone, recherche de ville.
+- [About / methodology (EN)](https://kanari.io/en/a-propos): data sources,
+  how detection works, known limits, disclaimer.
+- [À propos / méthodologie (FR)](https://kanari.io/fr/a-propos) : sources de
+  données, fonctionnement, limites, avertissement.
+
+## Facts
+
+- Name: kanari (lowercase wordmark). The canary in the coal mine: the
+  universal symbol of early warning — when the canary sings, there is still
+  time to act.
+- Coverage: worldwide, refreshed every ~2-3 minutes.
+- Detection sources: NASA FIRMS (VIIRS NOAA-20/21), NOAA GOES, EUMETSAT
+  Meteosat MTG (FCI Active Fire Monitoring), Bluesky, GDELT press, Telegram.
+- Citizen reports are AI-triaged (two independent judgments) for relevance,
+  location and recency before appearing on the map.
+- Cost: free, no account required. Push alerts per map area.

@@ -6,6 +6,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import type { FireEvent, Confidence } from "@/lib/cluster";
 import type { SocialResult, SocialPost } from "@/lib/social";
 import type { SocialSignal } from "@/lib/socialscan";
+import { DICT, type Lang, type Dict } from "@/lib/i18n";
 
 const REGIONS: Record<string, { center: [number, number]; zoom: number }> = {
   France: { center: [2.5, 46.6], zoom: 5.2 },
@@ -42,10 +43,10 @@ function hoursAgo(iso: string): number {
   return Math.max(0, (Date.now() - new Date(iso).getTime()) / 3_600_000);
 }
 
-function formatAge(h: number): string {
-  if (h < 1) return `il y a ${Math.max(1, Math.round(h * 60))} min`;
-  if (h < 48) return `il y a ${Math.round(h)} h`;
-  return `il y a ${Math.round(h / 24)} j`;
+function formatAge(h: number, t: Dict): string {
+  if (h < 1) return t.ago(`${Math.max(1, Math.round(h * 60))} min`);
+  if (h < 48) return t.ago(`${Math.round(h)} h`);
+  return t.ago(`${Math.round(h / 24)} j`);
 }
 
 // Horodatage court, aligné à droite dans le flux (« 12 min », « 3 h »).
@@ -127,33 +128,7 @@ const FLAMES: Record<string, [string, string]> = {
   "flame-citizen": ["#4A90C2", "#DCEBF7"],
 };
 
-const AGE_BADGE: { max: number; label: string; bg: string; fg: string }[] = [
-  { max: 3, label: "ACTIF", bg: "var(--danger-soft)", fg: "#9C2B2B" },
-  { max: 12, label: "RÉCENT", bg: "var(--ember-soft)", fg: "#8C3A16" },
-  { max: 24, label: "SURVEILLÉ", bg: "var(--canary-soft)", fg: "#7A5A00" },
-  { max: Infinity, label: "ANCIEN", bg: "var(--paper-2)", fg: "var(--ink-2)" },
-];
-
-const CONF_LABEL: Record<Confidence, { text: string; bg: string; fg: string }> = {
-  possible: { text: "possible", bg: "var(--paper-2)", fg: "var(--ink-2)" },
-  probable: { text: "probable", bg: "var(--canary-soft)", fg: "#7A5A00" },
-  corrobore: { text: "corroboré", bg: "var(--safe-soft)", fg: "#22684A" },
-};
-
 type Wind = { speed: number; gusts: number; direction: number };
-
-// Direction météo = d'où vient le vent.
-function compass(deg: number): string {
-  const pts = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
-  return pts[Math.round(deg / 45) % 8];
-}
-
-function formatDelta(ms: number): string {
-  const min = Math.round(ms / 60_000);
-  if (min < 60) return `${min} min`;
-  const h = Math.floor(min / 60);
-  return `${h} h${min % 60 ? ` ${min % 60}` : ""}`;
-}
 
 function sourceLabel(posts: SocialPost[]): string {
   if (posts.some((p) => p.source === "bluesky")) return "Bluesky";
@@ -161,7 +136,7 @@ function sourceLabel(posts: SocialPost[]): string {
   return "presse";
 }
 
-function PostList({ posts }: { posts: SocialPost[] }) {
+function PostList({ posts, t }: { posts: SocialPost[]; t: Dict }) {
   return (
     <ul className="space-y-2">
       {posts.map((post, i) => (
@@ -183,7 +158,7 @@ function PostList({ posts }: { posts: SocialPost[] }) {
             {post.source === "presse" ? post.handle : `@${post.handle}`}
           </a>{" "}
           <span style={{ color: "var(--ink-3)" }}>
-            · {post.source} · {formatAge(hoursAgo(post.createdAt))}
+            · {post.source} · {formatAge(hoursAgo(post.createdAt), t)}
           </span>
           <p className="mt-1 whitespace-pre-wrap" style={{ color: "var(--ink-2)" }}>
             {post.text}
@@ -229,7 +204,23 @@ function photonZoom(type: string | undefined): number {
   }
 }
 
-export default function FireMap() {
+// Position du visiteur (cookie posé par le middleware depuis la géo Vercel) :
+// la carte s'ouvre sur son pays. Repli : France.
+function visitorStart(): { center: [number, number]; zoom: number } {
+  try {
+    const raw = document.cookie.match(/(?:^|;\s*)kanari-geo=([^;]+)/)?.[1];
+    if (raw) {
+      const [lat, lon] = decodeURIComponent(raw).split(",").map(parseFloat);
+      if (isFinite(lat) && isFinite(lon)) return { center: [lon, lat], zoom: 5.3 };
+    }
+  } catch {
+    /* cookie illisible : repli */
+  }
+  return REGIONS["France"];
+}
+
+export default function FireMap({ lang }: { lang: Lang }) {
+  const t = DICT[lang];
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const eventsRef = useRef<FireEvent[]>([]);
@@ -271,7 +262,7 @@ export default function FireMap() {
 
   useEffect(() => {
     if (localStorage.getItem("vigifire-alert-endpoint")) setAlertState("on");
-    const id = setInterval(() => setTick((t) => t + 1), 10_000);
+    const id = setInterval(() => setTick((x) => x + 1), 10_000);
     return () => clearInterval(id);
   }, []);
 
@@ -384,12 +375,13 @@ export default function FireMap() {
     const pZ = parseFloat(params.get("z") ?? "");
     const hasDeepLink = isFinite(pLat) && isFinite(pLon);
     pendingSelectRef.current = params.get("ev");
+    // Sans lien profond : la carte s'ouvre sur le pays du visiteur (géo).
+    const start = visitorStart();
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: MAP_STYLE,
-      // La France par défaut : le premier marché de kanari.
-      center: hasDeepLink ? [pLon, pLat] : REGIONS["France"].center,
-      zoom: hasDeepLink ? (isFinite(pZ) ? pZ : 9) : REGIONS["France"].zoom,
+      center: hasDeepLink ? [pLon, pLat] : start.center,
+      zoom: hasDeepLink ? (isFinite(pZ) ? pZ : 9) : start.zoom,
       attributionControl: { compact: true },
     });
     mapRef.current = map;
@@ -562,7 +554,7 @@ export default function FireMap() {
   const toggleAlerts = async () => {
     setAlertMsg(null);
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-      setAlertMsg("Notifications non supportées par ce navigateur.");
+      setAlertMsg(t.alertNotSupported);
       return;
     }
     setAlertState("busy");
@@ -583,14 +575,14 @@ export default function FireMap() {
         await sub?.unsubscribe();
         localStorage.removeItem("vigifire-alert-endpoint");
         setAlertState("off");
-        setAlertMsg("Alertes désactivées.");
+        setAlertMsg(t.alertOff);
         return;
       }
       // Abonnement sur la vue courante
       const perm = await Notification.requestPermission();
       if (perm !== "granted") {
         setAlertState("off");
-        setAlertMsg("Autorise les notifications pour activer les alertes.");
+        setAlertMsg(t.alertAllow);
         return;
       }
       const reg = await navigator.serviceWorker.register("/sw.js");
@@ -610,11 +602,11 @@ export default function FireMap() {
       if (!res.ok) throw new Error("subscribe failed");
       localStorage.setItem("vigifire-alert-endpoint", sub.endpoint);
       setAlertState("on");
-      setAlertMsg("Zone sous alerte : tu seras prévenu·e des nouveaux foyers probables ici.");
+      setAlertMsg(t.alertOn);
     } catch (e) {
       console.error(e);
       setAlertState(localStorage.getItem("vigifire-alert-endpoint") ? "on" : "off");
-      setAlertMsg("Échec de l'activation — réessaie.");
+      setAlertMsg(t.alertFailed);
     }
   };
 
@@ -657,7 +649,7 @@ export default function FireMap() {
       }
       ta.remove();
     }
-    setShareMsg("Lien copié ✓");
+    setShareMsg(t.linkCopied);
     setTimeout(() => setShareMsg(null), 2500);
   };
 
@@ -672,7 +664,7 @@ export default function FireMap() {
     searchTimer.current = setTimeout(async () => {
       try {
         const res = await fetch(
-          `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=6&lang=fr`
+          `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=6&lang=${lang}`
         );
         if (!res.ok) return;
         const j = await res.json();
@@ -719,7 +711,7 @@ export default function FireMap() {
 
   const locateMe = () => {
     if (!navigator.geolocation) {
-      setAlertMsg("Géolocalisation non supportée par ce navigateur.");
+      setAlertMsg(t.geoUnsupported);
       return;
     }
     setGeoBusy(true);
@@ -731,7 +723,7 @@ export default function FireMap() {
         const el = document.createElement("div");
         el.style.cssText =
           "width:14px;height:14px;border-radius:50%;background:var(--charcoal);border:3px solid #fff;box-shadow:var(--shadow-m)";
-        el.title = "Ta position";
+        el.title = t.yourPosition;
         posMarkerRef.current = new maplibregl.Marker({ element: el })
           .setLngLat([longitude, latitude])
           .addTo(mapRef.current!);
@@ -739,7 +731,7 @@ export default function FireMap() {
       },
       () => {
         setGeoBusy(false);
-        setAlertMsg("Position indisponible — vérifie l'autorisation de localisation.");
+        setAlertMsg(t.geoUnavailable);
       },
       { timeout: 8000 }
     );
@@ -772,7 +764,6 @@ export default function FireMap() {
         if (hoursAgo(ev.firstSeen) * 60 > DEPART_HOT_MIN) continue;
         const el = document.createElement("div");
         el.className = "pulse-marker";
-        el.title = "Départ de feu détecté il y a moins de 20 min";
         el.addEventListener("click", (e) => {
           e.stopPropagation();
           setSelected(ev);
@@ -788,7 +779,6 @@ export default function FireMap() {
         if (!sig.newFire || hoursAgo(sig.firstPost) * 60 > DEPART_HOT_MIN) continue;
         const el = document.createElement("div");
         el.className = "pulse-marker pulse-social";
-        el.title = "Signalement citoyen de moins de 20 min";
         el.addEventListener("click", (e) => {
           e.stopPropagation();
           setSelectedSignal(sig);
@@ -859,14 +849,32 @@ export default function FireMap() {
 
   // Groupes temporels du flux (maquette : « À l'instant », « Dernière heure »).
   const bucketOf = (h: number) =>
-    h < 0.25 ? "À l'instant" : h < 1 ? "Dernière heure" : "Plus tôt";
+    h < 0.25 ? t.bucketNow : h < 1 ? t.bucketHour : t.bucketEarlier;
 
   const eventTitle = (ev: FireEvent) =>
     ev.social?.place ??
-    `Détection satellite — ${ev.centroid[1].toFixed(2)}, ${ev.centroid[0].toFixed(2)}`;
+    `${t.satDetection} — ${ev.centroid[1].toFixed(2)}, ${ev.centroid[0].toFixed(2)}`;
 
-  const eventBadge = (ev: FireEvent) =>
-    AGE_BADGE.find((b) => hoursAgo(ev.lastSeen) < b.max)!;
+  const AGE_BADGE: { max: number; label: string; bg: string; fg: string }[] = [
+    { max: 3, label: t.badgeActive, bg: "var(--danger-soft)", fg: "#9C2B2B" },
+    { max: 12, label: t.badgeRecent, bg: "var(--ember-soft)", fg: "#8C3A16" },
+    { max: 24, label: t.badgeWatched, bg: "var(--canary-soft)", fg: "#7A5A00" },
+    { max: Infinity, label: t.badgeOld, bg: "var(--paper-2)", fg: "var(--ink-2)" },
+  ];
+  const CONF_LABEL: Record<Confidence, { text: string; bg: string; fg: string }> = {
+    possible: { text: t.confPossible, bg: "var(--paper-2)", fg: "var(--ink-2)" },
+    probable: { text: t.confProbable, bg: "var(--canary-soft)", fg: "#7A5A00" },
+    corrobore: { text: t.confCorroborated, bg: "var(--safe-soft)", fg: "#22684A" },
+  };
+  const eventBadge = (ev: FireEvent) => AGE_BADGE.find((b) => hoursAgo(ev.lastSeen) < b.max)!;
+
+  const compass = (deg: number) => t.compass[Math.round(deg / 45) % 8];
+  const formatDelta = (ms: number): string => {
+    const min = Math.round(ms / 60_000);
+    if (min < 60) return `${min} min`;
+    const h = Math.floor(min / 60);
+    return `${h} h${min % 60 ? ` ${min % 60}` : ""}`;
+  };
 
   // Ligne « 1ère mention citoyenne » de la fiche foyer : plus ancien post attaché.
   const firstMention = (ev: FireEvent): string | null => {
@@ -878,6 +886,7 @@ export default function FireMap() {
   const chip =
     "flex h-[38px] items-center whitespace-nowrap rounded-full px-[18px] text-[13px] font-medium transition-all duration-150 cursor-pointer";
   const card = { background: "var(--white)", boxShadow: "var(--shadow-m)" };
+  const locale = lang === "fr" ? "fr-FR" : "en-US";
 
   return (
     <div className="relative h-full w-full" style={{ fontFamily: "var(--font-body)" }}>
@@ -906,16 +915,16 @@ export default function FireMap() {
             onChange={(e) => runSearch(e.target.value)}
             onFocus={() => setSearchOpen(true)}
             onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
-            placeholder="Rechercher une ville ou une zone"
+            placeholder={t.searchPlaceholder}
             className="min-w-0 flex-1 border-none bg-transparent text-[14.5px] outline-none"
             style={{ color: "var(--ink)" }}
-            aria-label="Rechercher une ville ou une zone"
+            aria-label={t.searchPlaceholder}
           />
           <button
             onClick={locateMe}
             className="flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium transition-colors sm:px-3.5"
             style={{ background: "var(--canary)", color: "var(--charcoal)" }}
-            aria-label="Ma position"
+            aria-label={t.myPosition}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <circle cx="12" cy="12" r="3.5" stroke="currentColor" strokeWidth="2.5" />
@@ -926,7 +935,7 @@ export default function FireMap() {
                 strokeLinecap="round"
               />
             </svg>
-            <span className="hidden sm:inline">{geoBusy ? "…" : "Ma position"}</span>
+            <span className="hidden sm:inline">{geoBusy ? "…" : t.myPosition}</span>
           </button>
         </div>
 
@@ -991,7 +1000,7 @@ export default function FireMap() {
                 : { background: "var(--white)", color: "var(--ink-2)", boxShadow: "var(--shadow-s)" }
             }
           >
-            Légende
+            {t.legend}
           </button>
         </div>
 
@@ -1002,11 +1011,11 @@ export default function FireMap() {
           >
             {(
               [
-                [AGE_COLORS.active, "Feu actif · moins de 3 h"],
-                [AGE_COLORS.recent, "Récent · 3 – 12 h"],
-                [AGE_COLORS.watched, "Surveillé · 12 – 24 h"],
-                [AGE_COLORS.old, "Ancien · plus de 24 h"],
-                [AGE_COLORS.citizen, "Signalement citoyen"],
+                [AGE_COLORS.active, t.legendActive],
+                [AGE_COLORS.recent, t.legendRecent],
+                [AGE_COLORS.watched, t.legendWatched],
+                [AGE_COLORS.old, t.legendOld],
+                [AGE_COLORS.citizen, t.legendCitizen],
               ] as const
             ).map(([color, label]) => (
               <span key={label} className="flex items-center gap-[9px]">
@@ -1030,7 +1039,7 @@ export default function FireMap() {
               className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-t-transparent"
               style={{ borderColor: "var(--canary)", borderTopColor: "transparent" }}
             />
-            kanari analyse les signaux…
+            {t.analyzing}
           </div>
         )}
         {status.kind === "error" && (
@@ -1038,9 +1047,7 @@ export default function FireMap() {
             className="w-[min(320px,calc(100vw-24px))] rounded-[14px] px-4 py-3 text-[13px]"
             style={{ background: "var(--danger-soft)", color: "#9C2B2B" }}
           >
-            {status.code.startsWith("FIRMS_MAP_KEY")
-              ? "Clé NASA FIRMS manquante ou invalide (variable FIRMS_MAP_KEY)."
-              : "Données satellite momentanément indisponibles — nouvel essai dans 2 min."}
+            {status.code.startsWith("FIRMS_MAP_KEY") ? t.errFirmsKey : t.errData}
           </div>
         )}
       </div>
@@ -1055,7 +1062,8 @@ export default function FireMap() {
           className="k-listen inline-block h-[7px] w-[7px] rounded-full"
           style={{ background: "var(--canary-strong)" }}
         />
-        En direct{hotCount > 0 ? ` · ${hotCount}` : ""}
+        {t.live}
+        {hotCount > 0 ? ` · ${hotCount}` : ""}
       </button>
 
       {/* Flux « En direct » (droite, maquette v2) */}
@@ -1065,19 +1073,19 @@ export default function FireMap() {
       >
         <div className="flex flex-col gap-3 border-b px-[18px] pb-3.5 pt-4" style={{ borderColor: "var(--line)" }}>
           <div className="flex items-center gap-2">
-            <h3 className="flex-1 text-[17px]">En direct</h3>
+            <h3 className="flex-1 text-[17px]">{t.live}</h3>
             <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--ink-3)" }}>
               <span
                 className="k-listen inline-block h-[7px] w-[7px] rounded-full"
                 style={{ background: "var(--canary-strong)" }}
               />
-              kanari écoute
+              {t.listening}
             </span>
             <button
               onClick={() => setPanelOpen(false)}
               className="flex h-7 w-7 items-center justify-center rounded-full text-[13px] md:hidden"
               style={{ background: "var(--paper-2)", color: "var(--ink-2)" }}
-              aria-label="Fermer le flux"
+              aria-label={t.close}
             >
               ✕
             </button>
@@ -1095,7 +1103,7 @@ export default function FireMap() {
                   : { background: "transparent", color: "var(--ink-2)" }
               }
             >
-              Tout · {globalItems.length}
+              {t.tabAll} · {globalItems.length}
             </button>
             <button
               onClick={() => setMode("departs")}
@@ -1106,7 +1114,7 @@ export default function FireMap() {
                   : { background: "transparent", color: "var(--ink-2)" }
               }
             >
-              Urgents · {departItems.length}
+              {t.tabUrgent} · {departItems.length}
             </button>
           </div>
         </div>
@@ -1117,8 +1125,7 @@ export default function FireMap() {
               className="mx-3 mt-3 rounded-[14px] px-3.5 py-2.5 text-[13px] font-bold text-white"
               style={{ background: "var(--danger)" }}
             >
-              {hotCount} départ{hotCount > 1 ? "s" : ""} signalé{hotCount > 1 ? "s" : ""} il y a
-              moins de 20 min
+              {t.urgentBanner(hotCount)}
             </div>
           )}
 
@@ -1129,20 +1136,17 @@ export default function FireMap() {
                   className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2"
                   style={{ borderColor: "var(--line)", borderTopColor: "var(--canary-strong)" }}
                 />
-                Récupération des satellites et analyse IA des signaux…
+                {t.loadingFeed}
               </p>
             )}
           {status.kind !== "loading" && mode === "tout" && globalItems.length === 0 && (
             <p className="p-4 text-[13px]" style={{ color: "var(--ink-3)" }}>
-              Rien à signaler dans la vue affichée. kanari écoute — déplace la carte ou
-              élargis la période.
+              {t.emptyAll}
             </p>
           )}
           {status.kind !== "loading" && mode === "departs" && departItems.length === 0 && (
             <p className="p-4 text-[13px]" style={{ color: "var(--ink-3)" }}>
-              Aucun départ de feu (1er signal &lt; 2 h) dans la vue affichée. Élargis la
-              carte : la couverture la plus rapide vient de GOES (Amériques), Meteosat
-              (Europe/Afrique) et des témoignages citoyens.
+              {t.emptyUrgent}
             </p>
           )}
 
@@ -1181,9 +1185,8 @@ export default function FireMap() {
                           {eventTitle(ev)}
                         </strong>
                         <span className="text-[12.5px]" style={{ color: "var(--ink-2)" }}>
-                          {ev.count} détection{ev.count > 1 ? "s" : ""} satellite · {ev.maxFrp} MW
-                          max
-                          {ev.confidence === "corrobore" ? " · corroboré" : ""}
+                          {t.detectionsSat(ev.count)} · {ev.maxFrp} {t.mwMax}
+                          {ev.confidence === "corrobore" ? ` · ${t.corroboratedTag}` : ""}
                         </span>
                       </span>
                       <span
@@ -1212,13 +1215,12 @@ export default function FireMap() {
                     />
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <strong className="truncate text-[14.5px]" style={{ color: "var(--ink)" }}>
-                        {sig.newFire ? "Départ probable — " : ""}
+                        {sig.newFire ? t.probablePrefix : ""}
                         {sig.place} ({sig.countryCode.toUpperCase()})
                       </strong>
                       <span className="text-[12.5px]" style={{ color: "var(--ink-2)" }}>
-                        {sig.postCount} post{sig.postCount > 1 ? "s" : ""}{" "}
-                        {sourceLabel(sig.posts)} · dernière mention{" "}
-                        {formatAge(hoursAgo(sig.lastPost))}
+                        {t.postsOn(sig.postCount, sourceLabel(sig.posts))} · {t.lastMentionAgo}{" "}
+                        {formatAge(hoursAgo(sig.lastPost), t)}
                       </span>
                     </span>
                     <span
@@ -1252,19 +1254,18 @@ export default function FireMap() {
                     <strong className="truncate text-[14.5px]" style={{ color: "var(--ink)" }}>
                       {item.kind === "sat"
                         ? item.ev.social?.place ??
-                          `Détection satellite — ${item.ev.centroid[1].toFixed(2)}, ${item.ev.centroid[0].toFixed(2)}`
-                        : `Départ probable — ${item.sig.place} (${item.sig.countryCode.toUpperCase()})`}
+                          `${t.satDetection} — ${item.ev.centroid[1].toFixed(2)}, ${item.ev.centroid[0].toFixed(2)}`
+                        : `${t.probablePrefix}${item.sig.place} (${item.sig.countryCode.toUpperCase()})`}
                     </strong>
                     <span className="text-[12.5px]" style={{ color: "var(--ink-2)" }}>
                       {item.kind === "sat" ? (
                         <>
-                          Satellite · {item.ev.count} détection{item.ev.count > 1 ? "s" : ""} ·{" "}
-                          {item.ev.maxFrp} MW
+                          {t.satShort} · {t.detectionsSat(item.ev.count)} · {item.ev.maxFrp} MW
                         </>
                       ) : (
                         <>
-                          {item.sig.postCount} post{item.sig.postCount > 1 ? "s" : ""}{" "}
-                          {sourceLabel(item.sig.posts)} · en cours de vérification
+                          {t.postsOn(item.sig.postCount, sourceLabel(item.sig.posts))} ·{" "}
+                          {t.verifying}
                         </>
                       )}
                     </span>
@@ -1286,19 +1287,19 @@ export default function FireMap() {
         >
           <span>
             {status.kind === "ready"
-              ? `${status.events.toLocaleString("fr-FR")} foyers · ${status.signals} signalements`
+              ? t.footerStats(status.events.toLocaleString(locale), status.signals)
               : "…"}
           </span>
           <span className="flex items-center gap-1.5">
             {lastUpdate &&
               (Date.now() - lastUpdate < 15_000
-                ? "maj à l'instant"
-                : `maj il y a ${Math.round((Date.now() - lastUpdate) / 1000)} s`)}
+                ? t.updatedNow
+                : t.updatedAgo(Math.round((Date.now() - lastUpdate) / 1000)))}
             <button
               onClick={() => mapRef.current && loadData(mapRef.current, hours, true)}
               className="rounded-full px-1.5 py-0.5 transition-colors hover:bg-[var(--paper-2)]"
-              title="Rafraîchir maintenant"
-              aria-label="Rafraîchir maintenant"
+              title={t.refreshNow}
+              aria-label={t.refreshNow}
             >
               ↻
             </button>
@@ -1335,11 +1336,7 @@ export default function FireMap() {
               background: alertState === "on" ? "var(--canary)" : "var(--charcoal)",
             }}
           />
-          {alertState === "busy"
-            ? "Activation…"
-            : alertState === "on"
-              ? "Zone sous alerte — kanari veille ✓"
-              : "M'alerter sur cette zone"}
+          {alertState === "busy" ? t.ctaBusy : alertState === "on" ? t.ctaOn : t.ctaOff}
         </button>
       </div>
 
@@ -1358,7 +1355,7 @@ export default function FireMap() {
                   : { background: "#E3F0FA", color: "#2C6E9E", letterSpacing: ".4px" }
               }
             >
-              {selectedSignal.newFire ? "NOUVEAU FEU" : "SIGNALEMENT"}
+              {selectedSignal.newFire ? t.badgeNewFire : t.badgeReport}
             </span>
             <strong className="flex-1 truncate text-base" style={{ color: "var(--ink)" }}>
               {selectedSignal.place} ({selectedSignal.countryCode.toUpperCase()})
@@ -1367,7 +1364,7 @@ export default function FireMap() {
               onClick={() => setSelectedSignal(null)}
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[13px]"
               style={{ background: "var(--paper-2)", color: "var(--ink-2)" }}
-              aria-label="Fermer"
+              aria-label={t.close}
             >
               ✕
             </button>
@@ -1375,37 +1372,35 @@ export default function FireMap() {
           <div className="mb-2.5 flex flex-col gap-1.5 text-[13px]" style={{ color: "var(--ink-2)" }}>
             <span className="flex items-center gap-2">
               <span className="h-[7px] w-[7px] rounded-full" style={{ background: "var(--ember)" }} />
-              1ère mention · {formatAge(hoursAgo(selectedSignal.firstPost))}
+              {t.firstMention} · {formatAge(hoursAgo(selectedSignal.firstPost), t)}
             </span>
             <span className="flex items-center gap-2">
               <span className="h-[7px] w-[7px] rounded-full" style={{ background: AGE_COLORS.citizen }} />
-              {selectedSignal.postCount} post{selectedSignal.postCount > 1 ? "s" : ""}{" "}
-              {sourceLabel(selectedSignal.posts)} (12 h) · dernière{" "}
-              {formatAge(hoursAgo(selectedSignal.lastPost))}
+              {t.postsWindow(selectedSignal.postCount, sourceLabel(selectedSignal.posts))} ·{" "}
+              {t.lastLabel} {formatAge(hoursAgo(selectedSignal.lastPost), t)}
             </span>
             <span className="flex items-center gap-2">
               <span className="h-[7px] w-[7px] rounded-full" style={{ background: "var(--ink-3)" }} />
-              Position = centre de la commune citée, pas du feu
+              {t.positionNote}
             </span>
           </div>
           <div className="mb-3 flex gap-2">
             <button
               onClick={() =>
                 share(
-                  `kanari — signalement à ${selectedSignal.place}`,
+                  t.shareSignal(selectedSignal.place),
                   `/?lat=${selectedSignal.lat.toFixed(3)}&lon=${selectedSignal.lon.toFixed(3)}&z=10`
                 )
               }
               className="h-[38px] flex-1 rounded-full border text-[13px] font-medium transition-colors hover:bg-[var(--paper-2)]"
               style={{ borderColor: "var(--line)", color: "var(--ink)", background: "transparent" }}
             >
-              {shareMsg ?? "Partager"}
+              {shareMsg ?? t.share}
             </button>
           </div>
-          <PostList posts={selectedSignal.posts} />
+          <PostList posts={selectedSignal.posts} t={t} />
           <p className="mt-3 border-t pt-2.5 text-xs" style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}>
-            Témoignage non confirmé par satellite : soit le feu est trop petit ou trop récent
-            pour être vu (précocité !), soit il ne s&apos;agit pas d&apos;un feu de forêt.
+            {t.signalFootnote}
           </p>
         </div>
       )}
@@ -1434,7 +1429,7 @@ export default function FireMap() {
               onClick={() => setSelected(null)}
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[13px]"
               style={{ background: "var(--paper-2)", color: "var(--ink-2)" }}
-              aria-label="Fermer"
+              aria-label={t.close}
             >
               ✕
             </button>
@@ -1458,11 +1453,11 @@ export default function FireMap() {
                   className="flex h-[22px] items-center rounded-full px-[9px] text-[11px] font-bold"
                   style={{ background: "var(--safe-soft)", color: "#22684A" }}
                 >
-                  détecté{" "}
-                  {formatDelta(
-                    Date.parse(selected.social.firstPress) - Date.parse(selected.firstSeen)
-                  )}{" "}
-                  avant la presse
+                  {t.beforePress(
+                    formatDelta(
+                      Date.parse(selected.social.firstPress) - Date.parse(selected.firstSeen)
+                    )
+                  )}
                 </span>
               )}
           </div>
@@ -1472,22 +1467,22 @@ export default function FireMap() {
             {firstMention(selected) && (
               <span className="flex items-center gap-2">
                 <span className="h-[7px] w-[7px] rounded-full" style={{ background: "var(--ember)" }} />
-                1ère mention citoyenne · {formatAge(hoursAgo(firstMention(selected)!))}
+                {t.citizenMention} · {formatAge(hoursAgo(firstMention(selected)!), t)}
               </span>
             )}
             <span className="flex items-center gap-2">
               <span className="h-[7px] w-[7px] rounded-full" style={{ background: AGE_COLORS.citizen }} />
-              1er signal satellite · {formatAge(hoursAgo(selected.firstSeen))}
+              {t.satFirst} · {formatAge(hoursAgo(selected.firstSeen), t)}
             </span>
             <span className="flex items-center gap-2">
               <span className="h-[7px] w-[7px] rounded-full" style={{ background: ageColor(hoursAgo(selected.lastSeen)) }} />
-              Dernier signal · {formatAge(hoursAgo(selected.lastSeen))}
+              {t.lastSignal} · {formatAge(hoursAgo(selected.lastSeen), t)}
             </span>
             {wind && (
               <span className="flex items-center gap-2">
                 <span className="h-[7px] w-[7px] rounded-full" style={{ background: "var(--ink-3)" }} />
-                Vent {wind.speed} km/h de {compass(wind.direction)}
-                {wind.gusts > wind.speed + 10 ? ` · rafales ${wind.gusts}` : ""}
+                {t.wind(wind.speed, compass(wind.direction))}
+                {wind.gusts > wind.speed + 10 ? t.gusts(wind.gusts) : ""}
               </span>
             )}
           </div>
@@ -1498,32 +1493,32 @@ export default function FireMap() {
               className="h-[38px] flex-1 rounded-full text-[13px] font-medium transition-colors"
               style={{ background: "var(--charcoal)", color: "var(--paper)" }}
             >
-              {detailOpen ? "Masquer le détail" : "Voir le détail"}
+              {detailOpen ? t.hideDetail : t.viewDetail}
             </button>
             <button
               onClick={() =>
                 share(
-                  `kanari — foyer ${eventTitle(selected)}`,
+                  t.shareEvent(eventTitle(selected)),
                   `/?lat=${selected.centroid[1].toFixed(3)}&lon=${selected.centroid[0].toFixed(3)}&z=9&ev=${encodeURIComponent(selected.id)}`
                 )
               }
               className="h-[38px] flex-1 rounded-full border text-[13px] font-medium transition-colors hover:bg-[var(--paper-2)]"
               style={{ borderColor: "var(--line)", color: "var(--ink)", background: "transparent" }}
             >
-              {shareMsg ?? "Partager"}
+              {shareMsg ?? t.share}
             </button>
           </div>
 
           {detailOpen && (
             <dl className="mt-3 space-y-1.5 border-t pt-3 text-[13px]" style={{ borderColor: "var(--line)" }}>
               <div className="flex justify-between">
-                <dt style={{ color: "var(--ink-3)" }}>Premier signal (UTC)</dt>
+                <dt style={{ color: "var(--ink-3)" }}>{t.dlFirstUTC}</dt>
                 <dd style={{ color: "var(--ink)" }}>
                   {new Date(selected.firstSeen).toISOString().slice(0, 16).replace("T", " ")}
                 </dd>
               </div>
               <div className="flex justify-between">
-                <dt style={{ color: "var(--ink-3)" }}>Détections</dt>
+                <dt style={{ color: "var(--ink-3)" }}>{t.dlDetections}</dt>
                 <dd style={{ color: "var(--ink)" }}>
                   {selected.count} ({selected.viirsCount} VIIRS
                   {selected.goesCount > 0 ? ` + ${selected.goesCount} GOES` : ""}
@@ -1531,11 +1526,11 @@ export default function FireMap() {
                 </dd>
               </div>
               <div className="flex justify-between">
-                <dt style={{ color: "var(--ink-3)" }}>Puissance max</dt>
+                <dt style={{ color: "var(--ink-3)" }}>{t.dlPower}</dt>
                 <dd style={{ color: "var(--ink)" }}>{selected.maxFrp} MW</dd>
               </div>
               <div className="flex justify-between">
-                <dt style={{ color: "var(--ink-3)" }}>Position</dt>
+                <dt style={{ color: "var(--ink-3)" }}>{t.dlPosition}</dt>
                 <dd style={{ color: "var(--ink)" }}>
                   {selected.centroid[1].toFixed(3)}, {selected.centroid[0].toFixed(3)}
                 </dd>
@@ -1547,10 +1542,9 @@ export default function FireMap() {
           {detailOpen && selected.social && (
             <div className="mt-3 border-t pt-3" style={{ borderColor: "var(--line)" }}>
               <p className="mb-2 text-xs font-medium" style={{ color: "#22684A" }}>
-                Corroboré par {selected.social.postCount} témoignage
-                {selected.social.postCount > 1 ? "s" : ""} près de {selected.social.place}
+                {t.corrobBy(selected.social.postCount, selected.social.place)}
               </p>
-              <PostList posts={selected.social.posts} />
+              <PostList posts={selected.social.posts} t={t} />
             </div>
           )}
 
@@ -1563,17 +1557,17 @@ export default function FireMap() {
                   className="h-[38px] w-full rounded-full text-[13px] font-medium transition-colors"
                   style={{ background: "var(--canary)", color: "var(--charcoal)" }}
                 >
-                  Chercher {selected.social ? "plus de " : "des "}témoignages
+                  {t.searchWitnesses(!!selected.social)}
                 </button>
               )}
               {social.kind === "loading" && (
                 <p className="text-xs" style={{ color: "var(--ink-3)" }}>
-                  Recherche de témoignages en cours…
+                  {t.searchingWitnesses}
                 </p>
               )}
               {social.kind === "error" && (
                 <p className="text-xs" style={{ color: "var(--danger)" }}>
-                  Recherche indisponible pour le moment.
+                  {t.searchUnavailable}
                 </p>
               )}
               {social.kind === "done" && (
@@ -1581,34 +1575,30 @@ export default function FireMap() {
                   <p className="mb-2 text-xs" style={{ color: "var(--ink-3)" }}>
                     {social.result.place ? (
                       <>
-                        Zone : <span style={{ color: "var(--ink)" }}>{social.result.place}</span> —{" "}
+                        {t.zoneLabel} :{" "}
+                        <span style={{ color: "var(--ink)" }}>{social.result.place}</span> —{" "}
                       </>
                     ) : null}
-                    {social.result.posts.length} témoignage
-                    {social.result.posts.length !== 1 ? "s" : ""} trouvé
-                    {social.result.posts.length !== 1 ? "s" : ""} (48 h)
+                    {t.witnessesFound(social.result.posts.length)}
                   </p>
                   {social.result.posts.length === 0 &&
                     (social.result.searchStatuses?.every((s) => s >= 400 || s === 0) ? (
                       <p className="text-xs" style={{ color: "#8C3A16" }}>
-                        La recherche Bluesky est momentanément inaccessible depuis nos
-                        serveurs — réessaie plus tard.
+                        {t.bskyUnreachable}
                       </p>
                     ) : (
                       <p className="text-xs" style={{ color: "var(--ink-3)" }}>
-                        Aucune mention sur Bluesky pour cette zone. Ça ne veut pas dire
-                        qu&apos;il n&apos;y a pas de feu — juste pas de témoin connecté.
+                        {t.noWitnesses}
                       </p>
                     ))}
-                  <PostList posts={social.result.posts} />
+                  <PostList posts={social.result.posts} t={t} />
                 </div>
               )}
             </div>
           )}
 
           <p className="mt-3 border-t pt-2.5 text-xs" style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}>
-            Le « 1er signal » est l&apos;heure du premier passage satellite ayant vu ce foyer —
-            l&apos;ignition réelle peut être antérieure.
+            {t.eventFootnote}
           </p>
         </div>
       )}
