@@ -489,7 +489,7 @@ export default function FireMap({ lang }: { lang: Lang }) {
             setSelectedSignal(null);
             return;
           }
-          let best: maplibregl.GeoJSONFeature | null = null;
+          let best: maplibregl.MapGeoJSONFeature | null = null;
           let bestDist = Infinity;
           for (const f of hits) {
             if (f.geometry.type !== "Point") continue;
