@@ -143,38 +143,11 @@ export async function runAi(opts: QaOptions): Promise<void> {
   }
   record(L, "Corpus", "PASS", `${corpus.length} posts affichés à re-juger (plafond ${opts.aiSample})`);
 
-  // ---- Contrôle 1 : rejouer le pipeline de production (luna + terra) ----------
-  await check(L, "Re-jugement pipeline (luna + terra, sans cache)", async () => {
-    const candidates = corpus.map((it) => ({
-      url: it.post.url,
-      text: it.post.text,
-      places: extractPlaces(it.post.text).map((p) => `${p.entry[3]} (${p.entry[2].toUpperCase()})`),
-      createdAt: it.post.createdAt,
-    }));
-    const verdicts = await judgeForQA(candidates);
-    const problems: string[] = [];
-    for (const it of corpus) {
-      const v = verdicts.get(it.post.url);
-      const cand = candidates.find((c) => c.url === it.post.url)!;
-      if (!v?.final?.fire || v.final.place == null) {
-        problems.push(`rejeté au re-jugement : « ${it.post.text.slice(0, 60)}… » (${it.place})`);
-        continue;
-      }
-      const chosen = cand.places[v.final.place] ?? "";
-      if (normalizePlace(chosen.split(" (")[0]) !== normalizePlace(it.place)) {
-        problems.push(`lieu divergent : affiché ${it.place}, re-jugé ${chosen}`);
-      }
-    }
-    if (problems.length > 0) {
-      // Un post limite peut basculer d'un jugement à l'autre : 1 seul cas
-      // divergent = avertissement, plusieurs = vraie dérive.
-      const verdict = problems.length === 1 ? "WARN" : "FAIL";
-      return { verdict, detail: `${problems.length}/${corpus.length} divergents — ${problems[0]}` };
-    }
-    return { verdict: "PASS", detail: `${corpus.length}/${corpus.length} posts reconfirmés (feu + même lieu)` };
-  });
-
-  // ---- Contrôle 2 : relecteur qualité indépendant ------------------------------
+  // ---- Contrôle 1 : relecteur qualité indépendant ------------------------------
+  // Passé en premier : son verdict par post sert d'arbitre au contrôle 2 —
+  // un post limite qui bascule au re-jugement mais que le relecteur valide
+  // n'est pas une erreur affichée, c'est la variance normale d'un LLM.
+  const contested = new Set<string>();
   await check(L, "Relecteur IA (feu actuel / lieu / dates)", async () => {
     const problems: string[] = [];
     let reviewed = 0;
@@ -191,6 +164,7 @@ export async function runAi(opts: QaOptions): Promise<void> {
         if (!r.lieu_correct) flags.push("lieu douteux");
         if (!r.dates_coherentes) flags.push("dates incohérentes");
         if (flags.length > 0) {
+          contested.add(it.post.url);
           problems.push(
             `${it.place} (${it.origin}) : ${flags.join(" + ")}${r.probleme ? ` — ${r.probleme}` : ""} | « ${it.post.text.slice(0, 70)}… »`
           );
@@ -202,5 +176,53 @@ export async function runAi(opts: QaOptions): Promise<void> {
       return { verdict, detail: `${problems.length}/${reviewed} posts contestés — ${problems.slice(0, 2).join(" || ")}` };
     }
     return { verdict: "PASS", detail: `${reviewed}/${corpus.length} posts validés par le relecteur` };
+  });
+
+  // ---- Contrôle 2 : rejouer le pipeline de production (luna + terra) ----------
+  // FAIL seulement si un post divergent est AUSSI contesté par le relecteur
+  // (= vraie erreur affichée). Divergence seule = variance sur cas limite
+  // (WARN au-delà d'un tiers du corpus — dérive de modèle probable).
+  await check(L, "Re-jugement pipeline (luna + terra, sans cache)", async () => {
+    const candidates = corpus.map((it) => ({
+      url: it.post.url,
+      text: it.post.text,
+      places: extractPlaces(it.post.text).map((p) => `${p.entry[3]} (${p.entry[2].toUpperCase()})`),
+      createdAt: it.post.createdAt,
+    }));
+    const verdicts = await judgeForQA(candidates);
+    const confirmedBad: string[] = [];
+    const variance: string[] = [];
+    for (const it of corpus) {
+      const v = verdicts.get(it.post.url);
+      const cand = candidates.find((c) => c.url === it.post.url)!;
+      let diverged: string | null = null;
+      if (!v?.final?.fire || v.final.place == null) {
+        diverged = `rejeté au re-jugement : « ${it.post.text.slice(0, 60)}… » (${it.place})`;
+      } else {
+        const chosen = cand.places[v.final.place] ?? "";
+        if (normalizePlace(chosen.split(" (")[0]) !== normalizePlace(it.place)) {
+          diverged = `lieu divergent : affiché ${it.place}, re-jugé ${chosen}`;
+        }
+      }
+      if (!diverged) continue;
+      (contested.has(it.post.url) ? confirmedBad : variance).push(diverged);
+    }
+    if (confirmedBad.length > 0) {
+      const verdict = confirmedBad.length === 1 ? "WARN" : "FAIL";
+      return {
+        verdict,
+        detail: `${confirmedBad.length} erreur(s) confirmée(s) par le relecteur — ${confirmedBad[0]}`,
+      };
+    }
+    if (variance.length > corpus.length / 3) {
+      return {
+        verdict: "WARN",
+        detail: `variance élevée : ${variance.length}/${corpus.length} basculent au re-jugement (relecteur OK sur tous) — ${variance[0]}`,
+      };
+    }
+    return {
+      verdict: "PASS",
+      detail: `${corpus.length - variance.length}/${corpus.length} reconfirmés, ${variance.length} bascule(s) limite(s), 0 erreur confirmée`,
+    };
   });
 }

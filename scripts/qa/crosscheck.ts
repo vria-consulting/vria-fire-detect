@@ -118,9 +118,16 @@ export async function runCrosscheck(opts: QaOptions): Promise<void> {
           const lastWitness = inWindow.some((d) => Math.abs(d.acq - Date.parse(ev.lastSeen)) <= tolMs);
           if (!firstWitness) notes.push("1er signal sans témoin brut à ±30 min");
           if (!lastWitness) notes.push("dernier signal sans témoin brut à ±30 min");
-          const maxRawFrp = Math.max(...inWindow.map((d) => d.frp), 0);
-          if (ev.maxFrp > maxRawFrp * 1.2 + 5) {
-            notes.push(`maxFrp affiché ${ev.maxFrp} > brut ${maxRawFrp.toFixed(1)}`);
+          // Le FRP affiché n'est comparable au brut FIRMS que si le foyer ne
+          // contient AUCUNE détection MTG : le flux EUMETSAT direct porte ses
+          // propres FRP, absents des CSV FIRMS (faux-positif détecté par la
+          // rétrospective du 2026-07-19 : maxFrp 70,9 « > brut 32,9 » — le
+          // 70,9 venait d'un pixel Meteosat).
+          if (ev.mtgCount === 0) {
+            const maxRawFrp = Math.max(...inWindow.map((d) => d.frp), 0);
+            if (ev.maxFrp > maxRawFrp * 1.2 + 5) {
+              notes.push(`maxFrp affiché ${ev.maxFrp} > brut ${maxRawFrp.toFixed(1)}`);
+            }
           }
           if (notes.length > 0) return { verdict: "WARN", detail: notes.join(" ; ") };
           return {
@@ -132,7 +139,10 @@ export async function runCrosscheck(opts: QaOptions): Promise<void> {
     }
   }
 
-  // ---- Corroborations : le lieu cité est bien à ≤ 50 km du foyer ---------------
+  // ---- Corroborations : lieu cité ≤ 30 km ET distance affichée cohérente -------
+  // Rayon réduit de 50 à 30 km avec le correctif « plus proche témoin »
+  // (cas Montereau/Fontainebleau) ; la distanceKm exposée par l'API doit
+  // correspondre au recalcul indépendant.
   await check(L, "Distance des corroborations citoyennes", async () => {
     const [events, signals] = [await getEvents(t, 24), await getSignals(t)];
     const corroborated = events.events.filter((ev) => ev.social);
@@ -144,12 +154,16 @@ export async function runCrosscheck(opts: QaOptions): Promise<void> {
       if (!sig) continue; // le signal a pu expirer de la fenêtre 12 h
       checked++;
       const km = haversineKm(ev.centroid[1], ev.centroid[0], sig.lat, sig.lon);
-      if (km > 50.5) problems.push(`${ev.social!.place} à ${km.toFixed(0)} km du foyer ${ev.id}`);
+      if (km > 30.5) problems.push(`${ev.social!.place} à ${km.toFixed(0)} km du foyer ${ev.id}`);
+      const shown = (ev.social as { distanceKm?: number }).distanceKm;
+      if (shown !== undefined && Math.abs(shown - km) > 1.5) {
+        problems.push(`${ev.id} : distanceKm affichée ${shown} ≠ recalcul ${km.toFixed(1)}`);
+      }
     }
     if (problems.length > 0) return { verdict: "FAIL", detail: problems.join(" ; ") };
     return {
       verdict: "PASS",
-      detail: `${checked}/${corroborated.length} corroborations vérifiées ≤ 50 km`,
+      detail: `${checked}/${corroborated.length} corroborations vérifiées (≤ 30 km, distance affichée cohérente)`,
     };
   });
 }

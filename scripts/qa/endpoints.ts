@@ -49,6 +49,28 @@ export async function runEndpoints(opts: QaOptions): Promise<void> {
     return { verdict: "PASS" };
   });
 
+  await check(L, "Page Précocité mesurée (FR + EN)", async () => {
+    const frRes = await fetchT(`${t}/fr/precocite`, 30_000);
+    const frHtml = await frRes.text();
+    if (!frRes.ok) return { verdict: "FAIL", detail: `FR HTTP ${frRes.status}` };
+    // La page doit contenir soit des cas mesurés, soit l'état vide honnête —
+    // jamais une erreur ni une page blanche.
+    const frOk =
+      frHtml.includes("Précocité mesurée") &&
+      (frHtml.includes("avance médiane") || frHtml.includes("Aucun cas mesurable"));
+    if (!frOk) return { verdict: "FAIL", detail: "contenu FR inattendu (ni cas, ni état vide)" };
+    const enRes = await fetchT(`${t}/en/precocite`, 30_000);
+    const enHtml = await enRes.text();
+    if (!enRes.ok || !enHtml.includes("Measured earliness")) {
+      return { verdict: "FAIL", detail: `EN HTTP ${enRes.status}` };
+    }
+    const withCases = frHtml.includes("avance médiane");
+    return {
+      verdict: "PASS",
+      detail: withCases ? "tableau de cas présent" : "état vide honnête (aucun cas sur 72 h)",
+    };
+  });
+
   await check(L, "Manifest PWA + icônes", async () => {
     const man = await fetchT(`${t}/manifest.webmanifest`, 20_000);
     if (!man.ok) return { verdict: "FAIL", detail: `manifest HTTP ${man.status}` };
@@ -213,5 +235,109 @@ export async function runEndpoints(opts: QaOptions): Promise<void> {
     });
     if (res.status >= 400 && res.status < 500) return { verdict: "PASS", detail: `corps invalide → ${res.status}` };
     return { verdict: "FAIL", detail: `corps invalide accepté (HTTP ${res.status})` };
+  });
+
+  // ---- /api/report : signalements citoyens directs (« Je vois un feu ») --------
+  await check(L, "/api/report GET invariants", async () => {
+    const res = await fetchT(`${t}/api/report`, 20_000);
+    if (!res.ok) return { verdict: "FAIL", detail: `HTTP ${res.status}` };
+    const j = (await res.json()) as { reports?: { lat: number; lon: number; at: string }[] };
+    if (!Array.isArray(j.reports)) return { verdict: "FAIL", detail: "champ reports absent" };
+    if (j.reports.length > 200) return { verdict: "FAIL", detail: `${j.reports.length} > plafond 200` };
+    const bad = j.reports.filter(
+      (r) =>
+        !isFinite(r.lat) ||
+        !isFinite(r.lon) ||
+        Math.abs(r.lat) > 90 ||
+        Math.abs(r.lon) > 180 ||
+        Date.now() - Date.parse(r.at) > 12.5 * 3_600_000
+    );
+    if (bad.length > 0) {
+      return { verdict: "FAIL", detail: `${bad.length} signalement(s) invalide(s) ou > 12 h` };
+    }
+    return { verdict: "PASS", detail: `${j.reports.length} signalement(s) actifs, tous valides` };
+  });
+
+  await check(L, "/api/report validation d'entrée", async () => {
+    const badCoords = await fetchT(`${t}/api/report`, 20_000, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ lat: 999, lon: 0 }),
+    });
+    if (badCoords.status !== 400 && badCoords.status !== 429) {
+      return { verdict: "FAIL", detail: `lat=999 acceptée (HTTP ${badCoords.status})` };
+    }
+    const badJson = await fetchT(`${t}/api/report`, 20_000, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "pas du json",
+    });
+    if (badJson.status !== 400 && badJson.status !== 429) {
+      return { verdict: "FAIL", detail: `JSON invalide accepté (HTTP ${badJson.status})` };
+    }
+    return { verdict: "PASS", detail: "coordonnées et corps invalides rejetés" };
+  });
+
+  await check(L, "/api/report cycle complet (envoi + rate limit + purge)", async () => {
+    // Le nettoyage passe par le Blob directement : sans le jeton, on ne
+    // laisse pas un signalement de test traîner sur la carte publique.
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      return { verdict: "SKIP", detail: "BLOB_READ_WRITE_TOKEN absent (pas de purge possible)" };
+    }
+    const { readJson, writeJson } = await import("../../src/lib/store");
+    const QA_LAT = 0.0512; // plein océan (golfe de Guinée) : invisible en pratique
+    const QA_LON = -3.0512;
+    type Rep = { id: string; lat: number; lon: number; at: string };
+    const isQa = (r: Rep) => Math.abs(r.lat - QA_LAT) < 0.001 && Math.abs(r.lon - QA_LON) < 0.001;
+    try {
+      const post = await fetchT(`${t}/api/report`, 20_000, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ lat: QA_LAT, lon: QA_LON, note: "test QA kanari" }),
+      });
+      if (post.status === 429) {
+        return { verdict: "WARN", detail: "rate limit déjà actif (run QA précédent < 5 min) — cycle non testé" };
+      }
+      if (!post.ok) return { verdict: "FAIL", detail: `POST valide refusé (HTTP ${post.status})` };
+
+      // Persistance vérifiée à la source (le GET public est derrière le CDN).
+      // La propagation d'une écriture Blob n'est pas instantanée : on relit
+      // avec patience avant de conclure (faux FAIL observé le 2026-07-19 —
+      // le signalement était bien écrit, la relecture immédiate était périmée).
+      let found = false;
+      for (let i = 0; i < 6 && !found; i++) {
+        await new Promise((r) => setTimeout(r, 5_000));
+        const stored = await readJson<Rep[]>("citizen-reports.json", []);
+        found = stored.some(isQa);
+      }
+      if (!found) {
+        return {
+          verdict: "FAIL",
+          detail: "signalement accepté mais introuvable dans le stockage après 30 s",
+        };
+      }
+
+      const again = await fetchT(`${t}/api/report`, 20_000, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ lat: QA_LAT, lon: QA_LON }),
+      });
+      // Le rate limit est par instance serverless : une autre instance peut
+      // répondre 200 — on nettoie dans tous les cas.
+      const rl = again.status === 429 ? "rate limit 429 confirmé" : `2e POST → ${again.status} (instance différente probable)`;
+      return { verdict: again.status === 429 ? "PASS" : "WARN", detail: `envoi + stockage OK ; ${rl}` };
+    } finally {
+      // Purge : on ne réécrit le blob QUE si notre signalement de test y est
+      // visible — réécrire depuis une lecture périmée pourrait effacer un
+      // signalement citoyen réel arrivé entre-temps.
+      try {
+        const stored = await readJson<Rep[]>("citizen-reports.json", []);
+        if (stored.some(isQa)) {
+          await writeJson("citizen-reports.json", stored.filter((r) => !isQa(r)));
+        }
+      } catch {
+        /* purge impossible : le signalement expirera de lui-même (12 h) */
+      }
+    }
   });
 }
