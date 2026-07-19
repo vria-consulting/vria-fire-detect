@@ -102,25 +102,59 @@ function parseCsv(csv: string, src: FireProperties["src"]): FireFeature[] {
   return features;
 }
 
+// Dernier téléchargement réussi par source : FIRMS rejette parfois un CSV
+// mondial (plusieurs Mo, surtout GOES) — sans repli, un continent entier
+// disparaissait de la carte pendant 5 min (observé le 2026-07-19 : goes=0
+// un snapshot sur deux). Des détections vieilles de quelques minutes valent
+// toujours mieux qu'un trou.
+const lastGood = new Map<string, { at: number; features: FireFeature[] }>();
+const LAST_GOOD_MS = 45 * 60 * 1000;
+
+async function fetchSource(
+  source: string,
+  key: string,
+  days: number
+): Promise<FireFeature[]> {
+  const url = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${key}/${source}/${WORLD_BBOX}/${days}`;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await fetch(url, { next: { revalidate: 0 } });
+      if (!res.ok) {
+        console.error(`FIRMS ${source} HTTP ${res.status} (essai ${attempt})`);
+        continue;
+      }
+      const text = await res.text();
+      if (text.startsWith("Invalid")) {
+        throw new Error("FIRMS_MAP_KEY_INVALID");
+      }
+      const features = parseCsv(text, source === "GOES_NRT" ? "goes" : "viirs");
+      if (features.length > 0) {
+        lastGood.set(source, { at: Date.now(), features });
+      }
+      return features;
+    } catch (e) {
+      if (e instanceof Error && e.message === "FIRMS_MAP_KEY_INVALID") throw e;
+      console.error(`FIRMS ${source} échec réseau (essai ${attempt}):`, e);
+    }
+  }
+  const cached = lastGood.get(source);
+  if (cached && Date.now() - cached.at < LAST_GOOD_MS) {
+    console.warn(
+      `FIRMS ${source} indisponible — réutilisation du téléchargement de ` +
+        `${Math.round((Date.now() - cached.at) / 60000)} min`
+    );
+    return cached.features;
+  }
+  return [];
+}
+
 export async function fetchFires(days: number): Promise<FireCollection> {
   const key = process.env.FIRMS_MAP_KEY;
   if (!key) {
     throw new Error("FIRMS_MAP_KEY_MISSING");
   }
   const results = await Promise.all(
-    SOURCES.map(async (source) => {
-      const url = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${key}/${source}/${WORLD_BBOX}/${days}`;
-      const res = await fetch(url, { next: { revalidate: 0 } });
-      if (!res.ok) {
-        console.error(`FIRMS ${source} HTTP ${res.status}`);
-        return [];
-      }
-      const text = await res.text();
-      if (text.startsWith("Invalid")) {
-        throw new Error("FIRMS_MAP_KEY_INVALID");
-      }
-      return parseCsv(text, source === "GOES_NRT" ? "goes" : "viirs");
-    })
+    SOURCES.map((source) => fetchSource(source, key, days))
   );
   const features = results.flat();
   return {
