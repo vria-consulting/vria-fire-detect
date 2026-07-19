@@ -5,8 +5,10 @@
 import { check } from "./util";
 import { extractPlaces, countPlaceNames, normalizePlace } from "../../src/lib/geoparse";
 import { clusterFires } from "../../src/lib/cluster";
-import { daysNeeded } from "../../src/lib/eventscache";
-import type { FireFeature } from "../../src/lib/firms";
+import { daysNeeded, attachSignals } from "../../src/lib/eventscache";
+import { parseCsv, type FireFeature } from "../../src/lib/firms";
+import { emergencyNumber } from "../../src/lib/i18n";
+import type { SocialSignal } from "../../src/lib/socialscan";
 
 const L = "0-unité";
 
@@ -102,6 +104,113 @@ export async function runUnit(): Promise<void> {
     if (big.maxFrp !== 30) errs.push(`maxFrp=${big.maxFrp}`);
     if (errs.length > 0) return { verdict: "FAIL", detail: errs.join(" ; ") };
     return { verdict: "PASS", detail: "fusion, sources, horaires et FRP corrects" };
+  });
+
+  // ---- Parsing FIRMS : composite géostationnaire (bug « carte vide » 19/07) ----
+  await check(L, "parseCsv : confiances hétérogènes du composite GOES", async () => {
+    const header =
+      "latitude,longitude,bright_ti4,scan,track,acq_date,acq_time,satellite,instrument,confidence,version,bright_ti5,frp,daynight";
+    const csv = [
+      header,
+      // Met12 (MTG) : confiance en FRACTION 0-1 -> normalisée en %, src mtg
+      "40.0,-3.0,300,0,0,2026-07-19,949,Met12,,0.632,1.11NRT,290,15.5,D",
+      // G18 : confiance fixe 30 % -> sous le seuil, écartée (les FRP portent les pixels sûrs)
+      "41.0,-100.0,300,0,0,2026-07-19,949,G18,,30.0000,1.11NRT,290,10,D",
+      // G19FRP : pourcentage haut -> gardée, src goes, conf h
+      "42.0,-100.0,300,0,0,2026-07-19,949,G19FRP,,85,1.11NRT,290,10,D",
+      // Himawari-9 : pourcentage nominal -> gardée, src goes
+      "35.0,135.0,300,0,0,2026-07-19,1230,Him9,,55,1.11NRT,290,10,N",
+    ].join("\n");
+    const f = parseCsv(csv, "goes");
+    const errs: string[] = [];
+    if (f.length !== 3) errs.push(`${f.length} détections gardées (3 attendues)`);
+    const met = f.find((x) => x.properties.sat === "Met12");
+    if (!met) errs.push("Met12 écartée (fraction non normalisée ?)");
+    else {
+      if (met.properties.src !== "mtg") errs.push(`Met12 src=${met.properties.src} (mtg attendu)`);
+      if (met.properties.conf !== "n") errs.push(`Met12 conf=${met.properties.conf} (n attendu pour 63 %)`);
+    }
+    if (f.some((x) => x.properties.sat === "G18")) errs.push("G18 à 30 % non écartée");
+    const frp = f.find((x) => x.properties.sat === "G19FRP");
+    if (frp && (frp.properties.src !== "goes" || frp.properties.conf !== "h"))
+      errs.push("G19FRP mal classée");
+    const him = f.find((x) => x.properties.sat === "Him9");
+    if (him && him.properties.src !== "goes") errs.push("Him9 mal classée");
+    if (errs.length > 0) return { verdict: "FAIL", detail: errs.join(" ; ") };
+    return { verdict: "PASS", detail: "fraction normalisée, seuil 40 %, Met->mtg, Him/FRP->goes" };
+  });
+
+  await check(L, "parseCsv : VIIRS (confiance en lettres, inchangé)", async () => {
+    const header =
+      "latitude,longitude,bright_ti4,scan,track,acq_date,acq_time,satellite,instrument,confidence,version,bright_ti5,frp,daynight";
+    const csv = [header, "48.5,0.3,300,0,0,2026-07-19,130,N20,VIIRS,h,2.0NRT,290,3.2,N"].join("\n");
+    const f = parseCsv(csv, "viirs");
+    if (f.length !== 1) return { verdict: "FAIL", detail: "détection VIIRS perdue" };
+    const p = f[0].properties;
+    if (p.src !== "viirs" || p.conf !== "h" || p.acq !== "2026-07-19T01:30:00Z") {
+      return { verdict: "FAIL", detail: `src=${p.src} conf=${p.conf} acq=${p.acq}` };
+    }
+    return { verdict: "PASS" };
+  });
+
+  // ---- Corroboration : témoignage le plus proche (cas Montereau/Fontainebleau) --
+  await check(L, "attachSignals : plus proche témoin, rayon 30 km, distance", async () => {
+    const t0 = "2026-07-19T06:00:00Z";
+    const sig = (place: string, lat: number, lon: number): SocialSignal => ({
+      place,
+      countryCode: "fr",
+      lat,
+      lon,
+      postCount: 2,
+      firstPost: t0,
+      lastPost: t0,
+      posts: [],
+    });
+    // Foyer à (42.0, 3.0) ; 1° lat ~ 111 km.
+    const events = clusterFires([
+      feature(42.0, 3.0, t0, "viirs", 12),
+      feature(45.0, 6.0, t0, "viirs", 5),
+    ]);
+    attachSignals(events, [
+      sig("Loin", 42.405, 3.0), // ~45 km : hors rayon
+      sig("Moyen", 42.225, 3.0), // ~25 km : dans le rayon
+      sig("Proche", 42.09, 3.0), // ~10 km : le plus proche -> attendu
+      sig("TropLoin2", 45.36, 6.0), // ~40 km du 2e foyer : hors rayon
+    ]);
+    const [near, far] = events[0].centroid[1] < 44 ? [events[0], events[1]] : [events[1], events[0]];
+    const errs: string[] = [];
+    if (near.confidence !== "corrobore") errs.push(`foyer 1 confidence=${near.confidence}`);
+    if (near.social?.place !== "Proche")
+      errs.push(`foyer 1 attaché à « ${near.social?.place} » (« Proche » attendu)`);
+    const km = near.social?.distanceKm;
+    if (km === undefined || km < 8 || km > 12) errs.push(`distanceKm=${km} (~10 attendu)`);
+    if (far.confidence === "corrobore" || far.social)
+      errs.push("foyer 2 corroboré à 40 km (rayon 30 attendu)");
+    if (errs.length > 0) return { verdict: "FAIL", detail: errs.join(" ; ") };
+    return { verdict: "PASS", detail: "plus proche choisi, distance stockée, 40 km rejeté" };
+  });
+
+  // ---- Numéro d'urgence géolocalisé --------------------------------------------
+  await check(L, "emergencyNumber : 18 en France, réflexes locaux ailleurs", async () => {
+    const cases: [string | null, "fr" | "en", string][] = [
+      ["FR", "fr", "18"], // retour préventeur : le 18 est LE réflexe feu
+      ["US", "en", "911"],
+      ["GB", "en", "999"],
+      ["AU", "en", "000"],
+      ["DE", "fr", "112"], // pays sans entrée dédiée -> norme GSM
+      [null, "fr", "112"], // sans géo : selon la langue
+      [null, "en", "911"],
+    ];
+    const wrong = cases.filter(([c, l, want]) => emergencyNumber(c, l) !== want);
+    if (wrong.length > 0) {
+      return {
+        verdict: "FAIL",
+        detail: wrong
+          .map(([c, l, want]) => `${c ?? "∅"}/${l} → ${emergencyNumber(c, l)} (attendu ${want})`)
+          .join(" ; "),
+      };
+    }
+    return { verdict: "PASS", detail: `${cases.length} pays/langues corrects` };
   });
 
   // ---- Couverture FIRMS (le bug « carte vide le matin ») -----------------------

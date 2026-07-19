@@ -120,13 +120,38 @@ function flameImage(main: string, core: string): ImageData {
 }
 
 // Palette charte : [flamme, cœur] — danger, braise, jaune fort, gris, citoyen.
+// « unverified » : bleu délavé pour un signalement sans satellite à proximité
+// (retour utilisateur : impossible de distinguer un signal isolé d'un foyer
+// confirmé sur la carte).
 const FLAMES: Record<string, [string, string]> = {
   "flame-active": ["#D64545", "#F9E0E0"],
   "flame-recent": ["#E8622C", "#FBE5DA"],
   "flame-watched": ["#F0B400", "#FFF1C9"],
   "flame-old": ["#8A8880", "#F3F0E8"],
   "flame-citizen": ["#4A90C2", "#DCEBF7"],
+  "flame-unverified": ["#A9C6DD", "#F0F6FB"],
 };
+
+// Distance (km) sous laquelle un signalement citoyen est considéré comme
+// « appuyé » par une détection satellite — même seuil que la corroboration
+// serveur, recalculé côté client pour styler les flammes bleues.
+const SIGNAL_VERIFY_KM = 30;
+
+function fastDistKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  // Équirectangulaire : largement suffisant à 30 km, et assez rapide pour
+  // croiser chaque signal avec des milliers de foyers à chaque rafraîchissement.
+  const kx = Math.cos(((lat1 + lat2) / 2) * (Math.PI / 180)) * 111.32;
+  const dx = (lon1 - lon2) * kx;
+  const dy = (lat1 - lat2) * 110.57;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function signalVerified(sig: SocialSignal, events: FireEvent[]): boolean {
+  return events.some(
+    (ev) =>
+      fastDistKm(sig.lat, sig.lon, ev.centroid[1], ev.centroid[0]) <= SIGNAL_VERIFY_KM
+  );
+}
 
 type Wind = { speed: number; gusts: number; direction: number };
 
@@ -285,6 +310,42 @@ export default function FireMap({ lang }: { lang: Lang }) {
     };
   }, [selected]);
 
+  // Nom de lieu du foyer sélectionné (géocodage inverse Photon) : au zoom
+  // pays, « 48.40, 2.70 » ne dit rien et fait deviner le mauvais massif
+  // (retour utilisateur : un feu estimé en Ariège était à Néouvielle).
+  const [nearPlace, setNearPlace] = useState<string | null>(null);
+  const nearPlaceCache = useRef<Map<string, string>>(new Map());
+  useEffect(() => {
+    setNearPlace(null);
+    if (!selected || selected.social?.place) return;
+    const cached = nearPlaceCache.current.get(selected.id);
+    if (cached) {
+      setNearPlace(cached);
+      return;
+    }
+    let stale = false;
+    const [lon, lat] = selected.centroid;
+    fetch(
+      `https://photon.komoot.io/reverse?lon=${lon.toFixed(4)}&lat=${lat.toFixed(4)}&lang=${lang}`
+    )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        const p = j?.features?.[0]?.properties;
+        const name = p?.name ?? p?.city ?? p?.county ?? null;
+        const label = name
+          ? [name, p?.state ?? p?.country].filter(Boolean).join(", ")
+          : null;
+        if (label) nearPlaceCache.current.set(selected.id, label);
+        if (!stale && label) setNearPlace(label);
+      })
+      .catch(() => {
+        /* géocodage silencieusement indisponible : les coordonnées restent */
+      });
+    return () => {
+      stale = true;
+    };
+  }, [selected, lang]);
+
   const loadData = useCallback(async (map: maplibregl.Map, nHours: number, silent = false) => {
     if (!silent) setStatus({ kind: "loading" });
     try {
@@ -350,6 +411,7 @@ export default function FireMap({ lang }: { lang: Lang }) {
               ageMin: Math.round(hoursAgo(s.lastPost) * 60),
               firstAgeMin: Math.round(hoursAgo(s.firstPost) * 60),
               newFire: s.newFire ? 1 : 0,
+              verified: signalVerified(s, data.events) ? 1 : 0,
             },
           })),
         });
@@ -455,13 +517,19 @@ export default function FireMap({ lang }: { lang: Lang }) {
           "icon-ignore-placement": true,
         },
       });
-      // Signalements citoyens : flamme bleue source humaine.
+      // Signalements citoyens : flamme bleue source humaine — délavée tant
+      // qu'aucun satellite ne confirme à proximité (« à vérifier »).
       map.addLayer({
         id: "signals-icons",
         type: "symbol",
         source: "signals",
         layout: {
-          "icon-image": "flame-citizen",
+          "icon-image": [
+            "case",
+            ["==", ["get", "verified"], 1],
+            "flame-citizen",
+            "flame-unverified",
+          ],
           "icon-size": ["interpolate", ["linear"], ["zoom"], 2, 0.26, 9, 0.5],
           "icon-allow-overlap": true,
           "icon-ignore-placement": true,
@@ -1033,16 +1101,23 @@ export default function FireMap({ lang }: { lang: Lang }) {
                 [AGE_COLORS.watched, t.legendWatched],
                 [AGE_COLORS.old, t.legendOld],
                 [AGE_COLORS.citizen, t.legendCitizen],
+                [FLAMES["flame-unverified"][0], t.legendUnverified],
               ] as const
             ).map(([color, label]) => (
               <span key={label} className="flex items-center gap-[9px]">
                 <span
-                  className="inline-block h-[11px] w-[11px] rounded-full"
+                  className="inline-block h-[11px] w-[11px] shrink-0 rounded-full"
                   style={{ background: color }}
                 />
                 {label}
               </span>
             ))}
+            <span
+              className="mt-0.5 border-t pt-2 text-xs"
+              style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}
+            >
+              {t.legendSize}
+            </span>
           </div>
         )}
 
@@ -1388,6 +1463,14 @@ export default function FireMap({ lang }: { lang: Lang }) {
             >
               {selectedSignal.newFire ? t.badgeNewFire : t.badgeReport}
             </span>
+            {!signalVerified(selectedSignal, events) && (
+              <span
+                className="flex h-[22px] shrink-0 items-center rounded-full px-[9px] text-[11px] font-bold"
+                style={{ background: "#EDF4FA", color: "#5B87A8", letterSpacing: ".4px" }}
+              >
+                {t.badgeUnverified}
+              </span>
+            )}
             <strong className="flex-1 truncate text-base" style={{ color: "var(--ink)" }}>
               {selectedSignal.place} ({selectedSignal.countryCode.toUpperCase()})
             </strong>
@@ -1454,7 +1537,8 @@ export default function FireMap({ lang }: { lang: Lang }) {
               {eventBadge(selected).label}
             </span>
             <strong className="flex-1 truncate text-base" style={{ color: "var(--ink)" }}>
-              {eventTitle(selected)}
+              {selected.social?.place ??
+                (nearPlace ? t.nearLabel(nearPlace) : eventTitle(selected))}
             </strong>
             <button
               onClick={() => setSelected(null)}
@@ -1573,7 +1657,11 @@ export default function FireMap({ lang }: { lang: Lang }) {
           {detailOpen && selected.social && (
             <div className="mt-3 border-t pt-3" style={{ borderColor: "var(--line)" }}>
               <p className="mb-2 text-xs font-medium" style={{ color: "#22684A" }}>
-                {t.corrobBy(selected.social.postCount, selected.social.place)}
+                {t.corrobBy(
+                  selected.social.postCount,
+                  selected.social.place,
+                  selected.social.distanceKm
+                )}
               </p>
               <PostList posts={selected.social.posts} t={t} />
             </div>

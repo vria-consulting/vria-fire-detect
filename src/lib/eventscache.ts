@@ -13,7 +13,7 @@ import { fetchFires, type FireFeature } from "./firms";
 import { fetchMtgFires } from "./mtg";
 import { clusterFires, FireEvent, Confidence } from "./cluster";
 import { getSignals } from "./signalcache";
-import { haversineKm } from "./socialscan";
+import { haversineKm, type SocialSignal } from "./socialscan";
 import { readJson, writeJson, blobUpdatedAt } from "./store";
 
 export type EventsPayload = {
@@ -21,9 +21,11 @@ export type EventsPayload = {
   meta: { hours: number; fetchedAt: string; totalDetections: number };
 };
 
-// Un témoignage corrobore un foyer s'il cite un lieu à moins de 50 km
-// (les gens nomment la ville voisine, pas la parcelle qui brûle).
-const CORROBORATION_KM = 50;
+// Un témoignage corrobore un foyer s'il cite un lieu à moins de 30 km
+// (les gens nomment la ville voisine, pas la parcelle qui brûle). Réduit de
+// 50 à 30 km après le cas Montereau/Fontainebleau : au-delà, l'association
+// prêtait plus à confusion qu'elle n'aidait.
+const CORROBORATION_KM = 30;
 
 function baseConfidence(ev: FireEvent): Confidence {
   const sources =
@@ -32,6 +34,35 @@ function baseConfidence(ev: FireEvent): Confidence {
     return "probable";
   }
   return "possible";
+}
+
+// Corroboration : chaque foyer reçoit le témoignage LE PLUS PROCHE dans le
+// rayon — le premier trouvé attachait « près de Montereau » à un feu de
+// Fontainebleau alors qu'un signal plus proche existait. La distance est
+// conservée pour être affichée. Exportée (pure) pour le programme de QA.
+export function attachSignals(events: FireEvent[], signals: SocialSignal[]): void {
+  for (const ev of events) {
+    ev.confidence = baseConfidence(ev);
+    let best: (typeof signals)[number] | null = null;
+    let bestKm = Infinity;
+    for (const sig of signals) {
+      const km = haversineKm(ev.centroid[1], ev.centroid[0], sig.lat, sig.lon);
+      if (km <= CORROBORATION_KM && km < bestKm) {
+        bestKm = km;
+        best = sig;
+      }
+    }
+    if (best) {
+      ev.confidence = "corrobore";
+      ev.social = {
+        place: best.place,
+        postCount: best.postCount,
+        posts: best.posts,
+        firstPress: best.firstPress,
+        distanceKm: Math.round(bestKm),
+      };
+    }
+  }
 }
 
 // 2 min : la précocité prime — le volume reste très en dessous du rate limit
@@ -143,23 +174,7 @@ async function doComputeEvents(hours: number): Promise<EventsPayload> {
         setTimeout(() => reject(new Error("SIGNALS_SLOW_COLD_START")), 10_000)
       ),
     ]);
-    for (const ev of events) {
-      ev.confidence = baseConfidence(ev);
-      for (const sig of signals) {
-        if (
-          haversineKm(ev.centroid[1], ev.centroid[0], sig.lat, sig.lon) <= CORROBORATION_KM
-        ) {
-          ev.confidence = "corrobore";
-          ev.social = {
-            place: sig.place,
-            postCount: sig.postCount,
-            posts: sig.posts,
-            firstPress: sig.firstPress,
-          };
-          break;
-        }
-      }
-    }
+    attachSignals(events, signals);
   } catch (e) {
     console.error("corroboration skipped:", e);
     for (const ev of events) ev.confidence = baseConfidence(ev);

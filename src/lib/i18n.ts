@@ -21,6 +21,10 @@ export function isValidLang(x: string | undefined): x is Lang {
 // sert de repli — sauf en anglais sans géo, où l'audience est majoritairement
 // nord-américaine (911).
 const EMERGENCY_BY_COUNTRY: Record<string, string> = {
+  // En France, le 18 (pompiers) est LE réflexe feu — retour d'un préventeur
+  // sur le post de lancement ; le 112 route vers les mêmes centres mais parle
+  // moins aux habitants.
+  FR: "18",
   US: "911", CA: "911", MX: "911", PH: "911",
   GB: "999", IE: "999",
   AU: "000",
@@ -54,7 +58,9 @@ const fr = {
   legendRecent: "Récent · 3 – 12 h",
   legendWatched: "Surveillé · 12 – 24 h",
   legendOld: "Ancien · plus de 24 h",
-  legendCitizen: "Signalement citoyen",
+  legendCitizen: "Signalement citoyen · satellite à proximité",
+  legendUnverified: "Signalement à vérifier · pas encore de satellite",
+  legendSize: "Taille de la flamme = nombre de détections",
   analyzing: "kanari analyse les signaux…",
   errFirmsKey: "Clé NASA FIRMS manquante ou invalide (variable FIRMS_MAP_KEY).",
   errData: "Données satellite momentanément indisponibles — nouvel essai dans 2 min.",
@@ -134,8 +140,12 @@ const fr = {
   dlDetections: "Détections",
   dlPower: "Puissance max",
   dlPosition: "Position",
-  corrobBy: (n: number, place: string) =>
-    `Corroboré par ${n} témoignage${n > 1 ? "s" : ""} près de ${place}`,
+  corrobBy: (n: number, place: string, km?: number) =>
+    `Corroboré par ${n} témoignage${n > 1 ? "s" : ""} près de ${place}${
+      km !== undefined && km >= 5 ? ` (à ~${km} km)` : ""
+    }`,
+  nearLabel: (place: string) => `près de ${place}`,
+  badgeUnverified: "À VÉRIFIER",
   searchWitnesses: (more: boolean) => `Chercher ${more ? "plus de " : "des "}témoignages`,
   searchingWitnesses: "Recherche de témoignages en cours…",
   searchUnavailable: "Recherche indisponible pour le moment.",
@@ -170,7 +180,9 @@ const en: typeof fr = {
   legendRecent: "Recent · 3 – 12 h",
   legendWatched: "Monitored · 12 – 24 h",
   legendOld: "Old · over 24 h",
-  legendCitizen: "Citizen report",
+  legendCitizen: "Citizen report · satellite nearby",
+  legendUnverified: "Report being verified · no satellite yet",
+  legendSize: "Flame size = number of detections",
   analyzing: "kanari is analyzing signals…",
   errFirmsKey: "NASA FIRMS key missing or invalid (FIRMS_MAP_KEY variable).",
   errData: "Satellite data temporarily unavailable — retrying in 2 min.",
@@ -246,8 +258,12 @@ const en: typeof fr = {
   dlDetections: "Detections",
   dlPower: "Max power",
   dlPosition: "Position",
-  corrobBy: (n: number, place: string) =>
-    `Corroborated by ${n} report${n > 1 ? "s" : ""} near ${place}`,
+  corrobBy: (n: number, place: string, km?: number) =>
+    `Corroborated by ${n} report${n > 1 ? "s" : ""} near ${place}${
+      km !== undefined && km >= 5 ? ` (~${km} km away)` : ""
+    }`,
+  nearLabel: (place: string) => `near ${place}`,
+  badgeUnverified: "TO VERIFY",
   searchWitnesses: (more: boolean) => `Search for ${more ? "more " : ""}witnesses`,
   searchingWitnesses: "Searching for witnesses…",
   searchUnavailable: "Search unavailable right now.",

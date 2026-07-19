@@ -91,6 +91,11 @@ export async function runEndpoints(opts: QaOptions): Promise<void> {
           if (ev.social.postCount < 1 || ev.social.posts.length === 0) errs.push("corroboration vide");
           if (!ev.social.place) errs.push("corroboration sans lieu");
           if (ev.confidence !== "corrobore") errs.push("social présent mais confiance ≠ corroboré");
+          // Cas Montereau/Fontainebleau : un témoignage attaché doit rester
+          // dans le rayon de corroboration (30 km). Champ absent toléré tant
+          // qu'un snapshot antérieur au correctif peut encore être servi.
+          const km = (ev.social as { distanceKm?: number }).distanceKm;
+          if (km !== undefined && (km < 0 || km > 30)) errs.push(`distanceKm=${km} (rayon 30 max)`);
         }
         if (errs.length > 0) problems.push(`${ev.id} : ${errs.join(", ")}`);
       }

@@ -28,6 +28,10 @@ export type FireEvent = {
     postCount: number;
     posts: SocialPost[];
     firstPress?: string; // 1er article de presse — pour mesurer notre avance
+    // Distance centroïde du foyer -> lieu cité (km) : affichée quand elle est
+    // significative — un témoignage « près de Montereau » attaché à un feu de
+    // Fontainebleau (30 km) sans le dire minait la confiance (retour terrain).
+    distanceKm?: number;
   };
 };
 

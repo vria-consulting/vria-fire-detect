@@ -39,7 +39,9 @@ const GEO_MIN_CONF = 40;
 
 const WORLD_BBOX = "-180,-90,180,90";
 
-function parseCsv(csv: string, src: FireProperties["src"]): FireFeature[] {
+// Exportée pour le programme de QA : le bug « confiances hétérogènes du
+// composite géostationnaire » (2026-07-19) est couvert par un test golden.
+export function parseCsv(csv: string, src: FireProperties["src"]): FireFeature[] {
   const lines = csv.trim().split("\n");
   if (lines.length < 2) return [];
   const header = lines[0].split(",");
