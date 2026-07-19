@@ -200,7 +200,10 @@ export function staleBlobEvents(hours: number): Promise<EventsPayload | null> {
 // passage FIRMS par reconstruction.
 export async function rebuildAll(): Promise<{ rebuilt: number[]; totalDetections: number }> {
   const shortTier = VALID_HOURS.filter((h) => !LONG_TIER_HOURS.includes(h));
-  const longAge = await blobUpdatedAt(EVENTS_PATH(72));
+  // L'âge se mesure sur 48 h : la vue 72 h est dans l'interface et une
+  // instance visiteur peut donc réécrire son blob à tout moment — se baser
+  // dessus laisserait le tiers long éternellement « frais ».
+  const longAge = await blobUpdatedAt(EVENTS_PATH(48));
   const withLong = longAge === null || Date.now() - longAge > LONG_TIER_MS;
   const hoursList = [...(withLong ? LONG_TIER_HOURS : []), ...shortTier].sort(
     (a, b) => b - a
