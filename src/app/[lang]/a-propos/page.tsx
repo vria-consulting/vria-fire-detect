@@ -93,6 +93,14 @@ export default async function About({ params }: { params: Promise<{ lang: string
                 sociaux, géolocalisés par nom de lieu et triés par IA — chaque signalement est jugé
                 deux fois avant d&apos;être affiché.
               </p>
+              <p>
+                Combien d&apos;avance, concrètement ? Nous le mesurons en continu, horodatages à
+                l&apos;appui : voir la page{" "}
+                <Link href={`/${lang}/precocite`} style={{ color: "var(--link)" }}>
+                  Précocité mesurée
+                </Link>
+                .
+              </p>
               <H2>Limites à connaître</H2>
               <ul className="list-disc space-y-2 pl-5">
                 <li>
@@ -153,6 +161,13 @@ export default async function About({ params }: { params: Promise<{ lang: string
                 continuously and refresh every 10 minutes: less precise, but decisive for
                 earliness. kanari adds social media monitoring of citizen reports, geolocated by
                 place name and triaged by AI — every report is judged twice before being displayed.
+              </p>
+              <p>
+                How early, concretely? We measure it continuously, timestamps included: see the{" "}
+                <Link href={`/${lang}/precocite`} style={{ color: "var(--link)" }}>
+                  Measured earliness
+                </Link>{" "}
+                page.
               </p>
               <H2>Known limits</H2>
               <ul className="list-disc space-y-2 pl-5">

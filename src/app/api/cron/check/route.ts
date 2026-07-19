@@ -9,6 +9,7 @@ import {
   PushSubscriptionRecord,
 } from "@/lib/store";
 import type { FireEvent } from "@/lib/cluster";
+import { dfciCode } from "@/lib/dfci";
 
 export const runtime = "nodejs";
 // Le cron réchauffe les caches 24 h + 6 h : à froid c'est le passage le plus
@@ -71,9 +72,12 @@ export async function GET(req: NextRequest) {
       const key = `${sub.id}:${ev.id}`;
       if (log[key]) continue;
       const place = ev.social?.place;
+      // Carreau DFCI (France) : lisible directement à la radio par les
+      // secours — demande d'un cdt de SDIS sur le post de lancement.
+      const dfci = dfciCode(ev.centroid[1], ev.centroid[0]);
       const payload = JSON.stringify({
         title: "🔥 Nouveau foyer détecté",
-        body: `${place ? place + " — " : ""}${ev.count} détection${ev.count > 1 ? "s" : ""}, ${ev.maxFrp} MW, confiance ${ev.confidence === "corrobore" ? "corroborée" : "probable"}. 1er signal ${new Date(ev.firstSeen).toISOString().slice(11, 16)} UTC.`,
+        body: `${place ? place + " — " : ""}${dfci ? `DFCI ${dfci} — ` : ""}${ev.count} détection${ev.count > 1 ? "s" : ""}, ${ev.maxFrp} MW, confiance ${ev.confidence === "corrobore" ? "corroborée" : "probable"}. 1er signal ${new Date(ev.firstSeen).toISOString().slice(11, 16)} UTC.`,
         url: `/?lat=${ev.centroid[1].toFixed(3)}&lon=${ev.centroid[0].toFixed(3)}&z=9&ev=${encodeURIComponent(ev.id)}`,
       });
       try {

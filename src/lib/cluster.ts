@@ -97,11 +97,19 @@ export function clusterFires(features: FireFeature[]): FireEvent[] {
       if (m.properties.acq > lastSeen) lastSeen = m.properties.acq;
       if (CONF_RANK[m.properties.conf] > CONF_RANK[maxConf]) maxConf = m.properties.conf;
     }
-    const centroid: [number, number] = [sumLon / members.length, sumLat / members.length];
+    // Coordonnées arrondies (4 déc. ≈ 11 m, 3 déc. ≈ 110 m) : sans arrondi,
+    // les 15 décimales de chaque flottant gonflaient le payload 24 h de ~2 Mo
+    // — sensible sur mobile, d'où vient l'essentiel du trafic.
+    const r4 = (v: number) => Math.round(v * 1e4) / 1e4;
+    const r3 = (v: number) => Math.round(v * 1e3) / 1e3;
+    const centroid: [number, number] = [
+      r4(sumLon / members.length),
+      r4(sumLat / members.length),
+    ];
     events.push({
       id: `${firstSeen.slice(0, 13)}_${centroid[0].toFixed(2)}_${centroid[1].toFixed(2)}`,
       centroid,
-      bbox: [minLon, minLat, maxLon, maxLat],
+      bbox: [r3(minLon), r3(minLat), r3(maxLon), r3(maxLat)],
       count: members.length,
       viirsCount,
       goesCount,

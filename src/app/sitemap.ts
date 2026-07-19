@@ -32,5 +32,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.7,
       alternates: { languages: { fr: `${base}/fr/a-propos`, en: `${base}/en/a-propos` } },
     },
+    {
+      url: `${base}/fr/precocite`,
+      lastModified: new Date(),
+      changeFrequency: "hourly",
+      priority: 0.8,
+      alternates: { languages: { fr: `${base}/fr/precocite`, en: `${base}/en/precocite` } },
+    },
+    {
+      url: `${base}/en/precocite`,
+      lastModified: new Date(),
+      changeFrequency: "hourly",
+      priority: 0.8,
+      alternates: { languages: { fr: `${base}/fr/precocite`, en: `${base}/en/precocite` } },
+    },
   ];
 }

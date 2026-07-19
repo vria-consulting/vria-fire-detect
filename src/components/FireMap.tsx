@@ -7,6 +7,7 @@ import type { FireEvent, Confidence } from "@/lib/cluster";
 import type { SocialResult, SocialPost } from "@/lib/social";
 import type { SocialSignal } from "@/lib/socialscan";
 import { DICT, type Lang, type Dict } from "@/lib/i18n";
+import { dfciCode } from "@/lib/dfci";
 
 const REGIONS: Record<string, { center: [number, number]; zoom: number }> = {
   France: { center: [2.5, 46.6], zoom: 5.2 },
@@ -266,6 +267,8 @@ export default function FireMap({ lang }: { lang: Lang }) {
   // (< 2 h) — l'onglet pilote aussi les filtres de la carte.
   const [mode, setMode] = useState<"tout" | "departs">("tout");
   const [signals, setSignals] = useState<SocialSignal[]>([]);
+  const reportsRef = useRef<{ id: string; lat: number; lon: number; note?: string; at: string }[]>([]);
+  const [reportBusy, setReportBusy] = useState(false);
   const pulseMarkersRef = useRef<maplibregl.Marker[]>([]);
   const [, setTick] = useState(0); // re-rendu périodique des "il y a X min"
   // Emprise affichée [ouest, sud, est, nord] : filtre le flux de droite.
@@ -349,9 +352,10 @@ export default function FireMap({ lang }: { lang: Lang }) {
   const loadData = useCallback(async (map: maplibregl.Map, nHours: number, silent = false) => {
     if (!silent) setStatus({ kind: "loading" });
     try {
-      const [evRes, sigRes] = await Promise.all([
+      const [evRes, sigRes, repRes] = await Promise.all([
         fetch(`/api/events?hours=${nHours}`),
         fetch(`/api/signals`).catch(() => null),
+        fetch(`/api/report`).catch(() => null),
       ]);
       if (!evRes.ok) {
         const body = await evRes.json().catch(() => ({ error: "UNKNOWN" }));
@@ -395,6 +399,25 @@ export default function FireMap({ lang }: { lang: Lang }) {
             },
           })),
         });
+      // Signalements citoyens directs (« Je vois un feu ») : affichés en
+      // signaux « à vérifier », jamais en foyers confirmés.
+      let reports: { id: string; lat: number; lon: number; note?: string; at: string }[] = [];
+      if (repRes?.ok) {
+        const repData = await repRes.json().catch(() => null);
+        if (repData?.reports) reports = repData.reports;
+      }
+      reportsRef.current = reports;
+      const repSrc = map.getSource("reports") as maplibregl.GeoJSONSource | undefined;
+      if (repSrc)
+        repSrc.setData({
+          type: "FeatureCollection",
+          features: reports.map((r) => ({
+            type: "Feature" as const,
+            geometry: { type: "Point" as const, coordinates: [r.lon, r.lat] },
+            properties: { repId: r.id },
+          })),
+        });
+
       const sigSrc = map.getSource("signals") as maplibregl.GeoJSONSource | undefined;
       if (sigSrc)
         sigSrc.setData({
@@ -469,6 +492,10 @@ export default function FireMap({ lang }: { lang: Lang }) {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       });
+      map.addSource("reports", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
       // Halo doux sous les feux actifs (< 3 h).
       map.addLayer({
         id: "events-glow",
@@ -536,6 +563,19 @@ export default function FireMap({ lang }: { lang: Lang }) {
         },
       });
 
+      // Témoins directs : petite flamme « à vérifier ».
+      map.addLayer({
+        id: "reports-icons",
+        type: "symbol",
+        source: "reports",
+        layout: {
+          "icon-image": "flame-unverified",
+          "icon-size": ["interpolate", ["linear"], ["zoom"], 2, 0.24, 9, 0.46],
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+        },
+      });
+
       // Un seul gestionnaire de clic avec ZONE DE TOLÉRANCE : au zoom monde,
       // les flammes font ~10 px et exiger le pixel exact rendait la sélection
       // impossible sans zoomer. On cherche dans un carré de ±12 px et on
@@ -544,7 +584,9 @@ export default function FireMap({ lang }: { lang: Lang }) {
         // queryRenderedFeatures peut lever « Out of bounds » si le clic tombe
         // pendant la reconstruction des tuiles (setData toutes les 2 min).
         try {
-          const layers = ["events-icons", "signals-icons"].filter((l) => map.getLayer(l));
+          const layers = ["events-icons", "signals-icons", "reports-icons"].filter((l) =>
+            map.getLayer(l)
+          );
           if (layers.length === 0) return;
           const pad = 12;
           const bbox: [maplibregl.PointLike, maplibregl.PointLike] = [
@@ -569,6 +611,24 @@ export default function FireMap({ lang }: { lang: Lang }) {
             }
           }
           if (!best) return;
+          if (best.layer.id === "reports-icons") {
+            const rep = reportsRef.current.find((r) => r.id === best!.properties.repId);
+            if (rep) {
+              const ageH = hoursAgo(rep.at);
+              const age =
+                ageH < 1
+                  ? `${Math.max(1, Math.round(ageH * 60))} min`
+                  : `${Math.round(ageH)} h`;
+              const div = document.createElement("div");
+              div.style.cssText = "font: 12.5px var(--font-body); color: var(--ink-2)";
+              div.textContent = t.reportPopup(t.ago(age));
+              new maplibregl.Popup({ closeButton: true, offset: 12 })
+                .setLngLat([rep.lon, rep.lat])
+                .setDOMContent(div)
+                .addTo(map);
+            }
+            return;
+          }
           if (best.layer.id === "signals-icons") {
             const sig = signalsRef.current.find(
               (s) => `${s.place}|${s.countryCode}|${s.lat}|${s.lon}` === best!.properties.sigKey
@@ -819,6 +879,50 @@ export default function FireMap({ lang }: { lang: Lang }) {
         setAlertMsg(t.geoUnavailable);
       },
       { timeout: 8000 }
+    );
+  };
+
+  // « Je vois un feu » : signalement direct à la position GPS du témoin.
+  // Confirmation explicite avant envoi — le bouton rappelle d'appeler les
+  // secours d'abord (kanari n'est pas un canal d'alerte officiel).
+  const reportFire = () => {
+    if (!navigator.geolocation) {
+      setAlertMsg(t.geoUnsupported);
+      return;
+    }
+    setReportBusy(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        if (!window.confirm(t.reportConfirm)) {
+          setReportBusy(false);
+          return;
+        }
+        try {
+          const res = await fetch("/api/report", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ lat: latitude, lon: longitude }),
+          });
+          if (res.status === 429) setAlertMsg(t.reportRateLimited);
+          else if (!res.ok) setAlertMsg(t.reportFailed);
+          else {
+            setAlertMsg(t.reportSent);
+            if (mapRef.current) {
+              mapRef.current.flyTo({ center: [longitude, latitude], zoom: 10 });
+              loadData(mapRef.current, hours, true);
+            }
+          }
+        } catch {
+          setAlertMsg(t.reportFailed);
+        }
+        setReportBusy(false);
+      },
+      () => {
+        setReportBusy(false);
+        setAlertMsg(t.geoUnavailable);
+      },
+      { timeout: 8000, enableHighAccuracy: true }
     );
   };
 
@@ -1087,7 +1191,26 @@ export default function FireMap({ lang }: { lang: Lang }) {
           >
             {t.legend}
           </button>
+          <button
+            onClick={reportFire}
+            disabled={reportBusy}
+            className={`${chip} hidden sm:flex`}
+            style={{ background: "var(--ember)", color: "#fff", boxShadow: "var(--shadow-s)" }}
+          >
+            {reportBusy ? "…" : `🔥 ${t.reportBtn}`}
+          </button>
         </div>
+
+        {/* Sur mobile, le bouton de signalement a sa propre ligne (la rangée
+            de périodes est déjà pleine). */}
+        <button
+          onClick={reportFire}
+          disabled={reportBusy}
+          className={`${chip} self-start sm:hidden`}
+          style={{ background: "var(--ember)", color: "#fff", boxShadow: "var(--shadow-s)" }}
+        >
+          {reportBusy ? "…" : `🔥 ${t.reportBtn}`}
+        </button>
 
         {legendOpen && (
           <div
@@ -1593,6 +1716,13 @@ export default function FireMap({ lang }: { lang: Lang }) {
               <span className="h-[7px] w-[7px] rounded-full" style={{ background: ageColor(hoursAgo(selected.lastSeen)) }} />
               {t.lastSignal} · {formatAge(hoursAgo(selected.lastSeen), t)}
             </span>
+            {/* Statut honnête (inspiré de fogos.pt) : un foyer muet depuis
+                longtemps est probablement éteint — ou simplement masqué. */}
+            {hoursAgo(selected.lastSeen) >= 12 && (
+              <span className="text-xs" style={{ color: "var(--ink-3)" }}>
+                {t.statusFading(Math.round(hoursAgo(selected.lastSeen)))}
+              </span>
+            )}
             {wind && (
               <span className="flex items-center gap-2">
                 <span className="h-[7px] w-[7px] rounded-full" style={{ background: "var(--ink-3)" }} />
@@ -1649,6 +1779,26 @@ export default function FireMap({ lang }: { lang: Lang }) {
                 <dd style={{ color: "var(--ink)" }}>
                   {selected.centroid[1].toFixed(3)}, {selected.centroid[0].toFixed(3)}
                 </dd>
+              </div>
+              {/* Carreau DFCI 2 km (France) : l'unité de dialogue radio des
+                  moyens terrestres et aériens — demande d'un cdt de SDIS. */}
+              {dfciCode(selected.centroid[1], selected.centroid[0]) && (
+                <div className="flex justify-between">
+                  <dt style={{ color: "var(--ink-3)" }}>{t.dlDfci}</dt>
+                  <dd className="font-mono font-medium" style={{ color: "var(--ink)" }}>
+                    {dfciCode(selected.centroid[1], selected.centroid[0])}
+                  </dd>
+                </div>
+              )}
+              <div className="pt-1">
+                <a
+                  href={`https://worldview.earthdata.nasa.gov/?v=${(selected.centroid[0] - 1.5).toFixed(2)},${(selected.centroid[1] - 1).toFixed(2)},${(selected.centroid[0] + 1.5).toFixed(2)},${(selected.centroid[1] + 1).toFixed(2)}&l=Reference_Labels_15m,Coastlines_15m,VIIRS_NOAA20_Thermal_Anomalies_375m_All,VIIRS_NOAA20_CorrectedReflectance_TrueColor&t=${selected.lastSeen.slice(0, 10)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: "var(--link)" }}
+                >
+                  {t.worldviewLink} ↗
+                </a>
               </div>
             </dl>
           )}

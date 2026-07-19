@@ -8,6 +8,7 @@ import { clusterFires } from "../../src/lib/cluster";
 import { daysNeeded, attachSignals } from "../../src/lib/eventscache";
 import { parseCsv, type FireFeature } from "../../src/lib/firms";
 import { emergencyNumber } from "../../src/lib/i18n";
+import { dfciCode } from "../../src/lib/dfci";
 import type { SocialSignal } from "../../src/lib/socialscan";
 
 const L = "0-unité";
@@ -188,6 +189,34 @@ export async function runUnit(): Promise<void> {
       errs.push("foyer 2 corroboré à 40 km (rayon 30 attendu)");
     if (errs.length > 0) return { verdict: "FAIL", detail: errs.join(" ; ") };
     return { verdict: "PASS", detail: "plus proche choisi, distance stockée, 40 km rejeté" };
+  });
+
+  // ---- Carroyage DFCI (destiné aux pompiers : zéro droit à l'erreur) -----------
+  await check(L, "dfciCode : vecteurs validés contre la référence C (GPS-DFCI)", async () => {
+    const cases: [number, number, string | null][] = [
+      [44.671123, 1.277227, "FE06H1"], // exemple du README GPS-DFCI
+      [48.8566, 2.3522, "GL02A4"], // Paris
+      [43.2965, 5.3698, "KD40D7"], // Marseille
+      [49.4938, 0.1077, "EM20L0"], // Le Havre
+      [41.9192, 8.7386, "NB26G9"], // Ajaccio
+      [42.8712, 1.117, "FC06A1"], // Bethmale (Ariège)
+      [48.4048, 2.7016, "GK26D9"], // Fontainebleau
+      [44.0833, 7.0167, "LE60H4"], // Mercantour
+      [43.6119, 3.8772, "HD24C3"], // Montpellier
+      [45.764, 4.8357, "HF88H3"], // Lyon
+      [40.4168, -3.7038, null], // Madrid : hors carroyage
+      [52.52, 13.4, null], // Berlin : hors carroyage
+    ];
+    const wrong = cases.filter(([lat, lon, want]) => dfciCode(lat, lon) !== want);
+    if (wrong.length > 0) {
+      return {
+        verdict: "FAIL",
+        detail: wrong
+          .map(([lat, lon, want]) => `(${lat}, ${lon}) → ${dfciCode(lat, lon)} (attendu ${want})`)
+          .join(" ; "),
+      };
+    }
+    return { verdict: "PASS", detail: `${cases.length} points (10 codes + 2 hors grille) conformes` };
   });
 
   // ---- Numéro d'urgence géolocalisé --------------------------------------------

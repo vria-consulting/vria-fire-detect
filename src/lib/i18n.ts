@@ -107,6 +107,16 @@ const fr = {
   geoUnavailable: "Position indisponible — vérifie l'autorisation de localisation.",
   yourPosition: "Ta position",
 
+  // Signalement citoyen direct
+  reportBtn: "Signaler un feu",
+  reportConfirm:
+    "Envoyer un signalement de feu à ta position actuelle ?\n\nN'utilise ce bouton que si tu vois réellement un départ de feu. En cas d'urgence, appelle d'abord les secours.",
+  reportSent:
+    "Merci ! Signalement transmis — il apparaît sur la carte comme « à vérifier ».",
+  reportFailed: "Envoi impossible — réessaie.",
+  reportRateLimited: "Un signalement maximum toutes les 5 minutes.",
+  reportPopup: (age: string) => `Témoin direct · ${age}`,
+
   // Fiches
   badgeNewFire: "NOUVEAU FEU",
   badgeReport: "SIGNALEMENT",
@@ -140,6 +150,10 @@ const fr = {
   dlDetections: "Détections",
   dlPower: "Puissance max",
   dlPosition: "Position",
+  dlDfci: "Carroyage DFCI",
+  worldviewLink: "Image satellite (NASA Worldview)",
+  statusFading: (h: number) =>
+    `Plus de signal depuis ${h} h — extinction possible, ou feu masqué (nuages, canopée)`,
   corrobBy: (n: number, place: string, km?: number) =>
     `Corroboré par ${n} témoignage${n > 1 ? "s" : ""} près de ${place}${
       km !== undefined && km >= 5 ? ` (à ~${km} km)` : ""
@@ -226,6 +240,14 @@ const en: typeof fr = {
   geoUnavailable: "Location unavailable — check the location permission.",
   yourPosition: "Your location",
 
+  reportBtn: "Report a fire",
+  reportConfirm:
+    "Send a fire report at your current position?\n\nOnly use this button if you can actually see a fire starting. In an emergency, call emergency services first.",
+  reportSent: "Thank you! Report sent — it appears on the map as “to verify”.",
+  reportFailed: "Could not send — try again.",
+  reportRateLimited: "One report every 5 minutes maximum.",
+  reportPopup: (age: string) => `Direct witness · ${age}`,
+
   badgeNewFire: "NEW FIRE",
   badgeReport: "REPORT",
   badgeActive: "ACTIVE",
@@ -258,6 +280,10 @@ const en: typeof fr = {
   dlDetections: "Detections",
   dlPower: "Max power",
   dlPosition: "Position",
+  dlDfci: "DFCI grid",
+  worldviewLink: "Satellite imagery (NASA Worldview)",
+  statusFading: (h: number) =>
+    `No signal for ${h} h — possibly extinguished, or hidden (clouds, canopy)`,
   corrobBy: (n: number, place: string, km?: number) =>
     `Corroborated by ${n} report${n > 1 ? "s" : ""} near ${place}${
       km !== undefined && km >= 5 ? ` (~${km} km away)` : ""
