@@ -34,5 +34,16 @@ export async function writeJson(pathname: string, data: unknown): Promise<void> 
   });
 }
 
+// Date de dernière écriture d'un blob, sans le télécharger (contrôle de
+// fraîcheur des snapshots de foyers). null si le blob n'existe pas encore.
+export async function blobUpdatedAt(pathname: string): Promise<number | null> {
+  try {
+    const meta = await head(pathname);
+    return new Date(meta.uploadedAt).getTime();
+  } catch {
+    return null;
+  }
+}
+
 export const SUBS_PATH = "subscriptions.json";
 export const ALERTLOG_PATH = "alertlog.json";

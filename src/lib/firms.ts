@@ -24,13 +24,18 @@ export type FireCollection = {
 };
 
 // VIIRS 375 m (orbite polaire, monde, ~4x/jour, sensible aux petits feux) +
-// GOES 2 km (géostationnaire, Amériques, rafraîchi ~10 min → précocité).
+// GOES 2 km (géostationnaire, rafraîchi ~10 min → précocité).
 // Suomi-NPP retiré : plus de production NRT depuis le 2026-07-10.
+// « GOES_NRT » est en réalité un composite géostationnaire mondial : G18/G19
+// (+ variantes G18FRP/G19FRP, Amériques), Himawari-9 (Asie-Pacifique) et
+// Meteosat 9/10/12 (Europe/Afrique/océan Indien).
 const SOURCES = ["VIIRS_NOAA20_NRT", "VIIRS_NOAA21_NRT", "GOES_NRT"];
 
-// GOES détecte vite mais avec des fausses alarmes à basse confiance ;
-// en dessous de ce seuil (%), la détection est écartée.
-const GOES_MIN_CONF = 40;
+// Les géostationnaires détectent vite mais avec des fausses alarmes à basse
+// confiance ; en dessous de ce seuil (%), la détection est écartée. G18/G19
+// publient leurs pixels sûrs via G18FRP/G19FRP (confiance 80-100) et une
+// traîne de pixels à confiance fixe 30 % que ce seuil écarte volontairement.
+const GEO_MIN_CONF = 40;
 
 const WORLD_BBOX = "-180,-90,180,90";
 
@@ -56,12 +61,22 @@ function parseCsv(csv: string, src: FireProperties["src"]): FireFeature[] {
     const lon = parseFloat(f[iLon]);
     if (!isFinite(lat) || !isFinite(lon)) continue;
 
-    // Confiance : lettre (l/n/h) pour VIIRS, pourcentage pour GOES.
+    const sat = f[iSat] || "?";
+    // Les Meteosat du composite géostationnaire sont étiquetés « mtg » pour ne
+    // pas compter deux fois la même famille de satellites dans la confiance
+    // (le flux EUMETSAT direct de mtg.ts couvre le même disque).
+    const rowSrc: FireProperties["src"] =
+      src === "viirs" ? "viirs" : sat.startsWith("Met") ? "mtg" : "goes";
+
+    // Confiance : lettre (l/n/h) pour VIIRS, nombre pour les géostationnaires —
+    // pourcentage 0-100 en général, fraction 0-1 pour Met12 (observé
+    // 2026-07-19 : sans normalisation, le filtre vidait Amériques et Europe).
     const confRaw = (f[iConf] || "n").toLowerCase();
     let conf: FireProperties["conf"];
-    const confNum = parseFloat(confRaw);
+    let confNum = parseFloat(confRaw);
     if (isFinite(confNum)) {
-      if (src === "goes" && confNum < GOES_MIN_CONF) continue;
+      if (confNum <= 1) confNum *= 100;
+      if (rowSrc !== "viirs" && confNum < GEO_MIN_CONF) continue;
       conf = confNum >= 80 ? "h" : confNum >= 50 ? "n" : "l";
     } else {
       conf = confRaw === "l" || confRaw === "h" ? (confRaw as "l" | "h") : "n";
@@ -77,10 +92,10 @@ function parseCsv(csv: string, src: FireProperties["src"]): FireFeature[] {
       properties: {
         frp: isFinite(frp) && frp > 0 ? frp : 0,
         conf,
-        sat: f[iSat] || "?",
+        sat,
         acq,
         dn: f[iDn] === "N" ? "N" : "D",
-        src,
+        src: rowSrc,
       },
     });
   }

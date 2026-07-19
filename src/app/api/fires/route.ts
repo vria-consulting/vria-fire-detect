@@ -12,10 +12,15 @@ export async function GET(req: NextRequest) {
   const daysParam = parseInt(req.nextUrl.searchParams.get("days") ?? "1", 10);
   const days = [1, 2, 3].includes(daysParam) ? daysParam : 1;
 
+  // s-maxage : les détections brutes sont lourdes (plusieurs Mo) — le CDN les
+  // sert sans réveiller la fonction ni FIRMS.
+  const CDN_HEADERS =
+    "public, max-age=300, s-maxage=600, stale-while-revalidate=3600";
+
   const hit = cache.get(days);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
     return NextResponse.json(hit.data, {
-      headers: { "x-cache": "hit", "cache-control": "public, max-age=300" },
+      headers: { "x-cache": "hit", "cache-control": CDN_HEADERS },
     });
   }
 
@@ -23,7 +28,7 @@ export async function GET(req: NextRequest) {
     const data = await fetchFires(days);
     cache.set(days, { at: Date.now(), data });
     return NextResponse.json(data, {
-      headers: { "x-cache": "miss", "cache-control": "public, max-age=300" },
+      headers: { "x-cache": "miss", "cache-control": CDN_HEADERS },
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "UNKNOWN";

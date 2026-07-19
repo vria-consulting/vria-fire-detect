@@ -1,11 +1,20 @@
-// Calcul des foyers (FIRMS -> clustering -> corroboration sociale) avec cache
-// 5 min, partagé entre /api/events et le cron d'alertes.
+// Calcul des foyers (FIRMS -> clustering -> corroboration sociale).
+// Trois niveaux de cache :
+//   L1 — mémoire d'instance (2 min), comme avant ;
+//   L2 — snapshot Vercel Blob par période, écrit par le cron toutes les 5 min :
+//        c'est lui qui absorbe le trafic. Une instance froide lit le snapshot
+//        au lieu d'appeler FIRMS — le pic de visites du 2026-07-19 (post
+//        LinkedIn) multipliait les instances froides et FIRMS finissait par
+//        rejeter les téléchargements (CSV mondial de plusieurs Mo par source) ;
+//   L3 — calcul complet (FIRMS + MTG + clustering), réservé au cron et au cas
+//        où le snapshot manque ou date de plus de 15 min.
 
 import { fetchFires, type FireFeature } from "./firms";
 import { fetchMtgFires } from "./mtg";
 import { clusterFires, FireEvent, Confidence } from "./cluster";
 import { getSignals } from "./signalcache";
 import { haversineKm } from "./socialscan";
+import { readJson, writeJson, blobUpdatedAt } from "./store";
 
 export type EventsPayload = {
   events: FireEvent[];
@@ -31,6 +40,15 @@ const CACHE_TTL_MS = 2 * 60 * 1000;
 const cache = new Map<number, { at: number; data: EventsPayload }>();
 
 export const VALID_HOURS = [6, 12, 24, 48, 72] as const;
+
+const EVENTS_PATH = (hours: number) => `events-${hours}h.json`;
+// Le cron passe toutes les 5 min : un snapshot de moins de 15 min est sain,
+// au-delà on considère le cron mort et on recalcule soi-même.
+const BLOB_FRESH_MS = 15 * 60 * 1000;
+// Les fenêtres longues bougent lentement : rafraîchies toutes les 30 min
+// seulement, pour limiter les téléchargements FIRMS multi-jours.
+const LONG_TIER_HOURS = [48, 72];
+const LONG_TIER_MS = 30 * 60 * 1000;
 
 // FIRMS renvoie des jours CALENDAIRES UTC entiers (days=1 = aujourd'hui seul).
 // Une fenêtre glissante de N heures exige donc souvent le(s) jour(s)
@@ -75,6 +93,36 @@ export async function getEvents(hours: number): Promise<EventsPayload> {
   const hit = cache.get(hours);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.data;
 
+  // L2 : snapshot écrit par le cron — le chemin visiteur ne touche jamais
+  // FIRMS tant que le cron est vivant.
+  const blob = await readJson<EventsPayload | null>(EVENTS_PATH(hours), null);
+  if (blob && Date.now() - new Date(blob.meta.fetchedAt).getTime() < BLOB_FRESH_MS) {
+    cache.set(hours, { at: Date.now(), data: blob });
+    return blob;
+  }
+
+  try {
+    return await computeEvents(hours);
+  } catch (e) {
+    // FIRMS en panne : un snapshot périmé vaut mieux qu'une carte vide.
+    if (blob) return blob;
+    throw e;
+  }
+}
+
+// Un seul calcul complet à la fois par période et par instance : sous forte
+// charge, N requêtes simultanées ne doivent pas déclencher N scans FIRMS.
+const inflight = new Map<number, Promise<EventsPayload>>();
+
+function computeEvents(hours: number): Promise<EventsPayload> {
+  const running = inflight.get(hours);
+  if (running) return running;
+  const p = doComputeEvents(hours).finally(() => inflight.delete(hours));
+  inflight.set(hours, p);
+  return p;
+}
+
+async function doComputeEvents(hours: number): Promise<EventsPayload> {
   const raw = await getRawFeatures(daysNeeded(hours));
   // Fenêtre glissante exacte : FIRMS renvoie des jours calendaires entiers,
   // on filtre à l'heure d'acquisition près (indispensable pour 6 h / 12 h).
@@ -126,9 +174,44 @@ export async function getEvents(hours: number): Promise<EventsPayload> {
     },
   };
   cache.set(hours, { at: Date.now(), data });
+  // Persistance du snapshot pour toutes les instances (et pour survivre à une
+  // panne FIRMS) — l'échec d'écriture ne doit jamais faire échouer la requête.
+  try {
+    await writeJson(EVENTS_PATH(hours), data);
+  } catch (e) {
+    console.error("events snapshot write failed:", e);
+  }
   return data;
 }
 
 export function staleEvents(hours: number): EventsPayload | null {
   return cache.get(hours)?.data ?? null;
+}
+
+// Snapshot périmé accepté en dernier recours (panne FIRMS + instance froide).
+export function staleBlobEvents(hours: number): Promise<EventsPayload | null> {
+  return readJson<EventsPayload | null>(EVENTS_PATH(hours), null);
+}
+
+// Reconstruction par le cron : fenêtres courtes à chaque passage (5 min),
+// fenêtres longues toutes les 30 min. Ordre décroissant pour que le premier
+// calcul télécharge la couverture FIRMS la plus large et que les suivants la
+// réutilisent (getRawFeatures sert toute fenêtre plus courte) : un seul
+// passage FIRMS par reconstruction.
+export async function rebuildAll(): Promise<{ rebuilt: number[]; totalDetections: number }> {
+  const shortTier = VALID_HOURS.filter((h) => !LONG_TIER_HOURS.includes(h));
+  const longAge = await blobUpdatedAt(EVENTS_PATH(72));
+  const withLong = longAge === null || Date.now() - longAge > LONG_TIER_MS;
+  const hoursList = [...(withLong ? LONG_TIER_HOURS : []), ...shortTier].sort(
+    (a, b) => b - a
+  );
+  // Invalide les caches d'instance : le cron doit produire du frais.
+  cache.clear();
+  rawCache = null;
+  let total = 0;
+  for (const h of hoursList) {
+    const data = await computeEvents(h);
+    total = Math.max(total, data.meta.totalDetections);
+  }
+  return { rebuilt: hoursList, totalDetections: total };
 }
