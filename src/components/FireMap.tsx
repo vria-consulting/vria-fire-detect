@@ -1046,6 +1046,20 @@ export default function FireMap({ lang }: { lang: Lang }) {
           </div>
         )}
 
+        {/* Compteur visible sur mobile : le panneau « En direct » y est replié,
+            sans lui un changement de période ne donnait aucun retour chiffré. */}
+        {status.kind === "ready" && (
+          <div
+            className="flex h-[30px] items-center gap-1.5 self-start rounded-full px-3 text-[12px] md:hidden"
+            style={{ ...card, color: "var(--ink-2)" }}
+          >
+            <span className="font-semibold" style={{ color: "var(--ink)" }}>
+              {status.events.toLocaleString(locale)}
+            </span>
+            {lang === "fr" ? "foyers sur" : "fires in"} {hours} h
+          </div>
+        )}
+
         {/* État de chargement / erreur */}
         {status.kind === "loading" && (
           <div
