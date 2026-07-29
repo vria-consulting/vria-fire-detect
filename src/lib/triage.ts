@@ -26,19 +26,30 @@ const CACHE_PATH = "triage-cache-v10.json";
 // hit de cache est un jugement gratuit.
 const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const BATCH_SIZE = 25;
-const MAX_NEW_PER_SCAN = 50; // garde-fou de coût et de durée par rafraîchissement
+// Un seul lot par scan par défaut : borne la latence ET répartit le budget
+// quotidien sur la journée plutôt que de l'épuiser dans le premier burst.
+const MAX_NEW_PER_SCAN = parseInt(process.env.TRIAGE_MAX_PER_SCAN ?? "25", 10);
 // Plafond de dépense ABSOLU : nombre max de posts jugés par jour UTC, toutes
 // instances confondues (compteur partagé dans le cache Blob). Au-delà, les
-// posts attendent le lendemain — jamais affichés sans jugement.
-const DAILY_MAX = parseInt(process.env.TRIAGE_DAILY_MAX ?? "3000", 10);
+// posts attendent le lendemain — jamais affichés sans jugement. C'est le
+// garde-fou qui garantit le coût : abaissé à 600 (÷5) pour diviser la facture.
+const DAILY_MAX = parseInt(process.env.TRIAGE_DAILY_MAX ?? "600", 10);
 
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
-// Double jugement économique : gpt-5.4-nano (0,20 $/1,25 $ le M de tokens)
-// filtre tout le flux et rejette ~85 % ; gpt-5.6-luna (1 $/6 $) ne
-// contre-examine QUE les posts approuvés. Le prompt système (~1,3k tokens),
-// identique à chaque appel, est servi du cache OpenAI à -90 %.
+// Tri économique sur UN SEUL modèle bon marché : gpt-5.4-nano (0,20 $/1,25 $ le
+// M de tokens) filtre tout le flux, puis se contre-vérifie lui-même avec un
+// prompt adversarial sur les seuls posts approuvés. Le prompt système
+// (~1,3k tokens), identique à chaque appel, est servi du cache OpenAI à -90 %.
+// L'ancien second modèle coûteux (gpt-5.6-luna, 1 $/6 $, ~5× plus cher) reste
+// rebranchable via TRIAGE_VERIFY_MODEL si tu veux regagner en précision au prix
+// du coût. TRIAGE_VERIFY=off supprime carrément le second passage (max éco).
 const MODEL = process.env.TRIAGE_MODEL ?? "gpt-5.4-nano";
-const VERIFY_MODEL = process.env.TRIAGE_VERIFY_MODEL ?? "gpt-5.6-luna";
+const VERIFY_MODEL = process.env.TRIAGE_VERIFY_MODEL ?? "gpt-5.4-nano";
+const VERIFY_ENABLED = (process.env.TRIAGE_VERIFY ?? "on").toLowerCase() !== "off";
+// Plafond de tokens de sortie par lot. Les modèles de raisonnement facturent
+// leurs tokens de réflexion en SORTIE : un plafond haut (4000) laissait filer
+// du coût. La classification ne rend qu'un petit JSON -> 1200 suffit largement.
+const MAX_TOKENS = parseInt(process.env.TRIAGE_MAX_TOKENS ?? "1200", 10);
 
 const SYSTEM = `Tu es le filtre de pertinence de Kanari, un service d'alerte ultra-précoce des feux de forêt destiné aux secours. Chaque faux positif décrédibilise le service. Tu reçois une liste d'items : texte d'un post de réseau social ou titre d'article de presse, avec des lieux candidats.
 
@@ -125,7 +136,7 @@ async function judgeBatch(
   // SORTIE à chaque lot. max_completion_tokens réduit en conséquence.
   const body = {
     model,
-    max_completion_tokens: 4000,
+    max_completion_tokens: MAX_TOKENS,
     reasoning_effort: effort as string | undefined,
     messages: [
       { role: "system", content: system },
@@ -185,7 +196,7 @@ async function judgeBatch(
 
 // Pour la QA : jugement direct SANS cache Blob, avec exactement les mêmes
 // modèles, prompt et double vérification que la production. Renvoie pour
-// chaque candidat le verdict du trieur (luna) et le verdict final (vérifié).
+// chaque candidat le verdict du trieur et le verdict final (recontrôlé).
 export async function judgeForQA(
   candidates: TriageCandidate[]
 ): Promise<Map<string, { first: TriageVerdict | null; final: TriageVerdict | null }>> {
@@ -197,7 +208,7 @@ export async function judgeForQA(
     const judged = await judgeBatch(apiKey, batch, MODEL);
     const approved = batch.filter((c) => judged.get(c.url)?.fire);
     let verified = new Map<string, TriageVerdict>();
-    if (approved.length > 0 && VERIFY_MODEL !== MODEL) {
+    if (approved.length > 0 && VERIFY_ENABLED) {
       verified = await judgeBatch(apiKey, approved, VERIFY_MODEL, VERIFY_SYSTEM, "low");
     }
     for (const c of batch) {
@@ -265,7 +276,7 @@ export async function triageCandidates(
       // (jamais d'approbation non vérifiée gravée dans le cache).
       const noCache = new Set<string>();
       const approved = batch.filter((c) => judged.get(c.url)?.fire);
-      if (approved.length > 0 && VERIFY_MODEL !== MODEL) {
+      if (approved.length > 0 && VERIFY_ENABLED) {
         try {
           const verified = await judgeBatch(apiKey, approved, VERIFY_MODEL, VERIFY_SYSTEM, "low");
           for (const c of approved) {
