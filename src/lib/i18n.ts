@@ -144,6 +144,10 @@ const fr = {
   lastSignal: "Dernier signal",
   wind: (speed: number, dir: string) => `Vent ${speed} km/h de ${dir}`,
   gusts: (g: number) => ` · rafales ${g}`,
+  riskLabel: "Risque météo estimé",
+  riskLevels: ["faible", "modéré", "élevé", "très élevé"],
+  riskNote:
+    "Risque météo estimé à partir de la température, de l'humidité, du vent et de la pluie récente (Open-Meteo). Estimation indicative, non officielle.",
   viewDetail: "Voir le détail",
   hideDetail: "Masquer le détail",
   dlFirstUTC: "Premier signal (UTC)",
@@ -274,6 +278,10 @@ const en: typeof fr = {
   lastSignal: "Last signal",
   wind: (speed: number, dir: string) => `Wind ${speed} km/h from ${dir}`,
   gusts: (g: number) => ` · gusts ${g}`,
+  riskLabel: "Estimated fire-weather risk",
+  riskLevels: ["low", "moderate", "high", "very high"],
+  riskNote:
+    "Fire-weather risk estimated from temperature, humidity, wind and recent rain (Open-Meteo). Indicative, unofficial estimate.",
   viewDetail: "View details",
   hideDetail: "Hide details",
   dlFirstUTC: "First signal (UTC)",

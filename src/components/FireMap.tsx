@@ -8,6 +8,7 @@ import type { SocialResult, SocialPost } from "@/lib/social";
 import type { SocialSignal } from "@/lib/socialscan";
 import { DICT, type Lang, type Dict } from "@/lib/i18n";
 import { dfciCode } from "@/lib/dfci";
+import type { FireRisk } from "@/lib/firerisk";
 
 const REGIONS: Record<string, { center: [number, number]; zoom: number }> = {
   France: { center: [2.5, 46.6], zoom: 5.2 },
@@ -154,7 +155,12 @@ function signalVerified(sig: SocialSignal, events: FireEvent[]): boolean {
   );
 }
 
-type Wind = { speed: number; gusts: number; direction: number };
+type Wind = { speed: number; gusts: number; direction: number; risk?: FireRisk };
+
+// Couleurs des 4 niveaux de risque (vert / jaune / orange / rouge), calées sur
+// l'esprit de la Météo des forêts pour que la bascule vers l'officiel soit
+// transparente.
+const RISK_COLORS = ["#3A9D5B", "#F0B400", "#E8622C", "#D64545"];
 
 function sourceLabel(posts: SocialPost[]): string {
   if (posts.some((p) => p.source === "bluesky")) return "Bluesky";
@@ -1728,6 +1734,18 @@ export default function FireMap({ lang }: { lang: Lang }) {
                 <span className="h-[7px] w-[7px] rounded-full" style={{ background: "var(--ink-3)" }} />
                 {t.wind(wind.speed, compass(wind.direction))}
                 {wind.gusts > wind.speed + 10 ? t.gusts(wind.gusts) : ""}
+              </span>
+            )}
+            {wind?.risk && (
+              <span className="flex items-center gap-2" title={t.riskNote}>
+                <span
+                  className="h-[7px] w-[7px] rounded-full"
+                  style={{ background: RISK_COLORS[wind.risk.level - 1] }}
+                />
+                {t.riskLabel} :{" "}
+                <strong style={{ color: RISK_COLORS[wind.risk.level - 1] }}>
+                  {t.riskLevels[wind.risk.level - 1]}
+                </strong>
               </span>
             )}
           </div>

@@ -9,6 +9,7 @@ import { daysNeeded, attachSignals } from "../../src/lib/eventscache";
 import { parseCsv, type FireFeature } from "../../src/lib/firms";
 import { emergencyNumber } from "../../src/lib/i18n";
 import { dfciCode } from "../../src/lib/dfci";
+import { computeFireRisk } from "../../src/lib/firerisk";
 import type { SocialSignal } from "../../src/lib/socialscan";
 
 const L = "0-unité";
@@ -217,6 +218,24 @@ export async function runUnit(): Promise<void> {
       };
     }
     return { verdict: "PASS", detail: `${cases.length} points (10 codes + 2 hors grille) conformes` };
+  });
+
+  // ---- Risque météo de feu estimé (Open-Meteo) ---------------------------------
+  await check(L, "computeFireRisk : canicule sèche vs frais humide, et monotonie", async () => {
+    const hot = computeFireRisk({ tempC: 38, rh: 15, windKmh: 45, recentRainMm: 0 });
+    const cold = computeFireRisk({ tempC: 14, rh: 90, windKmh: 5, recentRainMm: 25 });
+    const errs: string[] = [];
+    if (hot.level !== 4) errs.push(`canicule sèche ventée -> niveau ${hot.level} (4 attendu)`);
+    if (cold.level !== 1) errs.push(`frais humide pluvieux -> niveau ${cold.level} (1 attendu)`);
+    // Monotonie : à conditions égales, plus sec = risque >= ; plus de pluie = risque <=.
+    const dry = computeFireRisk({ tempC: 30, rh: 30, windKmh: 20, recentRainMm: 0 });
+    const wet = computeFireRisk({ tempC: 30, rh: 30, windKmh: 20, recentRainMm: 20 });
+    if (wet.level > dry.level) errs.push("la pluie récente augmente le risque (incohérent)");
+    const humid = computeFireRisk({ tempC: 30, rh: 80, windKmh: 20, recentRainMm: 0 });
+    if (humid.level > dry.level) errs.push("plus d'humidité augmente le risque (incohérent)");
+    if (![1, 2, 3, 4].includes(hot.level)) errs.push("niveau hors 1-4");
+    if (errs.length > 0) return { verdict: "FAIL", detail: errs.join(" ; ") };
+    return { verdict: "PASS", detail: `canicule=4, frais=1, monotonie pluie/humidité OK (CBI ${hot.cbi})` };
   });
 
   // ---- Numéro d'urgence géolocalisé --------------------------------------------
