@@ -58,6 +58,10 @@ function formatShort(h: number): string {
   return `${Math.round(h / 24)} j`;
 }
 
+// Bouton « M'alerter sur cette zone » masqué en attendant une refonte (fiabilité
+// des alertes push) : passer à true pour le réafficher.
+const ALERTS_ENABLED = false;
+
 const NEW_EVENT_HOURS = 12; // un foyer est "nouveau" si son 1er signal a < 12 h
 const DEPART_WATCH_MIN = 120; // urgents : 1er signalement il y a 2 h max
 const DEPART_HOT_MIN = 20; // pulsation : signal de moins de 20 min
@@ -1552,27 +1556,29 @@ export default function FireMap({ lang }: { lang: Lang }) {
             {alertMsg}
           </div>
         )}
-        <button
-          onClick={toggleAlerts}
-          disabled={alertState === "busy"}
-          className="flex h-[54px] items-center gap-[11px] whitespace-nowrap rounded-full px-[30px] text-[15px] font-medium transition-all sm:text-base"
-          style={
-            alertState === "on"
-              ? { background: "var(--charcoal)", color: "var(--paper)", boxShadow: "var(--shadow-l)" }
-              : { background: "var(--canary)", color: "var(--charcoal)", boxShadow: "var(--shadow-l)" }
-          }
-        >
-          <span
-            className={alertState === "on" ? "" : "k-listen"}
-            style={{
-              width: 9,
-              height: 9,
-              borderRadius: "50%",
-              background: alertState === "on" ? "var(--canary)" : "var(--charcoal)",
-            }}
-          />
-          {alertState === "busy" ? t.ctaBusy : alertState === "on" ? t.ctaOn : t.ctaOff}
-        </button>
+        {ALERTS_ENABLED && (
+          <button
+            onClick={toggleAlerts}
+            disabled={alertState === "busy"}
+            className="flex h-[54px] items-center gap-[11px] whitespace-nowrap rounded-full px-[30px] text-[15px] font-medium transition-all sm:text-base"
+            style={
+              alertState === "on"
+                ? { background: "var(--charcoal)", color: "var(--paper)", boxShadow: "var(--shadow-l)" }
+                : { background: "var(--canary)", color: "var(--charcoal)", boxShadow: "var(--shadow-l)" }
+            }
+          >
+            <span
+              className={alertState === "on" ? "" : "k-listen"}
+              style={{
+                width: 9,
+                height: 9,
+                borderRadius: "50%",
+                background: alertState === "on" ? "var(--canary)" : "var(--charcoal)",
+              }}
+            />
+            {alertState === "busy" ? t.ctaBusy : alertState === "on" ? t.ctaOn : t.ctaOff}
+          </button>
+        )}
       </div>
 
       {/* Fiche signalement citoyen */}
