@@ -63,19 +63,24 @@ export async function storeFile(
 ): Promise<string> {
   const sb = supabaseCreds();
   if (sb) {
-    const res = await fetch(`${sb.url}/storage/v1/object/contributions/${path}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${sb.key}`,
-        apikey: sb.key,
-        "content-type": contentType,
-        "x-upsert": "true",
-      },
-      // fetch n'accepte pas un Buffer Node directement : on passe une vue Uint8Array.
-      body: new Uint8Array(bytes),
-    });
-    if (!res.ok) throw new Error(`supabase storage ${res.status}: ${(await res.text()).slice(0, 160)}`);
-    return `${sb.url}/storage/v1/object/contributions/${path}`;
+    try {
+      const res = await fetch(`${sb.url}/storage/v1/object/contributions/${path}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${sb.key}`,
+          apikey: sb.key,
+          "content-type": contentType,
+          "x-upsert": "true",
+        },
+        // fetch n'accepte pas un Buffer Node directement : on passe une vue Uint8Array.
+        body: new Uint8Array(bytes),
+      });
+      if (res.ok) return `${sb.url}/storage/v1/object/contributions/${path}`;
+      // Échec Supabase (incident, quota…) : on ne perd rien, on bascule sur Blob.
+      console.error(`supabase storage ${res.status} — repli Blob:`, (await res.text()).slice(0, 160));
+    } catch (e) {
+      console.error("supabase storage indisponible — repli Blob:", e);
+    }
   }
   // Repli Blob : store privé (comme le reste de l'app) — l'URL n'est
   // accessible qu'avec le token côté serveur, cohérent avec un bucket Supabase
@@ -97,28 +102,35 @@ export async function saveContribution(
   const sb = supabaseCreds();
   const id = randomUUID();
   if (sb) {
-    const res = await fetch(`${sb.url}/rest/v1/contributions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${sb.key}`,
-        apikey: sb.key,
-        "content-type": "application/json",
-        Prefer: "return=minimal",
-      },
-      body: JSON.stringify({
-        name: c.name,
-        email: c.email,
-        phone: c.phone ?? null,
-        role: c.role ?? null,
-        message: c.message,
-        attachments: c.attachments,
-        lang: c.lang ?? null,
-        user_agent: c.userAgent ?? null,
-        ip_hash: c.ipHash ?? null,
-      }),
-    });
-    if (!res.ok) throw new Error(`supabase insert ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    return { backend: "supabase", id };
+    try {
+      const res = await fetch(`${sb.url}/rest/v1/contributions`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${sb.key}`,
+          apikey: sb.key,
+          "content-type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({
+          id,
+          name: c.name,
+          email: c.email,
+          phone: c.phone ?? null,
+          role: c.role ?? null,
+          message: c.message,
+          attachments: c.attachments,
+          lang: c.lang ?? null,
+          user_agent: c.userAgent ?? null,
+          ip_hash: c.ipHash ?? null,
+        }),
+      });
+      if (res.ok) return { backend: "supabase", id };
+      // Échec Supabase (incident, quota…) : on NE PERD PAS la contribution,
+      // on la sauvegarde dans le repli Blob pour réconciliation ultérieure.
+      console.error(`supabase insert ${res.status} — repli Blob:`, (await res.text()).slice(0, 200));
+    } catch (e) {
+      console.error("supabase insert indisponible — repli Blob:", e);
+    }
   }
   // Repli Blob : UN fichier JSON par contribution (pas de read-modify-write,
   // donc aucun risque d'écrasement entre demandes concurrentes). L'ensemble se
