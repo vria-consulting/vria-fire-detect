@@ -47,12 +47,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "BAD_FORM" }, { status: 400 });
   }
 
-  // Pot de miel : un bot remplit le champ caché « company » -> on fait comme si
-  // tout allait bien mais on ne stocke rien.
-  if (s(form.get("company"), 1)) {
-    return NextResponse.json({ ok: true });
-  }
-
   const name = s(form.get("name"), 120);
   const email = s(form.get("email"), 200);
   const phone = s(form.get("phone"), 40) || undefined;

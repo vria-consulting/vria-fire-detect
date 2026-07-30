@@ -98,7 +98,6 @@ export function ContributeForm({ lang }: { lang: Lang }) {
   const [phone, setPhone] = useState("");
   const [role, setRole] = useState("");
   const [message, setMessage] = useState("");
-  const [company, setCompany] = useState(""); // pot de miel
   const [files, setFiles] = useState<File[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [status, setStatus] = useState<"idle" | "sending" | "success">("idle");
@@ -156,7 +155,6 @@ export function ContributeForm({ lang }: { lang: Lang }) {
       if (role.trim()) fd.set("role", role.trim());
       fd.set("message", message.trim());
       fd.set("lang", lang);
-      fd.set("company", company); // pot de miel
       for (const f of files) fd.append("files", f);
       const res = await fetch("/api/contribute", { method: "POST", body: fd });
       if (res.status === 429) {
@@ -259,18 +257,6 @@ export function ContributeForm({ lang }: { lang: Lang }) {
         className="rounded-[24px] p-6 sm:p-7"
         style={{ background: "var(--white)", boxShadow: "var(--shadow-m)" }}
       >
-        {/* Pot de miel : invisible pour les humains, appât pour les bots. */}
-        <input
-          type="text"
-          name="company"
-          tabIndex={-1}
-          autoComplete="off"
-          value={company}
-          onChange={(e) => setCompany(e.target.value)}
-          aria-hidden="true"
-          style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
-        />
-
         <div className="mb-4">
           <label className={labelCls} style={labelStyle}>
             {t.name} <span style={{ color: "var(--ember)" }}>*</span>
