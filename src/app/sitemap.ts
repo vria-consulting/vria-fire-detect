@@ -46,5 +46,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.8,
       alternates: { languages: { fr: `${base}/fr/precocite`, en: `${base}/en/precocite` } },
     },
+    {
+      url: `${base}/fr/contribuer`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.6,
+      alternates: { languages: { fr: `${base}/fr/contribuer`, en: `${base}/en/contribuer` } },
+    },
+    {
+      url: `${base}/en/contribuer`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.6,
+      alternates: { languages: { fr: `${base}/fr/contribuer`, en: `${base}/en/contribuer` } },
+    },
   ];
 }

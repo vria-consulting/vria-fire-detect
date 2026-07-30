@@ -45,6 +45,7 @@ const fr = {
   tagline: "l'alerte feu de forêt, avant tout le monde",
   navHow: "Comment ça marche",
   navAbout: "À propos",
+  navContribute: "Contribuer",
   emergency: (n: string) => `Urgence ? ${n}`,
   metaTitle: "kanari — l'alerte feu de forêt, avant tout le monde",
   metaDescription:
@@ -186,6 +187,7 @@ const en: typeof fr = {
   tagline: "the wildfire alert, before anyone else",
   navHow: "How it works",
   navAbout: "About",
+  navContribute: "Contribute",
   emergency: (n: string) => `Emergency? ${n}`,
   metaTitle: "kanari — the wildfire alert, before anyone else",
   metaDescription:

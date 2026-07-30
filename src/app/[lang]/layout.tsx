@@ -153,6 +153,15 @@ export default async function RootLayout({
             >
               {t.navAbout}
             </Link>
+            {/* Bouton Contribuer : visible sur tous les écrans, ton canari doux
+                pour ressortir sans concurrencer le bouton d'urgence. */}
+            <Link
+              href={`/${lang}/contribuer`}
+              className="flex h-[34px] items-center rounded-full px-3.5 text-[13px] font-medium transition-colors"
+              style={{ background: "var(--canary-tint)", color: "var(--ink)" }}
+            >
+              {t.navContribute}
+            </Link>
             <LangSwitch current={lang} />
             <EmergencyButton lang={lang} />
           </nav>
