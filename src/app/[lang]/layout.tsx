@@ -153,14 +153,24 @@ export default async function RootLayout({
             >
               {t.navAbout}
             </Link>
-            {/* Bouton Contribuer : visible sur tous les écrans, ton canari doux
-                pour ressortir sans concurrencer le bouton d'urgence. */}
+            {/* Bouton Contribuer : ton canari doux pour ressortir sans
+                concurrencer l'urgence. Icône seule sur petit écran (le header
+                mobile est déjà chargé), icône + texte dès qu'il y a la place. */}
             <Link
               href={`/${lang}/contribuer`}
-              className="flex h-[34px] items-center rounded-full px-3.5 text-[13px] font-medium transition-colors"
+              aria-label={t.navContribute}
+              className="flex h-[34px] shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[13px] font-medium transition-colors sm:px-3.5"
               style={{ background: "var(--canary-tint)", color: "var(--ink)" }}
             >
-              {t.navContribute}
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M12 5v14M5 12h14"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <span className="hidden sm:inline">{t.navContribute}</span>
             </Link>
             <LangSwitch current={lang} />
             <EmergencyButton lang={lang} />
