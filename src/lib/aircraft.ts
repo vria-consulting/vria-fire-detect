@@ -5,14 +5,18 @@
 // le monde) et mis en cache pour ne pas taper l'API à chaque visite.
 
 // Deux requêtes complémentaires (airplanes.live, gratuit, sans clé) :
-//  1) par TYPE ICAO -> tous les Canadair du monde (CL2T italiens, CL4T
-//     français, CL21 anciens).
+//  1) par TYPE ICAO -> les bombardiers d'eau du monde entier :
+//     CL2T/CL4T/CL21 (Canadair 415/215), AT8T (Air Tractor AT-802 /
+//     Fire Boss), S2T (S-2T Turbo Tracker CalFire), DC10 (DC-10 Air Tanker),
+//     CVLT (Conair CV-580). Les types « avion de ligne » (Dash-8, RJ85…)
+//     sont volontairement exclus : trop de faux positifs commerciaux — les
+//     Dash-8 bombardiers français sont couverts par la flotte hex ci-dessous.
 //  2) par HEX -> la flotte française de bombardiers d'eau (Pélican + Milan),
 //     captée de façon garantie même si son type n'est pas renseigné dans le
 //     flux live. Liste de flotte : contribution d'Henri (canadair-tracker),
 //     scan du bloc hex 3B7Bxx.
 const BASE = "https://api.airplanes.live/v2";
-const TYPE_URL = `${BASE}/type/CL2T,CL4T,CL21`;
+const TYPE_URL = `${BASE}/type/CL2T,CL4T,CL21,AT8T,S2T,DC10,CVLT`;
 const UA = "kanari.io wildfire map (+https://kanari.io)";
 const CACHE_MS = 15_000; // un appel amont toutes les 15 s au maximum
 
@@ -105,9 +109,33 @@ type Upstream = {
 let cache: { at: number; planes: Plane[] } | null = null;
 let inflight: Promise<Plane[]> | null = null;
 
+// L'AT-802 sert aussi à l'épandage agricole (surtout aux USA). On ne garde
+// que les appareils en configuration lutte incendie : callsign « tanker »
+// (T###, TKR###, S### = SEAT) ou immatriculation hors USA (les AT-802
+// européens/canadiens suivis ici sont des Fire Boss anti-incendie).
+function isFireTanker(a: Upstream): boolean {
+  if (a.t !== "AT8T") return true;
+  const cs = (a.flight || "").trim().toUpperCase();
+  if (/^(T|TKR|S)\d{2,3}$/.test(cs) || /^BOSS/.test(cs)) return true;
+  const reg = (a.r || "").trim().toUpperCase();
+  return reg !== "" && !reg.startsWith("N");
+}
+
+// Libellés lisibles pour les types au descriptif austère.
+const TYPE_LABEL: Record<string, string> = {
+  AT8T: "Air Tractor AT-802 Fire Boss",
+  S2T: "S-2T Turbo Tracker",
+  DC10: "DC-10 Air Tanker",
+  CVLT: "Conair CV-580 Air Tanker",
+  CL21: "Canadair CL-215",
+  CL2T: "Canadair CL-415",
+  CL4T: "Canadair CL-415",
+};
+
 function parse(list: Upstream[]): Plane[] {
   const out: Plane[] = [];
   for (const a of list) {
+    if (!isFireTanker(a)) continue;
     const lat = a.lat;
     const lon = a.lon;
     // On écarte les appareils sans position fraîche (au sol/hangar : lat/lon
@@ -127,12 +155,10 @@ function parse(list: Upstream[]): Plane[] {
       callsign: (a.flight || "").trim(),
       reg: (a.r || "").trim() || fleet?.reg || "",
       type: a.t || "",
-      // Libellé de la flotte française prioritaire (« Pélican », « Milan ») —
-      // plus parlant que le descriptif générique de la base.
+      // Libellé de la flotte française prioritaire (« Pélican », « Milan »),
+      // puis libellé dédié par type, puis descriptif brut de la base.
       model:
-        fleet?.model ||
-        a.desc ||
-        (a.t === "CL21" ? "Canadair CL-215" : "Canadair CL-415"),
+        fleet?.model || TYPE_LABEL[a.t || ""] || a.desc || "Bombardier d'eau",
       lat,
       lon,
       track: typeof a.track === "number" ? a.track : 0,
