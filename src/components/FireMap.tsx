@@ -309,7 +309,7 @@ export default function FireMap({ lang }: { lang: Lang }) {
   );
   // UI maquette v2
   const [legendOpen, setLegendOpen] = useState(false);
-  const [panelOpen, setPanelOpen] = useState(false); // flux sur mobile
+  const [feedOpen, setFeedOpen] = useState(false); // panneau « En direct » : réduit par défaut
   const [detailOpen, setDetailOpen] = useState(false); // fiche foyer étendue
   const [shareMsg, setShareMsg] = useState<string | null>(null);
   // Recherche de ville / zone
@@ -504,10 +504,16 @@ export default function FireMap({ lang }: { lang: Lang }) {
       style: MAP_STYLE,
       center: hasDeepLink ? [pLon, pLat] : start.center,
       zoom: hasDeepLink ? (isFinite(pZ) ? pZ : 9) : start.zoom,
-      attributionControl: { compact: true },
+      attributionControl: false,
     });
     mapRef.current = map;
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
+    if (typeof window !== "undefined") {
+      (window as unknown as { __kmap?: maplibregl.Map }).__kmap = map; // debug temporaire
+    }
+    // Commandes en bas à gauche : le coin bas-droite est réservé au bandeau
+    // « En direct » réductible.
+    map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-left");
 
     const ro = new ResizeObserver(() => map.resize());
     ro.observe(containerRef.current);
@@ -1476,28 +1482,43 @@ export default function FireMap({ lang }: { lang: Lang }) {
         )}
       </div>
 
-      {/* Bouton flux sur mobile */}
-      <button
-        onClick={() => setPanelOpen(!panelOpen)}
-        className="absolute right-3 top-3 z-30 flex h-[38px] items-center gap-2 rounded-full px-4 text-[13px] font-medium md:hidden"
-        style={{ ...card, color: "var(--ink)" }}
-      >
-        <span
-          className="k-listen inline-block h-[7px] w-[7px] rounded-full"
-          style={{ background: "var(--canary-strong)" }}
-        />
-        {t.live}
-        {hotCount > 0 ? ` · ${hotCount}` : ""}
-      </button>
+      {/* Bandeau « En direct » réduit (bas-droite) : le panneau est minimisé
+          par défaut pour laisser un maximum de carte. Clic = déploiement. */}
+      {!feedOpen && (
+        <button
+          onClick={() => setFeedOpen(true)}
+          className="absolute bottom-4 right-4 z-30 flex h-[44px] items-center gap-2.5 rounded-full px-[18px] text-[14px] font-medium transition-transform hover:scale-[1.03]"
+          style={{ ...card, color: "var(--ink)" }}
+          aria-label={t.live}
+        >
+          <span
+            className="k-listen inline-block h-[8px] w-[8px] rounded-full"
+            style={{ background: "var(--canary-strong)" }}
+          />
+          {t.live}
+          {hotCount > 0 && (
+            <span style={{ color: "var(--danger)", fontWeight: 700 }}>· {hotCount}</span>
+          )}
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ opacity: 0.55 }}>
+            <path d="M6 15l6-6 6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      )}
 
       {/* Flux « En direct » (droite, maquette v2) */}
       <aside
-        className={`${panelOpen ? "flex" : "hidden md:flex"} absolute z-20 flex-col overflow-hidden rounded-[22px] max-md:inset-x-3 max-md:bottom-24 max-md:top-16 md:bottom-4 md:right-4 md:top-4 md:w-[350px]`}
+        className={`${feedOpen ? "flex" : "hidden"} absolute z-30 flex-col overflow-hidden rounded-[22px] max-md:inset-x-3 max-md:bottom-4 max-md:top-16 md:bottom-4 md:right-4 md:top-4 md:w-[350px]`}
         style={card}
       >
         <div className="flex flex-col gap-3 border-b px-[18px] pb-3.5 pt-4" style={{ borderColor: "var(--line)" }}>
           <div className="flex items-center gap-2">
-            <h3 className="flex-1 text-[17px]">{t.live}</h3>
+            <h3
+              className="flex-1 cursor-pointer text-[17px]"
+              onClick={() => setFeedOpen(false)}
+              title={t.minimize}
+            >
+              {t.live}
+            </h3>
             <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--ink-3)" }}>
               <span
                 className="k-listen inline-block h-[7px] w-[7px] rounded-full"
@@ -1506,12 +1527,15 @@ export default function FireMap({ lang }: { lang: Lang }) {
               {t.listening}
             </span>
             <button
-              onClick={() => setPanelOpen(false)}
-              className="flex h-7 w-7 items-center justify-center rounded-full text-[13px] md:hidden"
+              onClick={() => setFeedOpen(false)}
+              className="flex h-7 w-7 items-center justify-center rounded-full"
               style={{ background: "var(--paper-2)", color: "var(--ink-2)" }}
-              aria-label={t.close}
+              aria-label={t.minimize}
+              title={t.minimize}
             >
-              ✕
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </button>
           </div>
           <div

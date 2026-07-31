@@ -7,7 +7,7 @@ import { cookies } from "next/headers";
 import { ADMIN_EMAIL, supabaseCreds } from "@/lib/analytics";
 
 export const SESSION_COOKIE = "kanari_veille";
-export const SESSION_TTL_MS = 20 * 60 * 1000; // 20 min d'inactivité
+export const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 h d'inactivité (glissant)
 
 function secret(): string {
   return process.env.SESSION_SECRET || "";

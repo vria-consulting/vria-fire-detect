@@ -50,6 +50,7 @@ const fr = {
   emergencyWord: "Urgence ?",
   planesShort: "Canadair en vol",
   legendPlane: "Canadair (bombardier d'eau)",
+  minimize: "Réduire",
   metaTitle: "kanari — l'alerte feu de forêt, avant tout le monde",
   metaDescription:
     "Carte mondiale en temps quasi réel des départs de feu de forêt : détection satellite (NASA FIRMS, Meteosat), témoignages citoyens vérifiés par IA, alertes gratuites par zone. Le canari chante avant la sirène.",
@@ -195,6 +196,7 @@ const en: typeof fr = {
   emergencyWord: "Emergency?",
   planesShort: "water bombers",
   legendPlane: "Water bomber (Canadair)",
+  minimize: "Minimize",
   metaTitle: "kanari — the wildfire alert, before anyone else",
   metaDescription:
     "Near real-time world map of wildfire ignitions: satellite detection (NASA FIRMS, Meteosat), AI-verified citizen reports, free area alerts. The canary sings before the siren.",
