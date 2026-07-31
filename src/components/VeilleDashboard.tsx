@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { VeilleLogin } from "@/components/VeilleLogin";
 
 // ---- Types (miroir de public.veille_stats) --------------------------------
 type Totals = {
@@ -30,8 +31,6 @@ type Stats = {
     }[];
   };
 };
-
-const POLL_MS = 15000;
 
 // ---- Helpers d'affichage --------------------------------------------------
 const nf = new Intl.NumberFormat("fr-FR");
@@ -170,14 +169,20 @@ const statusColor: Record<string, string> = {
 export function VeilleDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [err, setErr] = useState(false);
+  const [expired, setExpired] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [updatedAt, setUpdatedAt] = useState<number>(0);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Chargement à l'ouverture uniquement (pas de rafraîchissement automatique) —
+  // le bouton « Rafraîchir » relance à la demande.
   const load = useCallback(async () => {
+    setLoading(true);
     try {
       const res = await fetch("/api/veille/stats", { cache: "no-store" });
       if (res.status === 401) {
-        window.location.href = "/veille";
+        // Session absente/expirée : on affiche l'écran de reconnexion,
+        // JAMAIS de redirection automatique (sinon boucle de rechargement).
+        setExpired(true);
         return;
       }
       if (!res.ok) {
@@ -189,24 +194,22 @@ export function VeilleDashboard() {
       setUpdatedAt(Date.now());
     } catch {
       setErr(true);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     load();
-    timer.current = setInterval(load, POLL_MS);
-    const onFocus = () => load();
-    window.addEventListener("focus", onFocus);
-    return () => {
-      if (timer.current) clearInterval(timer.current);
-      window.removeEventListener("focus", onFocus);
-    };
   }, [load]);
 
   async function logout() {
     await fetch("/api/veille/logout", { method: "POST" });
     window.location.href = "/veille";
   }
+
+  // Session expirée : on réutilise l'écran de connexion (lien magique).
+  if (expired) return <VeilleLogin />;
 
   const t = stats?.totals;
   const c = stats?.contrib;
@@ -223,8 +226,8 @@ export function VeilleDashboard() {
               Veille kanari
             </h1>
             <div style={{ fontSize: 12, color: "var(--ink-3)" }}>
-              {updatedAt ? `Mis à jour ${timeAgo(new Date(updatedAt).toISOString())}` : "Chargement…"}
-              {err && <span style={{ color: "var(--danger)" }}> · connexion perdue, nouvelle tentative…</span>}
+              {loading ? "Chargement…" : updatedAt ? `Mis à jour ${timeAgo(new Date(updatedAt).toISOString())}` : ""}
+              {err && <span style={{ color: "var(--danger)" }}> · erreur de chargement</span>}
             </div>
           </div>
         </div>
@@ -237,6 +240,9 @@ export function VeilleDashboard() {
             <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>{fmt(stats?.live)}</span>
             <span style={{ fontSize: 12, color: "var(--ink-3)" }}>en direct</span>
           </div>
+          <button onClick={load} disabled={loading} title="Rafraîchir les données" style={{ background: "none", border: "1px solid var(--line)", borderRadius: "var(--radius-pill)", padding: "6px 13px", fontSize: 13, color: "var(--ink-2)", cursor: loading ? "wait" : "pointer", fontFamily: "var(--font-body)", opacity: loading ? 0.6 : 1 }}>
+            ↻ Rafraîchir
+          </button>
           <button onClick={logout} style={{ background: "none", border: "1px solid var(--line)", borderRadius: "var(--radius-pill)", padding: "6px 13px", fontSize: 13, color: "var(--ink-2)", cursor: "pointer", fontFamily: "var(--font-body)" }}>
             Se déconnecter
           </button>
