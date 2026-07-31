@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { DICT, LANGS, isValidLang, type Lang } from "@/lib/i18n";
 import { LangSwitch } from "@/components/LangSwitch";
 import { EmergencyButton } from "@/components/EmergencyButton";
+import { Tracker } from "@/components/Tracker";
 import "../globals.css";
 
 // Charte Kanari : Fredoka (titres) + DM Sans (corps) — jamais d'autres familles.
@@ -177,6 +178,7 @@ export default async function RootLayout({
           </nav>
         </header>
         <main className="min-h-0 flex-1">{children}</main>
+        <Tracker />
       </body>
     </html>
   );

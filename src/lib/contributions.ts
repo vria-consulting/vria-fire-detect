@@ -20,6 +20,13 @@ export type Contribution = {
   lang?: string;
   userAgent?: string;
   ipHash?: string;
+  // Provenance du visiteur (pour la veille : d'où viennent les contributeurs).
+  referrerHost?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  country?: string;
+  device?: string;
 };
 
 // Garde-fous de sécurité (le corps de requête Vercel est plafonné ~4,5 Mo :
@@ -122,6 +129,12 @@ export async function saveContribution(
           lang: c.lang ?? null,
           user_agent: c.userAgent ?? null,
           ip_hash: c.ipHash ?? null,
+          referrer_host: c.referrerHost ?? null,
+          utm_source: c.utmSource ?? null,
+          utm_medium: c.utmMedium ?? null,
+          utm_campaign: c.utmCampaign ?? null,
+          country: c.country ?? null,
+          device: c.device ?? null,
         }),
       });
       if (res.ok) return { backend: "supabase", id };

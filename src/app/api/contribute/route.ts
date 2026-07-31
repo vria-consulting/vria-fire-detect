@@ -10,6 +10,7 @@ import {
   MAX_TOTAL_BYTES,
   type Attachment,
 } from "@/lib/contributions";
+import { geoFromHeaders, parseUA, referrerHost } from "@/lib/analytics";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -88,6 +89,10 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const ua = req.headers.get("user-agent") || "";
+  const geo = geoFromHeaders(req.headers);
+  const { device } = parseUA(ua);
+
   try {
     const { backend } = await saveContribution({
       name,
@@ -97,8 +102,14 @@ export async function POST(req: NextRequest) {
       message,
       attachments,
       lang,
-      userAgent: req.headers.get("user-agent")?.slice(0, 300) ?? undefined,
+      userAgent: ua.slice(0, 300) || undefined,
       ipHash: hashIp(ip),
+      referrerHost: referrerHost(s(form.get("referrer"), 400)) || undefined,
+      utmSource: s(form.get("utm_source"), 120) || undefined,
+      utmMedium: s(form.get("utm_medium"), 120) || undefined,
+      utmCampaign: s(form.get("utm_campaign"), 120) || undefined,
+      country: geo.country || undefined,
+      device: device || undefined,
     });
     return NextResponse.json({ ok: true, backend });
   } catch (e) {

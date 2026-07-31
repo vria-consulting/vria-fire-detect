@@ -155,6 +155,16 @@ export function ContributeForm({ lang }: { lang: Lang }) {
       if (role.trim()) fd.set("role", role.trim());
       fd.set("message", message.trim());
       fd.set("lang", lang);
+      // Provenance (premier contact de la session) pour la veille.
+      try {
+        const src = JSON.parse(sessionStorage.getItem("kanari_src") || "{}");
+        if (src.referrer || document.referrer) fd.set("referrer", src.referrer || document.referrer);
+        if (src.utm_source) fd.set("utm_source", src.utm_source);
+        if (src.utm_medium) fd.set("utm_medium", src.utm_medium);
+        if (src.utm_campaign) fd.set("utm_campaign", src.utm_campaign);
+      } catch {
+        /* provenance indisponible : sans conséquence */
+      }
       for (const f of files) fd.append("files", f);
       const res = await fetch("/api/contribute", { method: "POST", body: fd });
       if (res.status === 429) {
