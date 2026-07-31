@@ -361,7 +361,7 @@ export default function FireMap({ lang }: { lang: Lang }) {
   );
   // UI maquette v2
   const [legendOpen, setLegendOpen] = useState(false);
-  const [satellite, setSatellite] = useState(false); // fond plan (défaut) / satellite
+  const [satellite, setSatellite] = useState(true); // fond satellite par défaut
   const [feedOpen, setFeedOpen] = useState(false); // panneau « En direct » : réduit par défaut
   const [detailOpen, setDetailOpen] = useState(false); // fiche foyer étendue
   const [shareMsg, setShareMsg] = useState<string | null>(null);
@@ -562,7 +562,16 @@ export default function FireMap({ lang }: { lang: Lang }) {
     mapRef.current = map;
     // Commandes en bas à gauche : le coin bas-droite est réservé au bandeau
     // « En direct » réductible.
-    map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
+    map.addControl(
+      new maplibregl.AttributionControl({
+        compact: true,
+        // Crédits toujours visibles (le fond « carto » qui les portait peut
+        // être masqué en vue satellite).
+        customAttribution:
+          'Feux : <a href="https://firms.modaps.eosdis.nasa.gov/">NASA FIRMS</a> · Lieux : <a href="https://www.geonames.org/">GeoNames</a>',
+      }),
+      "bottom-left"
+    );
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-left");
 
     const ro = new ResizeObserver(() => map.resize());
@@ -587,14 +596,16 @@ export default function FireMap({ lang }: { lang: Lang }) {
         maxzoom: 19,
         attribution: "Imagery &copy; Esri, Maxar, Earthstar Geographics",
       });
-      map.addLayer({ id: "sat", type: "raster", source: "sat", layout: { visibility: "none" } });
+      map.addLayer({ id: "sat", type: "raster", source: "sat", layout: { visibility: "visible" } });
       map.addSource("sat-labels", {
         type: "raster",
         tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"],
         tileSize: 256,
         maxzoom: 19,
       });
-      map.addLayer({ id: "sat-labels", type: "raster", source: "sat-labels", layout: { visibility: "none" } });
+      map.addLayer({ id: "sat-labels", type: "raster", source: "sat-labels", layout: { visibility: "visible" } });
+      // Satellite par défaut : on masque le fond « plan ».
+      map.setLayoutProperty("carto", "visibility", "none");
 
       map.addSource("events", {
         type: "geojson",
@@ -1245,11 +1256,19 @@ export default function FireMap({ lang }: { lang: Lang }) {
     const loop = () => {
       const map = mapRef.current;
       if (map && map.getLayer("events-glow")) {
-        const o = 0.09 + 0.08 * (0.5 + 0.5 * Math.sin(performance.now() / 900));
+        const s = 0.5 + 0.5 * Math.sin(performance.now() / 850); // 0..1, ~5,3 s
         try {
-          map.setPaintProperty("events-glow", "circle-opacity", o);
+          // Halo qui respire + flamme des foyers actifs (< 3 h) qui pulse
+          // doucement en opacité. Les foyers plus anciens restent fixes.
+          map.setPaintProperty("events-glow", "circle-opacity", 0.08 + 0.1 * s);
+          map.setPaintProperty("events-icons", "icon-opacity", [
+            "case",
+            ["<", ["get", "lastAgeH"], 3],
+            0.72 + 0.28 * s,
+            1,
+          ]);
         } catch {
-          /* couche pas prête : on réessaie à la frame suivante */
+          /* couches pas prêtes : on réessaie à la frame suivante */
         }
       }
       raf = requestAnimationFrame(loop);
