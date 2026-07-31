@@ -9,6 +9,7 @@ import type { SocialSignal } from "@/lib/socialscan";
 import { DICT, type Lang, type Dict } from "@/lib/i18n";
 import { dfciCode } from "@/lib/dfci";
 import type { FireRisk } from "@/lib/firerisk";
+import type { Plane } from "@/lib/aircraft";
 
 const REGIONS: Record<string, { center: [number, number]; zoom: number }> = {
   France: { center: [2.5, 46.6], zoom: 5.2 },
@@ -122,6 +123,27 @@ function flameImage(main: string, core: string): ImageData {
   ctx.closePath();
   ctx.fillStyle = core;
   ctx.fill();
+  return ctx.getImageData(0, 0, 64, 64);
+}
+
+// Icône avion (vue de dessus) des bombardiers d'eau : silhouette charbon
+// liserée de blanc, orientée vers le nord — pivotée ensuite selon le cap.
+function planeImage(): ImageData {
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const ctx = c.getContext("2d")!;
+  ctx.translate(32, 32);
+  const stroke = (w: number, color: string) => {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = w;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath(); ctx.moveTo(0, -25); ctx.lineTo(0, 20); ctx.stroke(); // fuselage
+    ctx.beginPath(); ctx.moveTo(-25, 7); ctx.lineTo(0, -4); ctx.lineTo(25, 7); ctx.stroke(); // ailes
+    ctx.beginPath(); ctx.moveTo(-9, 20); ctx.lineTo(0, 14); ctx.lineTo(9, 20); ctx.stroke(); // empennage
+  };
+  stroke(9, "rgba(255,255,255,0.95)"); // halo blanc (lisibilité sur fond clair)
+  stroke(4.5, "#2B2A28");
   return ctx.getImageData(0, 0, 64, 64);
 }
 
@@ -297,6 +319,11 @@ export default function FireMap({ lang }: { lang: Lang }) {
   const [geoBusy, setGeoBusy] = useState(false);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const posMarkerRef = useRef<maplibregl.Marker | null>(null);
+  // Bombardiers d'eau (Canadair) : dernières positions réelles + horodatage,
+  // pour l'interpolation « dead-reckoning » entre deux rafraîchissements.
+  const planesRef = useRef<Plane[]>([]);
+  const planeBaseRef = useRef<number>(0);
+  const [planeCount, setPlaneCount] = useState(0);
 
   useEffect(() => {
     if (localStorage.getItem("vigifire-alert-endpoint")) setAlertState("on");
@@ -506,6 +533,10 @@ export default function FireMap({ lang }: { lang: Lang }) {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       });
+      map.addSource("planes", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
       // Halo doux sous les feux actifs (< 3 h).
       map.addLayer({
         id: "events-glow",
@@ -523,6 +554,7 @@ export default function FireMap({ lang }: { lang: Lang }) {
       for (const [name, [main, core]] of Object.entries(FLAMES)) {
         map.addImage(name, flameImage(main, core));
       }
+      map.addImage("plane", planeImage());
       // Foyers : flamme teintée par âge du dernier signal, taille = nombre
       // de détections.
       map.addLayer({
@@ -586,6 +618,21 @@ export default function FireMap({ lang }: { lang: Lang }) {
         },
       });
 
+      // Bombardiers d'eau (Canadair) : avion pivoté selon le cap.
+      map.addLayer({
+        id: "planes-icons",
+        type: "symbol",
+        source: "planes",
+        layout: {
+          "icon-image": "plane",
+          "icon-size": ["interpolate", ["linear"], ["zoom"], 3, 0.42, 9, 0.85],
+          "icon-rotate": ["get", "track"],
+          "icon-rotation-alignment": "map",
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+        },
+      });
+
       // Un seul gestionnaire de clic avec ZONE DE TOLÉRANCE : au zoom monde,
       // les flammes font ~10 px et exiger le pixel exact rendait la sélection
       // impossible sans zoomer. On cherche dans un carré de ±12 px et on
@@ -594,7 +641,7 @@ export default function FireMap({ lang }: { lang: Lang }) {
         // queryRenderedFeatures peut lever « Out of bounds » si le clic tombe
         // pendant la reconstruction des tuiles (setData toutes les 2 min).
         try {
-          const layers = ["events-icons", "signals-icons", "reports-icons"].filter((l) =>
+          const layers = ["events-icons", "signals-icons", "reports-icons", "planes-icons"].filter((l) =>
             map.getLayer(l)
           );
           if (layers.length === 0) return;
@@ -621,6 +668,30 @@ export default function FireMap({ lang }: { lang: Lang }) {
             }
           }
           if (!best) return;
+          if (best.layer.id === "planes-icons") {
+            const pl = planesRef.current.find((p) => p.id === best!.properties.id);
+            if (pl) {
+              const div = document.createElement("div");
+              div.style.cssText = "font:12.5px var(--font-body);color:var(--ink-2);line-height:1.55";
+              const strong = document.createElement("strong");
+              strong.style.color = "var(--ink)";
+              strong.textContent = pl.model;
+              const meta = document.createElement("div");
+              meta.textContent = [
+                pl.callsign || pl.reg,
+                pl.speed ? `${pl.speed} kn` : "",
+                pl.alt != null ? `${pl.alt.toLocaleString(locale)} ft` : "",
+              ]
+                .filter(Boolean)
+                .join(" · ");
+              div.append(strong, meta);
+              new maplibregl.Popup({ closeButton: true, offset: 14 })
+                .setLngLat([pl.lon, pl.lat])
+                .setDOMContent(div)
+                .addTo(map);
+            }
+            return;
+          }
           if (best.layer.id === "reports-icons") {
             const rep = reportsRef.current.find((r) => r.id === best!.properties.repId);
             if (rep) {
@@ -1003,6 +1074,95 @@ export default function FireMap({ lang }: { lang: Lang }) {
     return () => clearInterval(id);
   }, [hours, loadData]);
 
+  // Rendu des Canadair avec interpolation « dead-reckoning » : entre deux
+  // rafraîchissements, on avance chaque appareil selon son cap et sa vitesse
+  // pour un mouvement quasi temps réel, sans requête supplémentaire.
+  const renderPlanes = useCallback(() => {
+    const src = mapRef.current?.getSource("planes") as maplibregl.GeoJSONSource | undefined;
+    if (!src) return;
+    const dt = (Date.now() - planeBaseRef.current) / 1000; // s depuis la vraie position
+    const R = 6_371_000;
+    src.setData({
+      type: "FeatureCollection",
+      features: planesRef.current.map((p) => {
+        let lon = p.lon;
+        let lat = p.lat;
+        if (p.speed > 0 && dt > 0) {
+          const d = (p.speed * 0.514444 * dt) / R; // distance angulaire parcourue
+          const brg = (p.track * Math.PI) / 180;
+          const la1 = (p.lat * Math.PI) / 180;
+          const lo1 = (p.lon * Math.PI) / 180;
+          const la2 = Math.asin(
+            Math.sin(la1) * Math.cos(d) + Math.cos(la1) * Math.sin(d) * Math.cos(brg)
+          );
+          const lo2 =
+            lo1 +
+            Math.atan2(
+              Math.sin(brg) * Math.sin(d) * Math.cos(la1),
+              Math.cos(d) - Math.sin(la1) * Math.sin(la2)
+            );
+          lat = (la2 * 180) / Math.PI;
+          lon = (((lo2 * 180) / Math.PI + 540) % 360) - 180;
+        }
+        return {
+          type: "Feature" as const,
+          geometry: { type: "Point" as const, coordinates: [lon, lat] },
+          properties: { id: p.id, track: p.track },
+        };
+      }),
+    });
+  }, []);
+
+  // Recentre la carte sur les Canadair (clic sur le compteur).
+  const fitPlanes = () => {
+    const map = mapRef.current;
+    const ps = planesRef.current;
+    if (!map || ps.length === 0) return;
+    if (ps.length === 1) {
+      map.flyTo({ center: [ps[0].lon, ps[0].lat], zoom: 9 });
+      return;
+    }
+    const b = new maplibregl.LngLatBounds();
+    ps.forEach((p) => b.extend([p.lon, p.lat]));
+    map.fitBounds(b, { padding: 90, maxZoom: 8, duration: 800 });
+  };
+
+  // Chargement PARESSEUX (2,5 s après le montage : la carte et les feux
+  // passent en priorité), puis rafraîchissement toutes les 20 s. La réponse
+  // est cachée côté CDN, donc l'API amont n'est presque jamais sollicitée.
+  useEffect(() => {
+    let stop = false;
+    const pull = async () => {
+      try {
+        const res = await fetch("/api/aircraft");
+        if (!res.ok || stop) return;
+        const data: { planes: Plane[] } = await res.json();
+        if (stop) return;
+        planesRef.current = data.planes;
+        planeBaseRef.current = Date.now();
+        setPlaneCount(data.planes.length);
+        renderPlanes();
+      } catch {
+        /* source indisponible : on garde l'affichage courant */
+      }
+    };
+    const start = setTimeout(pull, 2500);
+    const poll = setInterval(pull, 20_000);
+    return () => {
+      stop = true;
+      clearTimeout(start);
+      clearInterval(poll);
+    };
+  }, [renderPlanes]);
+
+  // Tic d'animation : glisse les avions chaque seconde entre deux positions
+  // réelles (léger : quelques appareils au maximum).
+  useEffect(() => {
+    if (planeCount === 0) return;
+    const id = setInterval(renderPlanes, 1000);
+    return () => clearInterval(id);
+  }, [planeCount, renderPlanes]);
+
   // Le flux de droite suit la zone affichée à l'écran.
   const inView = (lon: number, lat: number) =>
     !viewBounds ||
@@ -1245,6 +1405,16 @@ export default function FireMap({ lang }: { lang: Lang }) {
                 {label}
               </span>
             ))}
+            <span className="flex items-center gap-[9px]">
+              <span
+                className="inline-flex h-[11px] w-[11px] shrink-0 items-center justify-center"
+                style={{ fontSize: 11 }}
+                aria-hidden="true"
+              >
+                🛩️
+              </span>
+              {t.legendPlane}
+            </span>
             <span
               className="mt-0.5 border-t pt-2 text-xs"
               style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}
@@ -1266,6 +1436,21 @@ export default function FireMap({ lang }: { lang: Lang }) {
             </span>
             {lang === "fr" ? "foyers sur" : "fires in"} {hours} h
           </div>
+        )}
+
+        {/* Compteur des Canadair en vol (clic : recentre dessus). */}
+        {planeCount > 0 && (
+          <button
+            onClick={fitPlanes}
+            className="flex h-[30px] items-center gap-1.5 self-start rounded-full px-3 text-[12px] transition-transform hover:scale-[1.03]"
+            style={{ ...card, color: "var(--ink-2)" }}
+          >
+            <span aria-hidden="true">🛩️</span>
+            <span className="font-semibold" style={{ color: "var(--ink)" }}>
+              {planeCount}
+            </span>
+            {t.planesShort}
+          </button>
         )}
 
         {/* État de chargement / erreur */}
