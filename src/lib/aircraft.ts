@@ -4,9 +4,42 @@
 // CL21 = Canadair CL-215. Le résultat est minuscule (quelques appareils dans
 // le monde) et mis en cache pour ne pas taper l'API à chaque visite.
 
-const SOURCE = "https://api.airplanes.live/v2/type/CL2T,CL21";
+// Deux requêtes complémentaires (airplanes.live, gratuit, sans clé) :
+//  1) par TYPE ICAO -> tous les Canadair du monde (CL2T italiens, CL4T
+//     français, CL21 anciens).
+//  2) par HEX -> la flotte française de bombardiers d'eau (Pélican + Milan),
+//     captée de façon garantie même si son type n'est pas renseigné dans le
+//     flux live. Liste de flotte : contribution d'Henri (canadair-tracker),
+//     scan du bloc hex 3B7Bxx.
+const BASE = "https://api.airplanes.live/v2";
+const TYPE_URL = `${BASE}/type/CL2T,CL4T,CL21`;
 const UA = "kanari.io wildfire map (+https://kanari.io)";
 const CACHE_MS = 15_000; // un appel amont toutes les 15 s au maximum
+
+// Flotte française de bombardiers d'eau (hors hélicos Dragon). hex -> libellé.
+const FRENCH_FLEET: Record<string, { reg: string; model: string }> = {
+  // Pélican — Canadair CL-415
+  "3b7b6b": { reg: "F-ZBMG", model: "Canadair CL-415 « Pélican »" },
+  "3b7b6c": { reg: "F-ZBFX", model: "Canadair CL-415 « Pélican »" },
+  "3b7b6d": { reg: "F-ZBFN", model: "Canadair CL-415 « Pélican »" },
+  "3b7b6e": { reg: "F-ZBFS", model: "Canadair CL-415 « Pélican »" },
+  "3b7b6f": { reg: "F-ZBFP", model: "Canadair CL-415 « Pélican »" },
+  "3b7b70": { reg: "F-ZBMF", model: "Canadair CL-415 « Pélican »" },
+  "3b7b71": { reg: "F-ZBME", model: "Canadair CL-415 « Pélican »" },
+  "3b7b72": { reg: "F-ZBEU", model: "Canadair CL-415 « Pélican »" },
+  "3b7b73": { reg: "F-ZBEG", model: "Canadair CL-415 « Pélican »" },
+  "3b7b74": { reg: "F-ZBFW", model: "Canadair CL-415 « Pélican »" },
+  "3b7b75": { reg: "F-ZBFV", model: "Canadair CL-415 « Pélican »" },
+  "3b7b76": { reg: "F-ZBFY", model: "Canadair CL-415 « Pélican »" },
+  // Milan — Dash 8-402MR (gros bombardier d'eau)
+  "3b7b3d": { reg: "F-ZBMK", model: "Dash 8 « Milan »" },
+  "3b7b3e": { reg: "F-ZBMJ", model: "Dash 8 « Milan »" },
+  "3b7b3f": { reg: "F-ZBMI", model: "Dash 8 « Milan »" },
+  "3b7b63": { reg: "F-ZBMH", model: "Dash 8 « Milan »" },
+  "3b7b85": { reg: "F-ZBMD", model: "Dash 8 « Milan »" },
+  "3b7b86": { reg: "F-ZBMC", model: "Dash 8 « Milan »" },
+};
+const HEX_URL = `${BASE}/hex/${Object.keys(FRENCH_FLEET).join(",")}`;
 
 export type Plane = {
   id: string; // hex ICAO 24 bits
@@ -87,18 +120,25 @@ function parse(list: Upstream[]): Plane[] {
     ) {
       continue;
     }
+    const hex = (a.hex || "").toLowerCase();
+    const fleet = FRENCH_FLEET[hex];
     out.push({
       id: a.hex || `${lat},${lon}`,
       callsign: (a.flight || "").trim(),
-      reg: (a.r || "").trim(),
+      reg: (a.r || "").trim() || fleet?.reg || "",
       type: a.t || "",
-      model: a.desc || (a.t === "CL21" ? "Canadair CL-215" : "Canadair CL-415"),
+      // Libellé de la flotte française prioritaire (« Pélican », « Milan ») —
+      // plus parlant que le descriptif générique de la base.
+      model:
+        fleet?.model ||
+        a.desc ||
+        (a.t === "CL21" ? "Canadair CL-215" : "Canadair CL-415"),
       lat,
       lon,
       track: typeof a.track === "number" ? a.track : 0,
       speed: typeof a.gs === "number" ? Math.round(a.gs) : 0,
       alt: typeof a.alt_baro === "number" ? a.alt_baro : null,
-      country: countryOf(a.hex || "", (a.r || "").trim()),
+      country: fleet ? "FR" : countryOf(a.hex || "", (a.r || "").trim()),
     });
   }
   return out;
@@ -111,17 +151,41 @@ export async function getWaterBombers(): Promise<Plane[]> {
   if (inflight) return inflight;
   inflight = (async () => {
     try {
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 6000);
-      const res = await fetch(SOURCE, {
-        headers: { "User-Agent": UA, accept: "application/json" },
-        signal: ctrl.signal,
-        cache: "no-store",
-      });
-      clearTimeout(timer);
-      if (!res.ok) return cache?.planes ?? [];
-      const json = (await res.json()) as { ac?: Upstream[] };
-      const planes = parse(json.ac ?? []);
+      const pull = async (url: string): Promise<Upstream[]> => {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 6000);
+        try {
+          const res = await fetch(url, {
+            headers: { "User-Agent": UA, accept: "application/json" },
+            signal: ctrl.signal,
+            cache: "no-store",
+          });
+          if (!res.ok) return [];
+          return ((await res.json()) as { ac?: Upstream[] }).ac ?? [];
+        } catch {
+          return [];
+        } finally {
+          clearTimeout(timer);
+        }
+      };
+      // L'API amont limite à 1 req/s : on sérialise les deux requêtes.
+      const byType = await pull(TYPE_URL);
+      await new Promise((r) => setTimeout(r, 1100));
+      const byHex = await pull(HEX_URL);
+      // Fusion dédoublonnée par hex (un Pélican peut sortir des deux listes).
+      const seen = new Set<string>();
+      const merged: Upstream[] = [];
+      for (const a of [...byType, ...byHex]) {
+        const key = (a.hex || "").toLowerCase();
+        if (key && seen.has(key)) continue;
+        if (key) seen.add(key);
+        merged.push(a);
+      }
+      if (merged.length === 0 && byType.length === 0 && byHex.length === 0 && cache) {
+        // Deux échecs réseau : on garde le dernier état connu.
+        return cache.planes;
+      }
+      const planes = parse(merged);
       cache = { at: Date.now(), planes };
       return planes;
     } catch {
