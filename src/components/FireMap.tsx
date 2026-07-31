@@ -507,9 +507,6 @@ export default function FireMap({ lang }: { lang: Lang }) {
       attributionControl: false,
     });
     mapRef.current = map;
-    if (typeof window !== "undefined") {
-      (window as unknown as { __kmap?: maplibregl.Map }).__kmap = map; // debug temporaire
-    }
     // Commandes en bas à gauche : le coin bas-droite est réservé au bandeau
     // « En direct » réductible.
     map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
