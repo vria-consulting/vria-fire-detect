@@ -20,6 +20,11 @@ function detectLang(req: NextRequest): Lang {
 export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
 
+  // Espace de veille : non localisé, jamais préfixé par la langue.
+  if (pathname === "/veille" || pathname.startsWith("/veille/")) {
+    return NextResponse.next();
+  }
+
   // Déjà préfixé (/fr, /en) : on laisse passer, en mémorisant la position du
   // visiteur pour centrer la carte (cookie lisible côté client).
   const seg = pathname.split("/")[1];
@@ -57,6 +62,6 @@ export const config = {
   // Tout sauf les API, les assets Next, les fichiers statiques et les routes
   // de métadonnées (manifest, icônes, sitemap, robots…).
   matcher: [
-    "/((?!api|_next|sw\\.js|brand|icon|apple-icon|favicon|manifest|sitemap|robots|llms|og\\.png|.*\\.(?:png|svg|ico|txt|webmanifest|xml)).*)",
+    "/((?!api|veille|_next|sw\\.js|brand|icon|apple-icon|favicon|manifest|sitemap|robots|llms|og\\.png|.*\\.(?:png|svg|ico|txt|webmanifest|xml)).*)",
   ],
 };
