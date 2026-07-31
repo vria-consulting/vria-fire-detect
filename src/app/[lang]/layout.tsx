@@ -139,7 +139,7 @@ export default async function RootLayout({
               {t.tagline}
             </span>
           </div>
-          <nav className="flex items-center gap-4">
+          <nav className="flex items-center gap-2.5 sm:gap-4">
             <Link
               href={`/${lang}/a-propos#comment`}
               className="hidden text-sm font-medium sm:inline"
@@ -154,26 +154,30 @@ export default async function RootLayout({
             >
               {t.navAbout}
             </Link>
-            {/* Bouton Contribuer : ton canari doux pour ressortir sans
-                concurrencer l'urgence. Icône seule sur petit écran (le header
-                mobile est déjà chargé), icône + texte dès qu'il y a la place. */}
+            {/* Bouton Contribuer : jaune plein de la charte (ressort nettement,
+                sans concurrencer le rouge d'urgence). Icône seule sur petit
+                écran (le libellé apparaît dès 380 px), icône + texte au-delà. */}
             <Link
               href={`/${lang}/contribuer`}
               aria-label={t.navContribute}
-              className="flex h-[34px] shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[13px] font-medium transition-colors sm:px-3.5"
-              style={{ background: "var(--canary-tint)", color: "var(--ink)" }}
+              className="flex h-[38px] shrink-0 items-center gap-1.5 rounded-full px-3 text-[13.5px] font-semibold transition-transform hover:scale-[1.04] min-[380px]:px-3.5"
+              style={{ background: "var(--canary)", color: "var(--charcoal)", boxShadow: "var(--shadow-s)" }}
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path
                   d="M12 5v14M5 12h14"
                   stroke="currentColor"
-                  strokeWidth="2.4"
+                  strokeWidth="2.6"
                   strokeLinecap="round"
                 />
               </svg>
-              <span className="hidden sm:inline">{t.navContribute}</span>
+              <span className="hidden min-[380px]:inline">{t.navContribute}</span>
             </Link>
-            <LangSwitch current={lang} />
+            {/* FR/EN masqué sur mobile : la langue est déjà auto-détectée par
+                géolocalisation, et le header mobile doit rester aéré. */}
+            <div className="hidden sm:block">
+              <LangSwitch current={lang} />
+            </div>
             <EmergencyButton lang={lang} />
           </nav>
         </header>
