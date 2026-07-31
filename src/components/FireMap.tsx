@@ -126,25 +126,77 @@ function flameImage(main: string, core: string): ImageData {
   return ctx.getImageData(0, 0, 64, 64);
 }
 
-// Icône avion (vue de dessus) des bombardiers d'eau : silhouette charbon
-// liserée de blanc, orientée vers le nord — pivotée ensuite selon le cap.
+// Icône avion (vue de dessus) des bombardiers d'eau : silhouette PLEINE haute
+// résolution (dessinée à 2x pour rester nette), liserée de blanc pour ressortir
+// sur fond clair comme sur imagerie satellite, avec un cockpit jaune (charte).
+// Orientée vers le nord — pivotée ensuite selon le cap.
 function planeImage(): ImageData {
+  const S = 128;
   const c = document.createElement("canvas");
-  c.width = c.height = 64;
+  c.width = c.height = S;
   const ctx = c.getContext("2d")!;
-  ctx.translate(32, 32);
-  const stroke = (w: number, color: string) => {
-    ctx.strokeStyle = color;
-    ctx.lineWidth = w;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.beginPath(); ctx.moveTo(0, -25); ctx.lineTo(0, 20); ctx.stroke(); // fuselage
-    ctx.beginPath(); ctx.moveTo(-25, 7); ctx.lineTo(0, -4); ctx.lineTo(25, 7); ctx.stroke(); // ailes
-    ctx.beginPath(); ctx.moveTo(-9, 20); ctx.lineTo(0, 14); ctx.lineTo(9, 20); ctx.stroke(); // empennage
+  ctx.translate(S / 2, S / 2);
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+
+  // Contour de l'appareil (aile haute droite type Canadair, empennage en T).
+  const body = () => {
+    ctx.beginPath();
+    ctx.moveTo(0, -50); // nez
+    ctx.bezierCurveTo(6, -44, 8, -30, 8, -15); // flanc droit
+    ctx.lineTo(56, 1); // bord d'attaque aile droite
+    ctx.lineTo(56, 9); // saumon d'aile
+    ctx.lineTo(9, 14); // bord de fuite -> fuselage
+    ctx.lineTo(6, 33); // fuselage arrière
+    ctx.lineTo(23, 43); // stabilisateur droit
+    ctx.lineTo(23, 48);
+    ctx.lineTo(4, 45);
+    ctx.bezierCurveTo(3, 49, 1, 51, 0, 51); // pointe de queue
+    ctx.bezierCurveTo(-1, 51, -3, 49, -4, 45);
+    ctx.lineTo(-23, 48);
+    ctx.lineTo(-23, 43);
+    ctx.lineTo(-6, 33);
+    ctx.lineTo(-9, 14);
+    ctx.lineTo(-56, 9);
+    ctx.lineTo(-56, 1);
+    ctx.lineTo(-8, -15);
+    ctx.bezierCurveTo(-8, -30, -6, -44, 0, -50);
+    ctx.closePath();
   };
-  stroke(9, "rgba(255,255,255,0.95)"); // halo blanc (lisibilité sur fond clair)
-  stroke(4.5, "#2B2A28");
-  return ctx.getImageData(0, 0, 64, 64);
+
+  // Halo blanc (contour épais dessiné avant le remplissage).
+  body();
+  ctx.strokeStyle = "rgba(255,255,255,0.96)";
+  ctx.lineWidth = 9;
+  ctx.stroke();
+
+  // Corps charbon.
+  body();
+  ctx.fillStyle = "#33322F";
+  ctx.fill();
+
+  // Cockpit jaune (accent charte) près du nez.
+  ctx.beginPath();
+  ctx.ellipse(0, -34, 4.6, 6.5, 0, 0, Math.PI * 2);
+  ctx.fillStyle = "#F5C518";
+  ctx.fill();
+
+  // Deux réacteurs (petits points clairs sur l'aile) pour le détail.
+  ctx.fillStyle = "rgba(255,255,255,0.55)";
+  for (const x of [-26, 26]) {
+    ctx.beginPath();
+    ctx.ellipse(x, 4, 3, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  return ctx.getImageData(0, 0, S, S);
+}
+
+// Drapeau emoji à partir d'un code pays ISO-2 ("IT" -> 🇮🇹). "" si inconnu.
+function flagEmoji(cc: string): string {
+  if (!/^[A-Za-z]{2}$/.test(cc)) return "";
+  return String.fromCodePoint(
+    ...[...cc.toUpperCase()].map((ch) => 0x1f1e6 + ch.charCodeAt(0) - 65)
+  );
 }
 
 // Palette charte : [flamme, cœur] — danger, braise, jaune fort, gris, citoyen.
@@ -309,6 +361,7 @@ export default function FireMap({ lang }: { lang: Lang }) {
   );
   // UI maquette v2
   const [legendOpen, setLegendOpen] = useState(false);
+  const [satellite, setSatellite] = useState(false); // fond plan (défaut) / satellite
   const [feedOpen, setFeedOpen] = useState(false); // panneau « En direct » : réduit par défaut
   const [detailOpen, setDetailOpen] = useState(false); // fiche foyer étendue
   const [shareMsg, setShareMsg] = useState<string | null>(null);
@@ -524,6 +577,25 @@ export default function FireMap({ lang }: { lang: Lang }) {
     map.on("load", () => {
       requestAnimationFrame(() => map.resize());
       syncBounds();
+
+      // Fond satellite (Esri World Imagery, gratuit) + labels lieux, masqués
+      // par défaut. Placés juste au-dessus du fond « carto » et SOUS les feux.
+      map.addSource("sat", {
+        type: "raster",
+        tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+        tileSize: 256,
+        maxzoom: 19,
+        attribution: "Imagery &copy; Esri, Maxar, Earthstar Geographics",
+      });
+      map.addLayer({ id: "sat", type: "raster", source: "sat", layout: { visibility: "none" } });
+      map.addSource("sat-labels", {
+        type: "raster",
+        tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"],
+        tileSize: 256,
+        maxzoom: 19,
+      });
+      map.addLayer({ id: "sat-labels", type: "raster", source: "sat-labels", layout: { visibility: "none" } });
+
       map.addSource("events", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
@@ -557,7 +629,7 @@ export default function FireMap({ lang }: { lang: Lang }) {
       for (const [name, [main, core]] of Object.entries(FLAMES)) {
         map.addImage(name, flameImage(main, core));
       }
-      map.addImage("plane", planeImage());
+      map.addImage("plane", planeImage(), { pixelRatio: 2 });
       // Foyers : flamme teintée par âge du dernier signal, taille = nombre
       // de détections.
       map.addLayer({
@@ -621,6 +693,18 @@ export default function FireMap({ lang }: { lang: Lang }) {
         },
       });
 
+      // Halo doux sous chaque Canadair (effet « cible suivie », sobre).
+      map.addLayer({
+        id: "planes-halo",
+        type: "circle",
+        source: "planes",
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 3, 8, 9, 20],
+          "circle-color": "#1E6FB8",
+          "circle-opacity": 0.12,
+          "circle-blur": 0.7,
+        },
+      });
       // Bombardiers d'eau (Canadair) : avion pivoté selon le cap.
       map.addLayer({
         id: "planes-icons",
@@ -628,7 +712,7 @@ export default function FireMap({ lang }: { lang: Lang }) {
         source: "planes",
         layout: {
           "icon-image": "plane",
-          "icon-size": ["interpolate", ["linear"], ["zoom"], 3, 0.42, 9, 0.85],
+          "icon-size": ["interpolate", ["linear"], ["zoom"], 3, 0.5, 9, 0.95],
           "icon-rotate": ["get", "track"],
           "icon-rotation-alignment": "map",
           "icon-allow-overlap": true,
@@ -676,9 +760,19 @@ export default function FireMap({ lang }: { lang: Lang }) {
             if (pl) {
               const div = document.createElement("div");
               div.style.cssText = "font:12.5px var(--font-body);color:var(--ink-2);line-height:1.55";
+              const title = document.createElement("div");
+              title.style.cssText = "display:flex;align-items:center;gap:6px";
+              const fl = flagEmoji(pl.country);
+              if (fl) {
+                const f = document.createElement("span");
+                f.style.fontSize = "16px";
+                f.textContent = fl;
+                title.appendChild(f);
+              }
               const strong = document.createElement("strong");
               strong.style.color = "var(--ink)";
               strong.textContent = pl.model;
+              title.appendChild(strong);
               const meta = document.createElement("div");
               meta.textContent = [
                 pl.callsign || pl.reg,
@@ -687,7 +781,7 @@ export default function FireMap({ lang }: { lang: Lang }) {
               ]
                 .filter(Boolean)
                 .join(" · ");
-              div.append(strong, meta);
+              div.append(title, meta);
               new maplibregl.Popup({ closeButton: true, offset: 14 })
                 .setLngLat([pl.lon, pl.lat])
                 .setDOMContent(div)
@@ -1130,6 +1224,40 @@ export default function FireMap({ lang }: { lang: Lang }) {
     map.fitBounds(b, { padding: 90, maxZoom: 8, duration: 800 });
   };
 
+  // Bascule fond « plan » (Positron) <-> « satellite » (Esri imagery + labels).
+  const toggleSatellite = () => {
+    const map = mapRef.current;
+    if (!map) return;
+    const next = !satellite;
+    setSatellite(next);
+    const vis = (id: string, on: boolean) => {
+      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
+    };
+    vis("carto", !next);
+    vis("sat", next);
+    vis("sat-labels", next);
+  };
+
+  // Animation sobre des feux : le halo des foyers actifs (< 3 h) « respire »
+  // doucement (opacité seulement — léger et discret).
+  useEffect(() => {
+    let raf = 0;
+    const loop = () => {
+      const map = mapRef.current;
+      if (map && map.getLayer("events-glow")) {
+        const o = 0.09 + 0.08 * (0.5 + 0.5 * Math.sin(performance.now() / 900));
+        try {
+          map.setPaintProperty("events-glow", "circle-opacity", o);
+        } catch {
+          /* couche pas prête : on réessaie à la frame suivante */
+        }
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
   // Chargement PARESSEUX (2,5 s après le montage : la carte et les feux
   // passent en priorité), puis rafraîchissement toutes les 20 s. La réponse
   // est cachée côté CDN, donc l'API amont n'est presque jamais sollicitée.
@@ -1478,6 +1606,17 @@ export default function FireMap({ lang }: { lang: Lang }) {
           </div>
         )}
       </div>
+
+      {/* Bascule fond Plan / Satellite (haut-droite). */}
+      <button
+        onClick={toggleSatellite}
+        className="absolute right-3 top-3 z-30 flex h-[38px] items-center gap-1.5 rounded-full px-3.5 text-[13px] font-medium transition-transform hover:scale-[1.03] sm:right-5 sm:top-5"
+        style={{ ...card, color: "var(--ink)" }}
+        aria-label={satellite ? t.viewPlan : t.viewSatellite}
+      >
+        <span aria-hidden="true">{satellite ? "🗺️" : "🛰️"}</span>
+        <span className="hidden sm:inline">{satellite ? t.viewPlan : t.viewSatellite}</span>
+      </button>
 
       {/* Bandeau « En direct » réduit (bas-droite) : le panneau est minimisé
           par défaut pour laisser un maximum de carte. Clic = déploiement. */}
