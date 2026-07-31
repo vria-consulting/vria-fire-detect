@@ -75,10 +75,13 @@ export async function sendMagicLink(redirectTo: string): Promise<{ ok: boolean; 
   const sb = supabaseCreds();
   if (!sb) return { ok: false, error: "no_supabase" };
   try {
+    // create_user: true -> Supabase crée l'utilisateur admin au 1er envoi
+    // (inutile de le pré-créer à la main). Sans risque : le destinataire est
+    // codé en dur et /veille/confirm revérifie l'adresse avant d'ouvrir la session.
     const res = await fetch(`${sb.url}/auth/v1/otp?redirect_to=${encodeURIComponent(redirectTo)}`, {
       method: "POST",
       headers: { apikey: sb.key, Authorization: `Bearer ${sb.key}`, "content-type": "application/json" },
-      body: JSON.stringify({ email: ADMIN_EMAIL, create_user: false }),
+      body: JSON.stringify({ email: ADMIN_EMAIL, create_user: true }),
     });
     if (res.ok) return { ok: true };
     return { ok: false, error: (await res.text()).slice(0, 200) };
