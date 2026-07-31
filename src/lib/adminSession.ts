@@ -46,7 +46,9 @@ function cookieOptions(maxAgeSec: number) {
     httpOnly: true,
     secure: true,
     sameSite: "lax" as const,
-    path: "/veille",
+    // Chemin "/" : le cookie doit être envoyé AUX pages /veille/* ET aux routes
+    // /api/veille/* (sinon l'API renvoie 401). Jeton opaque signé, httpOnly.
+    path: "/",
     maxAge: maxAgeSec,
   };
 }
