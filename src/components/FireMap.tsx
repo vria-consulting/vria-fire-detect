@@ -1256,17 +1256,18 @@ export default function FireMap({ lang }: { lang: Lang }) {
     const loop = () => {
       const map = mapRef.current;
       if (map && map.getLayer("events-glow")) {
-        const s = 0.5 + 0.5 * Math.sin(performance.now() / 850); // 0..1, ~5,3 s
+        const s = 0.5 + 0.5 * Math.sin(performance.now() / 800); // 0..1, cycle ~5 s
         try {
-          // Halo qui respire + flamme des foyers actifs (< 3 h) qui pulse
-          // doucement en opacité. Les foyers plus anciens restent fixes.
-          map.setPaintProperty("events-glow", "circle-opacity", 0.08 + 0.1 * s);
-          map.setPaintProperty("events-icons", "icon-opacity", [
-            "case",
-            ["<", ["get", "lastAgeH"], 3],
-            0.72 + 0.28 * s,
-            1,
+          // Toutes les flammes « respirent » en opacité -> animation toujours
+          // visible partout où il y a des feux (sobre, cycle lent).
+          map.setPaintProperty("events-icons", "icon-opacity", 0.62 + 0.38 * s);
+          // Halo des foyers actifs (< 3 h) : anneau qui pulse comme un radar
+          // (grandit puis s'estompe).
+          const r = 1 + 0.45 * s;
+          map.setPaintProperty("events-glow", "circle-radius", [
+            "interpolate", ["linear"], ["zoom"], 2, 12 * r, 8, 30 * r,
           ]);
+          map.setPaintProperty("events-glow", "circle-opacity", 0.05 + 0.17 * (1 - s));
         } catch {
           /* couches pas prêtes : on réessaie à la frame suivante */
         }
