@@ -191,6 +191,57 @@ function planeImage(): ImageData {
   return ctx.getImageData(0, 0, S, S);
 }
 
+// Icône hélicoptère (vue de dessus) : fuselage + poutre de queue charbon,
+// pales en croix, halo blanc — même langage graphique que l'avion.
+function heloImage(): ImageData {
+  const S = 128;
+  const c = document.createElement("canvas");
+  c.width = c.height = S;
+  const ctx = c.getContext("2d")!;
+  ctx.translate(S / 2, S / 2);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  const body = () => {
+    ctx.beginPath();
+    // Cabine ovale + poutre de queue + rotor arrière.
+    ctx.ellipse(0, -8, 13, 20, 0, 0, Math.PI * 2);
+    ctx.moveTo(3, 10);
+    ctx.lineTo(3, 40);
+    ctx.lineTo(10, 46);
+    ctx.lineTo(-10, 46);
+    ctx.lineTo(-3, 40);
+    ctx.lineTo(-3, 10);
+    ctx.closePath();
+  };
+  // Halo blanc.
+  body();
+  ctx.strokeStyle = "rgba(255,255,255,0.96)";
+  ctx.lineWidth = 9;
+  ctx.stroke();
+  // Corps charbon.
+  body();
+  ctx.fillStyle = "#33322F";
+  ctx.fill();
+  // Pales du rotor principal (croix) avec halo.
+  for (const w of [8, 4]) {
+    ctx.strokeStyle = w === 8 ? "rgba(255,255,255,0.96)" : "#33322F";
+    ctx.lineWidth = w;
+    for (const ang of [Math.PI / 4, (3 * Math.PI) / 4]) {
+      ctx.beginPath();
+      ctx.moveTo(-Math.cos(ang) * 34, -8 - Math.sin(ang) * 34);
+      ctx.lineTo(Math.cos(ang) * 34, -8 + Math.sin(ang) * 34);
+      ctx.stroke();
+    }
+  }
+  // Moyeu rotor jaune (accent charte).
+  ctx.beginPath();
+  ctx.arc(0, -8, 4.6, 0, Math.PI * 2);
+  ctx.fillStyle = "#F5C518";
+  ctx.fill();
+  return ctx.getImageData(0, 0, S, S);
+}
+
 // Drapeau emoji à partir d'un code pays ISO-2 ("IT" -> 🇮🇹). "" si inconnu.
 function flagEmoji(cc: string): string {
   if (!/^[A-Za-z]{2}$/.test(cc)) return "";
@@ -641,6 +692,7 @@ export default function FireMap({ lang }: { lang: Lang }) {
         map.addImage(name, flameImage(main, core));
       }
       map.addImage("plane", planeImage(), { pixelRatio: 2 });
+      map.addImage("helo", heloImage(), { pixelRatio: 2 });
       // Foyers : flamme teintée par âge du dernier signal, taille = nombre
       // de détections.
       map.addLayer({
@@ -722,7 +774,7 @@ export default function FireMap({ lang }: { lang: Lang }) {
         type: "symbol",
         source: "planes",
         layout: {
-          "icon-image": "plane",
+          "icon-image": ["case", ["==", ["get", "kind"], "helo"], "helo", "plane"],
           "icon-size": ["interpolate", ["linear"], ["zoom"], 3, 0.5, 9, 0.95],
           "icon-rotate": ["get", "track"],
           "icon-rotation-alignment": "map",
@@ -1215,7 +1267,7 @@ export default function FireMap({ lang }: { lang: Lang }) {
         return {
           type: "Feature" as const,
           geometry: { type: "Point" as const, coordinates: [lon, lat] },
-          properties: { id: p.id, track: p.track },
+          properties: { id: p.id, track: p.track, kind: p.kind },
         };
       }),
     });

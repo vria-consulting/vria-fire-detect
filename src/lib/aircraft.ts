@@ -5,18 +5,22 @@
 // le monde) et mis en cache pour ne pas taper l'API à chaque visite.
 
 // Deux requêtes complémentaires (airplanes.live, gratuit, sans clé) :
-//  1) par TYPE ICAO -> les bombardiers d'eau du monde entier :
-//     CL2T/CL4T/CL21 (Canadair 415/215), AT8T (Air Tractor AT-802 /
-//     Fire Boss), S2T (S-2T Turbo Tracker CalFire), DC10 (DC-10 Air Tanker),
-//     CVLT (Conair CV-580). Les types « avion de ligne » (Dash-8, RJ85…)
-//     sont volontairement exclus : trop de faux positifs commerciaux — les
-//     Dash-8 bombardiers français sont couverts par la flotte hex ci-dessous.
+//  1) par TYPE ICAO -> les moyens aériens anti-feu du monde entier.
+//     Types « purs » (quasi exclusivement lutte incendie) : Canadair
+//     (CL2T/CL4T/CL21), S-2T Turbo Tracker (S2T), DC-10 Air Tanker (DC10),
+//     Conair CV-580 (CVLT), S-64 Air Crane (S64), MD-87 (MD87), RJ85/BAe 146
+//     tankers (RJ85/B461/B462/B463), OV-10 Bronco de coordination (OV10),
+//     K-MAX (K126). Types « mixtes » filtrés ensuite par opérateur/callsign :
+//     AT-802 Fire Boss (AT8T, vs épandage agricole), Dash 8 Q400AT (DH8D,
+//     Conair vs lignes régulières), C-130 (L382, Coulson vs cargo), Chinook
+//     (H47, Coulson/Billings vs militaires), Black Hawk (H60, Firehawk
+//     CalFire vs militaires).
 //  2) par HEX -> la flotte française de bombardiers d'eau (Pélican + Milan),
 //     captée de façon garantie même si son type n'est pas renseigné dans le
 //     flux live. Liste de flotte : contribution d'Henri (canadair-tracker),
 //     scan du bloc hex 3B7Bxx.
 const BASE = "https://api.airplanes.live/v2";
-const TYPE_URL = `${BASE}/type/CL2T,CL4T,CL21,AT8T,S2T,DC10,CVLT`;
+const TYPE_URL = `${BASE}/type/CL2T,CL4T,CL21,AT8T,S2T,DC10,CVLT,S64,MD87,RJ85,B461,B462,B463,OV10,K126,DH8D,L382,H47,H60`;
 const UA = "kanari.io wildfire map (+https://kanari.io)";
 const CACHE_MS = 15_000; // un appel amont toutes les 15 s au maximum
 
@@ -49,7 +53,8 @@ export type Plane = {
   id: string; // hex ICAO 24 bits
   callsign: string;
   reg: string;
-  type: string; // CL2T | CL21
+  type: string; // type ICAO (CL2T, AT8T, S64…)
+  kind: "plane" | "helo"; // pour l'icône carte
   model: string; // libellé lisible (CL-415…)
   lat: number;
   lon: number;
@@ -98,6 +103,7 @@ type Upstream = {
   r?: string;
   t?: string;
   desc?: string;
+  ownOp?: string; // propriétaire/opérateur (base FAA & co)
   lat?: number;
   lon?: number;
   track?: number;
@@ -109,17 +115,41 @@ type Upstream = {
 let cache: { at: number; planes: Plane[] } | null = null;
 let inflight: Promise<Plane[]> | null = null;
 
-// L'AT-802 sert aussi à l'épandage agricole (surtout aux USA). On ne garde
-// que les appareils en configuration lutte incendie : callsign « tanker »
-// (T###, TKR###, S### = SEAT) ou immatriculation hors USA (les AT-802
-// européens/canadiens suivis ici sont des Fire Boss anti-incendie).
+// Filtre anti-faux-positifs des types « mixtes ». Un type absent de cette
+// table est considéré pur lutte incendie et passe toujours.
 function isFireTanker(a: Upstream): boolean {
-  if (a.t !== "AT8T") return true;
+  const t = a.t || "";
   const cs = (a.flight || "").trim().toUpperCase();
-  if (/^(T|TKR|S)\d{2,3}$/.test(cs) || /^BOSS/.test(cs)) return true;
   const reg = (a.r || "").trim().toUpperCase();
-  return reg !== "" && !reg.startsWith("N");
+  const op = (a.ownOp || "").toUpperCase();
+  switch (t) {
+    case "AT8T":
+      // AT-802 : aussi épandeur agricole (USA). On garde les callsigns
+      // « tanker » (T###, TKR###, S### = SEAT, BOSS…) et les immats hors USA
+      // (les Fire Boss européens/canadiens).
+      return (
+        /^(T|TKR|S)\d{2,3}$/.test(cs) || /^BOSS/.test(cs) || (reg !== "" && !reg.startsWith("N"))
+      );
+    case "DH8D":
+      // Dash 8-400 : avion de ligne courant — on ne garde que les Q400AT
+      // de Conair (la flotte française « Milan » est couverte par hex).
+      return op.includes("CONAIR");
+    case "L382":
+      // Hercules civil : Coulson = tanker, le reste est du cargo.
+      return op.includes("COULSON");
+    case "H47":
+      // Chinook : civils porteurs d'eau (Coulson, Billings) vs militaires.
+      return op.includes("COULSON") || op.includes("BILLINGS");
+    case "H60":
+      // Black Hawk : Firehawks CalFire (immat N…DF) ou opérateurs feu/forêt.
+      return /^N\d+DF$/.test(reg) || op.includes("FIRE") || op.includes("FORESTRY");
+    default:
+      return true;
+  }
 }
+
+// Types hélicoptère (icône dédiée sur la carte).
+const HELO_TYPES = new Set(["S64", "H47", "H60", "K126", "EC45"]);
 
 // Libellés lisibles pour les types au descriptif austère.
 const TYPE_LABEL: Record<string, string> = {
@@ -130,6 +160,18 @@ const TYPE_LABEL: Record<string, string> = {
   CL21: "Canadair CL-215",
   CL2T: "Canadair CL-415",
   CL4T: "Canadair CL-415",
+  S64: "S-64 Air Crane (hélico)",
+  MD87: "MD-87 Air Tanker",
+  RJ85: "RJ85 Air Tanker",
+  B461: "BAe 146 Air Tanker",
+  B462: "BAe 146 Air Tanker",
+  B463: "BAe 146 Air Tanker",
+  OV10: "OV-10 Bronco (coordination)",
+  K126: "K-MAX (hélico)",
+  DH8D: "Dash 8 Q400AT Air Tanker",
+  L382: "C-130 Air Tanker",
+  H47: "CH-47 Chinook (hélico)",
+  H60: "Firehawk (hélico)",
 };
 
 function parse(list: Upstream[]): Plane[] {
@@ -155,6 +197,7 @@ function parse(list: Upstream[]): Plane[] {
       callsign: (a.flight || "").trim(),
       reg: (a.r || "").trim() || fleet?.reg || "",
       type: a.t || "",
+      kind: HELO_TYPES.has(a.t || "") ? "helo" : "plane",
       // Libellé de la flotte française prioritaire (« Pélican », « Milan »),
       // puis libellé dédié par type, puis descriptif brut de la base.
       model:
