@@ -297,6 +297,39 @@ export async function listFiresBetween(
   }
 }
 
+// Feux d'un pays (pages /en/fires/[country]) — plus récents d'abord.
+export async function listFiresByCountry(cc: string, limit = 30): Promise<ArchivedFire[]> {
+  const sb = supabaseCreds();
+  if (!sb) return [];
+  try {
+    const res = await fetch(
+      `${sb.url}/rest/v1/fire_events?select=*&country=eq.${encodeURIComponent(cc)}&order=last_seen.desc&limit=${limit}`,
+      { headers: { apikey: sb.key, Authorization: `Bearer ${sb.key}` }, cache: "no-store" }
+    );
+    if (!res.ok) return [];
+    return (await res.json()) as ArchivedFire[];
+  } catch {
+    return [];
+  }
+}
+
+// Feux où un appareil donné a été observé (pages /fr/canadair/[immat]).
+export async function listFiresByAircraft(hex: string, limit = 30): Promise<ArchivedFire[]> {
+  const sb = supabaseCreds();
+  if (!sb) return [];
+  try {
+    const filter = encodeURIComponent(JSON.stringify([{ id: hex }]));
+    const res = await fetch(
+      `${sb.url}/rest/v1/fire_events?select=*&aircraft=cs.${filter}&order=last_seen.desc&limit=${limit}`,
+      { headers: { apikey: sb.key, Authorization: `Bearer ${sb.key}` }, cache: "no-store" }
+    );
+    if (!res.ok) return [];
+    return (await res.json()) as ArchivedFire[];
+  } catch {
+    return [];
+  }
+}
+
 export async function listFireSlugs(limit = 5000): Promise<{ slug: string; updated_at: string }[]> {
   const sb = supabaseCreds();
   if (!sb) return [];

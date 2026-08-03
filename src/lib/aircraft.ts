@@ -25,7 +25,7 @@ const UA = "kanari.io wildfire map (+https://kanari.io)";
 const CACHE_MS = 15_000; // un appel amont toutes les 15 s au maximum
 
 // Flotte française de bombardiers d'eau (hors hélicos Dragon). hex -> libellé.
-const FRENCH_FLEET: Record<string, { reg: string; model: string }> = {
+export const FRENCH_FLEET: Record<string, { reg: string; model: string }> = {
   // Pélican — Canadair CL-415
   "3b7b6b": { reg: "F-ZBMG", model: "Canadair CL-415 « Pélican »" },
   "3b7b6c": { reg: "F-ZBFX", model: "Canadair CL-415 « Pélican »" },

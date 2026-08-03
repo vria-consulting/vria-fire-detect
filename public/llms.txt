@@ -40,6 +40,11 @@
   fonctionne un Canadair (https://kanari.io/fr/guide/comment-fonctionne-un-canadair),
   détection satellite (https://kanari.io/fr/guide/detection-feux-satellite),
   météo des forêts (https://kanari.io/fr/guide/meteo-des-forets).
+- [Wildfires by country (EN)](https://kanari.io/en/fires): live situation per
+  country, e.g. https://kanari.io/en/fires/greece,
+  https://kanari.io/en/fires/united-states — for "wildfires in X today".
+- [Embed the map (FR)](https://kanari.io/fr/widget): free iframe widget for
+  media, cities and weather sites (attribution link required).
 - [FAQ (EN)](https://kanari.io/en/faq): how the map works, tracking water
   bombers live, what to do when witnessing a fire.
 - [FAQ (FR)](https://kanari.io/fr/faq) : fonctionnement de la carte, suivi

@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 import { DEPARTEMENTS } from "@/lib/departements";
 import { GUIDES } from "@/lib/guides";
+import { COUNTRIES } from "@/lib/countries";
+import { FRENCH_FLEET } from "@/lib/aircraft";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = "https://kanari.io";
@@ -18,7 +20,33 @@ export default function sitemap(): MetadataRoute.Sitemap {
     changeFrequency: "monthly" as const,
     priority: 0.7,
   }));
+  const countryPages: MetadataRoute.Sitemap = COUNTRIES.map((c) => ({
+    url: `${base}/en/fires/${c.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "hourly" as const,
+    priority: 0.7,
+  }));
+  const aircraftPages: MetadataRoute.Sitemap = Object.values(FRENCH_FLEET).map((a) => ({
+    url: `${base}/fr/canadair/${a.reg.toLowerCase()}`,
+    lastModified: new Date(),
+    changeFrequency: "daily" as const,
+    priority: 0.6,
+  }));
   return [
+    {
+      url: `${base}/en/fires`,
+      lastModified: new Date(),
+      changeFrequency: "hourly",
+      priority: 0.9,
+    },
+    ...countryPages,
+    ...aircraftPages,
+    {
+      url: `${base}/fr/widget`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.6,
+    },
     {
       url: `${base}/fr/bilan`,
       lastModified: new Date(),

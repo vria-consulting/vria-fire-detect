@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isValidLang, type Lang } from "@/lib/i18n";
-import { getWaterBombers, type Plane } from "@/lib/aircraft";
+import { getWaterBombers, FRENCH_FLEET, type Plane } from "@/lib/aircraft";
 
 // Landing « Canadair en direct » : requête en forte croissance à chaque
 // épisode de feu, quasi sans concurrence. Rendu ISR court (2 min) : la page
@@ -201,6 +201,15 @@ export default async function CanadairPage({ params }: { params: Promise<{ lang:
         <section className="mb-7 text-[14.5px] leading-relaxed" style={{ color: "var(--ink-2)" }}>
           <h2 className="mb-2 text-[19px] font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>{t.fleet}</h2>
           <p>{t.fleetText}</p>
+          {lang === "fr" && (
+            <p className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[13.5px]">
+              {Object.values(FRENCH_FLEET).map((a) => (
+                <Link key={a.reg} href={`/fr/canadair/${a.reg.toLowerCase()}`} style={{ color: "var(--link)" }}>
+                  {a.reg}
+                </Link>
+              ))}
+            </p>
+          )}
         </section>
         <section className="mb-7 text-[14.5px] leading-relaxed" style={{ color: "var(--ink-2)" }}>
           <h2 className="mb-2 text-[19px] font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>{t.why}</h2>
