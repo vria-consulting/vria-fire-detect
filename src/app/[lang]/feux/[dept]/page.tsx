@@ -7,13 +7,12 @@ import { getEvents, staleEvents, staleBlobEvents } from "@/lib/eventscache";
 import { computeFireRisk, type FireRisk } from "@/lib/firerisk";
 import type { FireEvent } from "@/lib/cluster";
 
-// Pages locales SEO « Incendie [département] aujourd'hui » : rendues à la
-// demande puis revalidées (ISR) — fraîches sans peser sur le build ni sur
-// les sources amont.
-export const revalidate = 900;
-export async function generateStaticParams() {
-  return [];
-}
+// Pages locales SEO « Incendie [département] aujourd'hui » : rendu dynamique
+// (les données feux vivent dans un cache d'instance + Blob, le rendu reste
+// léger). Le shell statique ISR est incompatible avec les fetchs no-store
+// de getEvents (« page changed from static to dynamic at runtime »).
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 const RISK_LABELS = ["faible", "modéré", "élevé", "très élevé"];
 const RISK_COLORS = ["#3A9D5B", "#F0B400", "#E8622C", "#D64545"];
