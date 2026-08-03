@@ -154,6 +154,13 @@ export default async function RootLayout({
             >
               {t.navAbout}
             </Link>
+            <Link
+              href={`/${lang}/faq`}
+              className="hidden text-sm font-medium md:inline"
+              style={{ color: "var(--ink)" }}
+            >
+              {t.navFaq}
+            </Link>
             {/* Bouton Contribuer : jaune plein de la charte (ressort nettement,
                 sans concurrencer le rouge d'urgence). Icône seule sur petit
                 écran (le libellé apparaît dès 380 px), icône + texte au-delà. */}

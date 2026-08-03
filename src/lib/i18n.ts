@@ -45,6 +45,7 @@ const fr = {
   tagline: "l'alerte feu de forêt, avant tout le monde",
   navHow: "Comment ça marche",
   navAbout: "À propos",
+  navFaq: "FAQ",
   navContribute: "Contribuer",
   emergency: (n: string) => `Urgence ? ${n}`,
   emergencyWord: "Urgence ?",
@@ -53,7 +54,9 @@ const fr = {
   minimize: "Réduire",
   viewSatellite: "Satellite",
   viewPlan: "Plan",
-  metaTitle: "kanari — l'alerte feu de forêt, avant tout le monde",
+  // Titre = requête principale d'abord (« carte des feux… temps réel »),
+  // marque ensuite : c'est la requête tapée, pas la marque, qui amène le SEO.
+  metaTitle: "Carte des feux de forêt en temps réel — kanari, l'alerte avant tout le monde",
   metaDescription:
     "Carte mondiale en temps quasi réel des départs de feu de forêt : détection satellite (NASA FIRMS, Meteosat), témoignages citoyens vérifiés par IA, alertes gratuites par zone. Le canari chante avant la sirène.",
 
@@ -193,6 +196,7 @@ const en: typeof fr = {
   tagline: "the wildfire alert, before anyone else",
   navHow: "How it works",
   navAbout: "About",
+  navFaq: "FAQ",
   navContribute: "Contribute",
   emergency: (n: string) => `Emergency? ${n}`,
   emergencyWord: "Emergency?",
@@ -201,7 +205,7 @@ const en: typeof fr = {
   minimize: "Minimize",
   viewSatellite: "Satellite",
   viewPlan: "Map",
-  metaTitle: "kanari — the wildfire alert, before anyone else",
+  metaTitle: "Live wildfire map, real-time fire alerts — kanari",
   metaDescription:
     "Near real-time world map of wildfire ignitions: satellite detection (NASA FIRMS, Meteosat), AI-verified citizen reports, free area alerts. The canary sings before the siren.",
 

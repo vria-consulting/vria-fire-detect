@@ -180,13 +180,15 @@ function parse(list: Upstream[]): Plane[] {
     if (!isFireTanker(a)) continue;
     const lat = a.lat;
     const lon = a.lon;
-    // On écarte les appareils sans position fraîche (au sol/hangar : lat/lon
-    // absents ou 0,0, ou position vue il y a plus de 5 min).
+    // On écarte les appareils sans position fraîche (lat/lon absents ou 0,0,
+    // position vue il y a plus de 5 min) ET ceux au sol (parkings/bases) :
+    // la carte ne montre que les moyens réellement en vol.
     if (
       typeof lat !== "number" ||
       typeof lon !== "number" ||
       (lat === 0 && lon === 0) ||
-      (typeof a.seen_pos === "number" && a.seen_pos > 300)
+      (typeof a.seen_pos === "number" && a.seen_pos > 300) ||
+      a.alt_baro === "ground"
     ) {
       continue;
     }
