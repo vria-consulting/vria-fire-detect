@@ -93,26 +93,31 @@ function nearestDept(lat: number, lon: number): { code: string; slug: string } |
   return best;
 }
 
-// ---- Géocodage inverse (Photon, gratuit) — uniquement pour les nouveaux ---
-async function geocode(
-  lat: number,
-  lon: number
-): Promise<{ place: string | null; admin: string | null; country: string | null }> {
-  try {
-    const res = await fetch(
-      `https://photon.komoot.io/reverse?lon=${lon.toFixed(4)}&lat=${lat.toFixed(4)}&lang=fr`,
-      { headers: { "User-Agent": "kanari.io (archive)" } }
-    );
-    if (!res.ok) return { place: null, admin: null, country: null };
-    const p = (await res.json())?.features?.[0]?.properties;
-    return {
-      place: p?.name ?? p?.city ?? p?.county ?? null,
-      admin: p?.state ?? null,
-      country: (p?.countrycode ?? "").toUpperCase() || null,
-    };
-  } catch {
-    return { place: null, admin: null, country: null };
+// ---- Géocodage inverse HORS-LIGNE : gazetteer GeoNames embarqué (153k
+// villes). Photon/Nominatim refusent les IP datacenter de Vercel — le
+// gazetteer, lui, répond toujours et ne coûte rien.
+import citiesJson from "../data/cities.json";
+type GazEntry = [number, number, string, string]; // [lat, lon, CC, nom]
+let FLAT: { lat: number; lon: number; cc: string; name: string }[] | null = null;
+
+function nearestCity(lat: number, lon: number): { place: string | null; country: string | null } {
+  if (!FLAT) {
+    FLAT = [];
+    for (const entries of Object.values(citiesJson as unknown as Record<string, GazEntry[]>)) {
+      for (const [la, lo, cc, name] of entries) FLAT.push({ lat: la, lon: lo, cc, name });
+    }
   }
+  let best: { name: string; cc: string } | null = null;
+  let bestD = 80; // km — au-delà, zone inhabitée : on laisse sans nom
+  for (const c of FLAT) {
+    if (Math.abs(c.lat - lat) > 1 || Math.abs(c.lon - lon) > 1.5) continue; // pré-filtre
+    const d = distKm(lat, lon, c.lat, c.lon);
+    if (d < bestD) {
+      bestD = d;
+      best = { name: c.name, cc: c.cc };
+    }
+  }
+  return { place: best?.name ?? null, country: best?.cc ?? null };
 }
 
 // ---- Écriture -------------------------------------------------------------
@@ -147,7 +152,6 @@ export async function archiveEvents(events: FireEvent[], planes: Plane[]): Promi
   }
 
   const today = new Date().toISOString().slice(0, 10);
-  let geocodeBudget = 12; // politesse Photon : le reste passera au cron suivant
   const rows: ArchivedFire[] = [];
 
   for (const ev of candidates) {
@@ -157,17 +161,20 @@ export async function archiveEvents(events: FireEvent[], planes: Plane[]): Promi
     if (rows.some((r) => r.archive_key === key)) continue; // doublon même run
 
     let place = prev?.place ?? ev.social?.place ?? null;
-    let admin = prev?.admin ?? null;
+    const admin = prev?.admin ?? null;
     let country = prev?.country ?? null;
-    if (!prev && !place) {
-      if (geocodeBudget <= 0) continue; // archivé au prochain passage
-      geocodeBudget--;
-      const g = await geocode(lat, lon);
+    if (!place) {
+      const g = nearestCity(lat, lon);
       place = g.place;
-      admin = g.admin;
-      country = g.country;
+      if (!country) country = g.country;
     }
     if (!country) country = inFrance(lat, lon) ? "FR" : null;
+    // Rattrapage : une ligne archivée sans nom (« feu-… ») reçoit son vrai
+    // slug dès que le lieu est résolu — tant que la page est toute jeune.
+    const slug =
+      prev && prev.slug.startsWith("feu-") && place
+        ? makeSlug(place, key)
+        : prev?.slug ?? makeSlug(place, key);
 
     // Moyens aériens à proximité (< 40 km) au moment du scan.
     const nearPlanes = planes
@@ -186,7 +193,7 @@ export async function archiveEvents(events: FireEvent[], planes: Plane[]): Promi
 
     rows.push({
       archive_key: key,
-      slug: prev?.slug ?? makeSlug(place, key),
+      slug,
       event_id: ev.id,
       first_seen: prev && prev.first_seen < ev.firstSeen ? prev.first_seen : ev.firstSeen,
       last_seen: prev && prev.last_seen > ev.lastSeen ? prev.last_seen : ev.lastSeen,
