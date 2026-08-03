@@ -10,6 +10,8 @@ import {
 } from "@/lib/store";
 import type { FireEvent } from "@/lib/cluster";
 import { dfciCode } from "@/lib/dfci";
+import { archiveEvents } from "@/lib/firearchive";
+import { getWaterBombers } from "@/lib/aircraft";
 
 export const runtime = "nodejs";
 // Le cron réchauffe les caches 24 h + 6 h : à froid c'est le passage le plus
@@ -49,9 +51,19 @@ export async function GET(req: NextRequest) {
   const snapshot = await rebuildAll();
   const { events } = await getEvents(24);
 
+  // Mémoire des feux : archive les foyers significatifs (pages /fr/feu/…).
+  // Avant le retour anticipé « 0 abonnés » — l'archive doit toujours tourner.
+  let archived = 0;
+  try {
+    const planes = await getWaterBombers().catch(() => []);
+    archived = await archiveEvents(events, planes);
+  } catch (e) {
+    console.error("fire archive failed:", e);
+  }
+
   const subs = await readJson<PushSubscriptionRecord[]>(SUBS_PATH, []);
   if (subs.length === 0) {
-    return NextResponse.json({ ok: true, subs: 0, sent: 0, snapshot });
+    return NextResponse.json({ ok: true, subs: 0, sent: 0, archived, snapshot });
   }
   const now = Date.now();
   // Seuls les foyers récents et au moins "probables" déclenchent une alerte

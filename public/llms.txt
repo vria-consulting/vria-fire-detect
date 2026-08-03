@@ -24,6 +24,9 @@
 - [Feux en France par département (FR)](https://kanari.io/fr/feux) : situation
   locale en temps réel pour chacun des 101 départements français, e.g.
   https://kanari.io/fr/feux/gironde, https://kanari.io/fr/feux/var.
+- [Historique des feux (FR)](https://kanari.io/fr/feu) : la mémoire publique
+  des feux — chaque incendie significatif détecté a une page permanente avec
+  chronologie, détections satellites et moyens aériens engagés.
 - [Guides feux de forêt (FR)](https://kanari.io/fr/guide) : que faire en cas
   de feu (https://kanari.io/fr/guide/que-faire-feu-de-foret), comment
   fonctionne un Canadair (https://kanari.io/fr/guide/comment-fonctionne-un-canadair),

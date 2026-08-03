@@ -126,7 +126,7 @@ export default async function FeuxHub({ params }: { params: Promise<{ lang: stri
 
         <p className="mt-8 border-t pt-4 text-[12.5px]" style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}>
           kanari est un service d'information indépendant et gratuit, pas un canal d'alerte
-          officiel. En cas d'urgence : 18 ou 112. Voir aussi : <Link href="/fr/canadair" style={{ color: "var(--link)" }}>Canadair en direct</Link> · <Link href="/fr/faq" style={{ color: "var(--link)" }}>FAQ</Link>.
+          officiel. En cas d'urgence : 18 ou 112. Voir aussi : <Link href="/fr/feu" style={{ color: "var(--link)" }}>historique des feux</Link> · <Link href="/fr/canadair" style={{ color: "var(--link)" }}>Canadair en direct</Link> · <Link href="/fr/faq" style={{ color: "var(--link)" }}>FAQ</Link>.
         </p>
       </div>
     </div>
