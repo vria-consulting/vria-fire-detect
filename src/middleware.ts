@@ -62,6 +62,6 @@ export const config = {
   // Tout sauf les API, les assets Next, les fichiers statiques et les routes
   // de métadonnées (manifest, icônes, sitemap, robots…).
   matcher: [
-    "/((?!api|veille|google|_next|sw\\.js|brand|icon|apple-icon|favicon|manifest|sitemap|robots|llms|og\\.png|.*\\.(?:png|svg|ico|txt|webmanifest|xml)).*)",
+    "/((?!api|veille|google|opendata|_next|sw\\.js|brand|icon|apple-icon|favicon|manifest|sitemap|robots|llms|og\\.png|.*\\.(?:png|svg|ico|txt|webmanifest|xml)).*)",
   ],
 };

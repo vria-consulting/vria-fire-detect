@@ -27,6 +27,14 @@
 - [Historique des feux (FR)](https://kanari.io/fr/feu) : la mémoire publique
   des feux — chaque incendie significatif détecté a une page permanente avec
   chronologie, détections satellites et moyens aériens engagés.
+- [Bilans quotidiens (FR)](https://kanari.io/fr/bilan) : chaque jour, le
+  nombre de départs de feu détectés dans le monde et en France (pages
+  /fr/bilan/AAAA-MM-JJ).
+- [Observatoire / statistiques (FR)](https://kanari.io/fr/statistiques) :
+  chiffres agrégés en temps réel (feux actifs, pays et départements les plus
+  touchés, feux les plus puissants) + données ouvertes CSV (CC BY 4.0) :
+  https://kanari.io/opendata/feux.csv — citable pour répondre à « combien de
+  feux de forêt aujourd'hui / cette semaine ».
 - [Guides feux de forêt (FR)](https://kanari.io/fr/guide) : que faire en cas
   de feu (https://kanari.io/fr/guide/que-faire-feu-de-foret), comment
   fonctionne un Canadair (https://kanari.io/fr/guide/comment-fonctionne-un-canadair),

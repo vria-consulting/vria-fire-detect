@@ -98,7 +98,9 @@ export default async function FireIndex({ params }: { params: Promise<{ lang: st
         )}
 
         <p className="mt-8 border-t pt-4 text-[12.5px]" style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}>
-          Voir aussi : <Link href="/fr/feux" style={{ color: "var(--link)" }}>feux par département</Link> ·{" "}
+          Voir aussi : <Link href="/fr/bilan" style={{ color: "var(--link)" }}>bilans quotidiens</Link> ·{" "}
+          <Link href="/fr/statistiques" style={{ color: "var(--link)" }}>observatoire</Link> ·{" "}
+          <Link href="/fr/feux" style={{ color: "var(--link)" }}>feux par département</Link> ·{" "}
           <Link href="/fr/canadair" style={{ color: "var(--link)" }}>Canadair en direct</Link> ·{" "}
           <Link href="/fr/guide" style={{ color: "var(--link)" }}>guides</Link>. En cas d'urgence : 18 ou 112.
         </p>

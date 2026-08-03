@@ -20,6 +20,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
   }));
   return [
     {
+      url: `${base}/fr/bilan`,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.8,
+    },
+    {
+      url: `${base}/fr/statistiques`,
+      lastModified: new Date(),
+      changeFrequency: "hourly",
+      priority: 0.8,
+    },
+    {
       url: `${base}/fr/guide`,
       lastModified: new Date(),
       changeFrequency: "monthly",

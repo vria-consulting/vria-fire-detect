@@ -276,6 +276,27 @@ export async function listRecentFires(limit = 60): Promise<ArchivedFire[]> {
   }
 }
 
+// Feux dont la PREMIÈRE détection tombe dans [fromIso, toIso) — base des
+// bilans quotidiens et des statistiques.
+export async function listFiresBetween(
+  fromIso: string,
+  toIso: string,
+  limit = 2000
+): Promise<ArchivedFire[]> {
+  const sb = supabaseCreds();
+  if (!sb) return [];
+  try {
+    const res = await fetch(
+      `${sb.url}/rest/v1/fire_events?select=*&first_seen=gte.${encodeURIComponent(fromIso)}&first_seen=lt.${encodeURIComponent(toIso)}&order=max_frp.desc&limit=${limit}`,
+      { headers: { apikey: sb.key, Authorization: `Bearer ${sb.key}` }, cache: "no-store" }
+    );
+    if (!res.ok) return [];
+    return (await res.json()) as ArchivedFire[];
+  } catch {
+    return [];
+  }
+}
+
 export async function listFireSlugs(limit = 5000): Promise<{ slug: string; updated_at: string }[]> {
   const sb = supabaseCreds();
   if (!sb) return [];
