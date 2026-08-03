@@ -183,6 +183,18 @@ export default async function FaqPage({ params }: { params: Promise<{ lang: stri
             {lang === "fr" ? "← Retour à la carte des feux en direct" : "← Back to the live fire map"}
           </Link>
           {" · "}
+          <Link href={`/${lang}/canadair`} style={{ color: "var(--link)" }}>
+            {lang === "fr" ? "Canadair en direct" : "Water bombers live"}
+          </Link>
+          {lang === "fr" && (
+            <>
+              {" · "}
+              <Link href="/fr/feux" style={{ color: "var(--link)" }}>
+                Feux par département
+              </Link>
+            </>
+          )}
+          {" · "}
           <Link href={`/${lang}/contribuer`} style={{ color: "var(--link)" }}>
             {lang === "fr" ? "Contribuer au projet" : "Contribute to the project"}
           </Link>

@@ -1,9 +1,38 @@
 import type { MetadataRoute } from "next";
+import { DEPARTEMENTS } from "@/lib/departements";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = "https://kanari.io";
   const langs = { fr: `${base}/fr`, en: `${base}/en` };
+  // Pages locales « feux par département » (contenu FR, URL canonique unique).
+  const deptPages: MetadataRoute.Sitemap = DEPARTEMENTS.map((d) => ({
+    url: `${base}/fr/feux/${d.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "hourly" as const,
+    priority: 0.7,
+  }));
   return [
+    {
+      url: `${base}/fr/feux`,
+      lastModified: new Date(),
+      changeFrequency: "hourly",
+      priority: 0.9,
+    },
+    ...deptPages,
+    {
+      url: `${base}/fr/canadair`,
+      lastModified: new Date(),
+      changeFrequency: "hourly",
+      priority: 0.9,
+      alternates: { languages: { fr: `${base}/fr/canadair`, en: `${base}/en/canadair` } },
+    },
+    {
+      url: `${base}/en/canadair`,
+      lastModified: new Date(),
+      changeFrequency: "hourly",
+      priority: 0.8,
+      alternates: { languages: { fr: `${base}/fr/canadair`, en: `${base}/en/canadair` } },
+    },
     {
       url: `${base}/fr`,
       lastModified: new Date(),
