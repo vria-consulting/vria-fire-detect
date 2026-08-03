@@ -24,6 +24,8 @@ const REGIONS: Record<string, { center: [number, number]; zoom: number }> = {
 // Fond clair (maquette « Kanari App Redesign v2 ») : CARTO Positron.
 const MAP_STYLE: maplibregl.StyleSpecification = {
   version: 8,
+  // Glyphes nécessaires aux compteurs de clusters (serveur MapLibre officiel).
+  glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
   sources: {
     carto: {
       type: "raster",
@@ -62,6 +64,62 @@ function formatShort(h: number): string {
 // Bouton « M'alerter sur cette zone » masqué en attendant une refonte (fiabilité
 // des alertes push) : passer à true pour le réafficher.
 const ALERTS_ENABLED = false;
+
+// ---- Braises : dimension réelle et phase d'animation ----------------------
+// Rayon d'emprise du foyer (km) depuis sa bbox de détections : la taille du
+// halo sur la carte reflète l'étendue RÉELLE du feu, plus une icône uniforme.
+function footprintKm(ev: FireEvent): number {
+  const [w, s, e, n] = ev.bbox;
+  const kx = Math.cos((((s + n) / 2) * Math.PI) / 180) * 111.32;
+  const dx = (e - w) * kx;
+  const dy = (n - s) * 110.57;
+  return Math.min(30, Math.max(1.2, Math.sqrt(dx * dx + dy * dy) / 2));
+}
+
+// Phase pseudo-aléatoire stable par foyer (0..2π) : les respirations sont
+// déphasées feu par feu — rendu organique, jamais métronome.
+function phaseOf(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return (h % 6283) / 1000;
+}
+
+// Rayon de braise en pixels : suit la taille RÉELLE au sol (0,008 px/km au
+// zoom 0, ×2 par niveau — exact aux latitudes moyennes), borné par un
+// minimum lisible. Contrainte MapLibre : ["zoom"] doit rester au premier
+// niveau -> le « max » vit DANS les stops. `t` non nul ajoute la respiration
+// organique (sinus déphasé par foyer).
+function emberRadius(
+  mult: number,
+  mins: [number, number, number, number],
+  t: number | null
+): maplibregl.ExpressionSpecification {
+  const stop = (f: number, m: number): unknown => {
+    const base = ["max", ["*", ["get", "radiusKm"], f * mult], m];
+    return t == null
+      ? base
+      : ["*", base, ["+", 1, ["*", 0.07, ["sin", ["+", t * 1.2, ["get", "phase"]]]]]];
+  };
+  return [
+    "interpolate", ["exponential", 2], ["zoom"],
+    2, stop(0.032, mins[0]),
+    7, stop(1.024, mins[1]),
+    12, stop(32.77, mins[2]),
+    20, stop(8389, mins[3]),
+  ] as unknown as maplibregl.ExpressionSpecification;
+}
+// Tailles partagées entre la définition des couches et la boucle d'animation
+// (une seule source de vérité — retour terrain : « les points sont trop petits »).
+const CORE_MULT = 0.6;
+const CORE_MINS: [number, number, number, number] = [3, 5.5, 9, 12];
+const AURA_MULT = 1.3;
+const AURA_MINS: [number, number, number, number] = [6, 10, 16, 20];
+
+// Couleur par âge du dernier signal (braise qui refroidit).
+const AGE_COLOR_EXPR = [
+  "step", ["get", "lastAgeH"],
+  "#D64545", 3, "#E8622C", 12, "#F0B400", 24, "#8A8880",
+] as unknown as maplibregl.ExpressionSpecification;
 
 const NEW_EVENT_HOURS = 12; // un foyer est "nouveau" si son 1er signal a < 12 h
 const DEPART_WATCH_MIN = 120; // urgents : 1er signalement il y a 2 h max
@@ -240,6 +298,48 @@ function heloImage(): ImageData {
   ctx.fillStyle = "#F5C518";
   ctx.fill();
   return ctx.getImageData(0, 0, S, S);
+}
+
+// Panache de vent (vue de dessus) : dégradé chaud, opaque à la base (le feu),
+// évanescent vers la pointe — orienté ensuite vers la direction de propagation.
+// Bouffée de fumée sombre pré-rendue : dessinée UNE fois, réutilisée pour
+// toutes les particules (drawImage = quasi gratuit).
+function smokePuffSprite(): HTMLCanvasElement {
+  const S = 80;
+  const c = document.createElement("canvas");
+  c.width = S;
+  c.height = S;
+  const ctx = c.getContext("2d")!;
+  const g = ctx.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+  g.addColorStop(0, "rgba(62,57,52,0.7)");
+  g.addColorStop(0.55, "rgba(62,57,52,0.4)");
+  g.addColorStop(1, "rgba(62,57,52,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, S, S);
+  return c;
+}
+
+type SmokeSource = { id: string; lon: number; lat: number; rot: number; kmh: number; frp: number };
+type SmokeParticle = { x: number; y: number; vx: number; vy: number; born: number; life: number; s0: number; w: number };
+// Billboard de VRAI feu filmé (boucle Pexels sur fond noir) : mirror +
+// tranche source variés par foyer = pas de clones.
+type VideoFire = { lon: number; lat: number; frp: number; rot: number | null; kmh: number; mirror: boolean; sx: number };
+
+// Masque de bords : fond en douceur sur les 4 côtés du cadre vidéo pour que
+// la flamme détourée n'ait JAMAIS d'arête rectangulaire visible.
+function buildEdgeMask(w: number, h: number): Float32Array {
+  const m = new Float32Array(w * h);
+  const smooth = (x: number) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+  for (let y = 0; y < h; y++) {
+    const fy =
+      smooth(y / (h * 0.07)) * // haut
+      smooth((h - 1 - y) / (h * 0.08)); // bas (léger : la base des flammes vit)
+    for (let x = 0; x < w; x++) {
+      const fx = smooth(x / (w * 0.1)) * smooth((w - 1 - x) / (w * 0.1));
+      m[y * w + x] = fx * fy;
+    }
+  }
+  return m;
 }
 
 // Drapeau emoji à partir d'un code pays ISO-2 ("IT" -> 🇮🇹). "" si inconnu.
@@ -428,6 +528,24 @@ export default function FireMap({ lang }: { lang: Lang }) {
   const planesRef = useRef<Plane[]>([]);
   const planeBaseRef = useRef<number>(0);
   const [planeCount, setPlaneCount] = useState(0);
+  // Vent par foyer (fumée de propagation) : cache 12 min, id -> {deg, kmh}.
+  const windCacheRef = useRef<Map<string, { deg: number; kmh: number; at: number }>>(new Map());
+  const windTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Fumée vivante : sources (foyer + vent), particules, sprite, horloge sim.
+  const smokeSourcesRef = useRef<SmokeSource[]>([]);
+  const smokePartsRef = useRef<SmokeParticle[]>([]);
+  const smokeSpawnRef = useRef<Map<string, number>>(new Map());
+  const smokeSpriteRef = useRef<HTMLCanvasElement | null>(null);
+  const smokeCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const lastSimRef = useRef<number>(0);
+  // Feu filmé : la boucle vidéo décodée UNE fois, dessinée N fois par frame.
+  const flameVideoRef = useRef<HTMLVideoElement | null>(null);
+  const videoFiresRef = useRef<VideoFire[]>([]);
+  // Détourage par luminance : canvas intermédiaire (frame vidéo -> vraie
+  // transparence) + masque de bords, calculés une fois par frame pour TOUS
+  // les feux.
+  const keyCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const keyMaskRef = useRef<Float32Array | null>(null);
 
   useEffect(() => {
     if (localStorage.getItem("vigifire-alert-endpoint")) setAlertState("on");
@@ -537,6 +655,10 @@ export default function FireMap({ lang }: { lang: Lang }) {
               firstAgeMin: Math.round(hoursAgo(ev.firstSeen) * 60),
               isNew: hoursAgo(ev.firstSeen) < NEW_EVENT_HOURS ? 1 : 0,
               corroborated: ev.confidence === "corrobore" ? 1 : 0,
+              frp: ev.maxFrp,
+              radiusKm: footprintKm(ev),
+              phase: phaseOf(ev.id),
+              flameVar: Math.floor(phaseOf(ev.id) * 100) % 4,
             },
           })),
         });
@@ -611,6 +733,10 @@ export default function FireMap({ lang }: { lang: Lang }) {
       attributionControl: false,
     });
     mapRef.current = map;
+    if (process.env.NODE_ENV === "development") {
+      // Inspection en dev uniquement (jamais présent en prod).
+      (window as unknown as { __kmap?: maplibregl.Map }).__kmap = map;
+    }
     // Commandes en bas à gauche : le coin bas-droite est réservé au bandeau
     // « En direct » réductible.
     map.addControl(
@@ -625,7 +751,45 @@ export default function FireMap({ lang }: { lang: Lang }) {
     );
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-left");
 
-    const ro = new ResizeObserver(() => map.resize());
+    // Canvas de fumée : couche de particules AU-DESSUS de la carte (sous
+    // l'interface), en pixels écran — les bouffées dérivent sous le vent.
+    const smoke = document.createElement("canvas");
+    // width/height:100% OBLIGATOIRES : « inset:0 » seul ne contraint pas un
+    // <canvas> (taille intrinsèque = son buffer) — sans ça, il s'affiche à
+    // buffer×dpr et tout le calque est décalé/désynchronisé (vu en local).
+    smoke.style.cssText =
+      "position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2";
+    containerRef.current.appendChild(smoke);
+    smokeCanvasRef.current = smoke;
+    const sizeSmoke = () => {
+      const el = containerRef.current;
+      if (!el) return;
+      const d = window.devicePixelRatio || 1;
+      smoke.width = el.clientWidth * d;
+      smoke.height = el.clientHeight * d;
+    };
+    sizeSmoke();
+    // Les particules vivent en pixels écran : un déplacement de carte les
+    // rendrait fausses — on les purge (elles renaissent en < 1 s).
+    map.on("move", () => {
+      smokePartsRef.current.length = 0;
+    });
+    // Boucle de VRAI feu (Pexels, fond noir) : décodée une seule fois,
+    // dessinée sur le canvas en blending « screen » pour chaque foyer actif.
+    const flameVideo = document.createElement("video");
+    flameVideo.src = "/fx/flame.mp4";
+    flameVideo.muted = true;
+    flameVideo.loop = true;
+    flameVideo.playsInline = true;
+    flameVideo.play().catch(() => {
+      /* autoplay muet refusé (rare) : les billboards restent absents */
+    });
+    flameVideoRef.current = flameVideo;
+
+    const ro = new ResizeObserver(() => {
+      map.resize();
+      sizeSmoke();
+    });
     ro.observe(containerRef.current);
 
     const syncBounds = () => {
@@ -674,54 +838,114 @@ export default function FireMap({ lang }: { lang: Lang }) {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       });
-      // Halo doux sous les feux actifs (< 3 h).
-      map.addLayer({
-        id: "events-glow",
-        type: "circle",
-        source: "events",
-        filter: ["<", ["get", "lastAgeH"], 3],
-        paint: {
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 12, 8, 30],
-          "circle-color": AGE_COLORS.active,
-          "circle-opacity": 0.14,
-          "circle-blur": 1,
-        },
-      });
-      // Icônes flamme aux couleurs de la charte (liseré blanc).
+      // Icônes flamme (signalements citoyens) + avions/hélicos.
       for (const [name, [main, core]] of Object.entries(FLAMES)) {
         map.addImage(name, flameImage(main, core));
       }
       map.addImage("plane", planeImage(), { pixelRatio: 2 });
       map.addImage("helo", heloImage(), { pixelRatio: 2 });
-      // Foyers : flamme teintée par âge du dernier signal, taille = nombre
-      // de détections.
+
+      // ---- Le nouveau langage des feux : « la Terre qui brûle » ----------
+      // 1) Dézoomé : couche THERMIQUE — les feux sont des lueurs organiques
+      //    qui fusionnent naturellement (poids = puissance × fraîcheur),
+      //    comme les vraies images nocturnes satellites. S'estompe en fondu
+      //    vers les braises individuelles à partir du zoom ~6.
       map.addLayer({
-        id: "events-icons",
-        type: "symbol",
+        id: "events-heat",
+        type: "heatmap",
         source: "events",
-        layout: {
-          "icon-image": [
-            "step",
-            ["get", "lastAgeH"],
-            "flame-active",
-            3,
-            "flame-recent",
-            12,
-            "flame-watched",
-            24,
-            "flame-old",
-          ],
-          "icon-size": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            2,
-            ["interpolate", ["linear"], ["ln", ["+", ["get", "count"], 1]], 0, 0.18, 3, 0.32, 7, 0.55],
-            9,
-            ["interpolate", ["linear"], ["ln", ["+", ["get", "count"], 1]], 0, 0.4, 3, 0.72, 7, 1.25],
-          ],
-          "icon-allow-overlap": true,
-          "icon-ignore-placement": true,
+        maxzoom: 7.6,
+        paint: {
+          // Poids TRÈS discriminé par la puissance réelle (FRP) : les milliers
+          // de brûlis agricoles de savane (faible FRP) ne doivent plus peindre
+          // l'Afrique en apocalypse — seuls les feux puissants pèsent lourd.
+          // Chaque petit feu reste visible individuellement via son étincelle.
+          "heatmap-weight": [
+            "*",
+            ["interpolate", ["linear"], ["get", "frp"], 0, 0.06, 20, 0.15, 60, 0.35, 150, 0.7, 400, 1],
+            ["interpolate", ["linear"], ["get", "lastAgeH"], 0, 1, 24, 0.6],
+          ] as unknown as maplibregl.ExpressionSpecification,
+          // Rayon réduit dézoomé : les petits feux voisins ne fusionnent plus
+          // en nappes continentales.
+          "heatmap-radius": [
+            "interpolate", ["linear"], ["zoom"],
+            2, ["+", 5, ["*", ["get", "radiusKm"], 0.08]],
+            4, ["+", 8, ["*", ["get", "radiusKm"], 0.25]],
+            6, ["+", 15, ["*", ["get", "radiusKm"], 0.8]],
+            7.5, ["+", 24, ["*", ["get", "radiusKm"], 1.5]],
+          ] as unknown as maplibregl.ExpressionSpecification,
+          "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 2, 0.75, 7, 1.2],
+          // Basses densités = voile ambré discret (brûlis diffus) ; le rouge
+          // et le blanc-chaud sont RÉSERVÉS aux fortes concentrations de
+          // puissance (vrais incendies majeurs).
+          "heatmap-color": [
+            "interpolate", ["linear"], ["heatmap-density"],
+            0, "rgba(200,110,50,0)",
+            0.12, "rgba(228,140,60,0.4)",
+            0.35, "rgba(235,110,45,0.6)",
+            0.6, "#E05038",
+            0.85, "#FFB347",
+            1, "#FFF3C4",
+          ] as unknown as maplibregl.ExpressionSpecification,
+          "heatmap-opacity": ["interpolate", ["linear"], ["zoom"], 5, 0.85, 6.5, 0],
+        },
+      });
+      // 1bis) Étincelle : un point net et chaud par foyer, toujours visible
+      // dézoomé — AUCUN feu ne peut passer inaperçu, même isolé et modeste
+      // (retour terrain : l'Europe du Nord devenait invisible).
+      map.addLayer({
+        id: "events-spark",
+        type: "circle",
+        source: "events",
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 2.2, 6, 3.6],
+          "circle-color": [
+            "step", ["get", "lastAgeH"], "#FF7A5C", 12, "#F5A05C", 24, "#BDB5A6",
+          ] as unknown as maplibregl.ExpressionSpecification,
+          "circle-opacity": ["interpolate", ["linear"], ["zoom"], 4.8, 0.95, 5.6, 0],
+          "circle-stroke-color": "rgba(45,22,12,0.55)",
+          "circle-stroke-width": 0.9,
+        },
+      });
+      // 2) Aura : halo doux à l'ÉTENDUE RÉELLE du foyer (bbox), respire.
+      //    Invisible dézoomé (la thermique règne), fondu entrant vers z6-7.
+      map.addLayer({
+        id: "events-aura",
+        type: "circle",
+        source: "events",
+        paint: {
+          "circle-radius": emberRadius(AURA_MULT, AURA_MINS, null),
+          "circle-color": AGE_COLOR_EXPR,
+          "circle-opacity": ["interpolate", ["linear"], ["zoom"], 4.4, 0, 5.4, 0.15],
+          "circle-blur": 1,
+        },
+      });
+      // 3) Cœur : la braise — luminosité selon la puissance (MW).
+      map.addLayer({
+        id: "events-core",
+        type: "circle",
+        source: "events",
+        paint: {
+          "circle-radius": emberRadius(CORE_MULT, CORE_MINS, null),
+          "circle-color": AGE_COLOR_EXPR,
+          "circle-opacity": [
+            "interpolate", ["linear"], ["zoom"],
+            4.4, 0,
+            5.4, ["min", 0.95, ["+", 0.45, ["*", 0.11, ["ln", ["+", ["get", "frp"], 1]]]]],
+          ] as unknown as maplibregl.ExpressionSpecification,
+          "circle-blur": 0.4,
+        },
+      });
+      // 4) Point d'ignition : cœur blanc-chaud des feux encore vifs (< 12 h).
+      map.addLayer({
+        id: "events-dot",
+        type: "circle",
+        source: "events",
+        filter: ["<", ["get", "lastAgeH"], 12],
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 3, 2, 9, 4.5],
+          "circle-color": "#FFEDD2",
+          "circle-opacity": ["interpolate", ["linear"], ["zoom"], 4.6, 0, 5.6, 0.9],
         },
       });
       // Signalements citoyens : flamme bleue source humaine — délavée tant
@@ -791,7 +1015,7 @@ export default function FireMap({ lang }: { lang: Lang }) {
         // queryRenderedFeatures peut lever « Out of bounds » si le clic tombe
         // pendant la reconstruction des tuiles (setData toutes les 2 min).
         try {
-          const layers = ["events-icons", "signals-icons", "reports-icons", "planes-icons"].filter((l) =>
+          const layers = ["events-core", "events-aura", "signals-icons", "reports-icons", "planes-icons"].filter((l) =>
             map.getLayer(l)
           );
           if (layers.length === 0) return;
@@ -891,7 +1115,7 @@ export default function FireMap({ lang }: { lang: Lang }) {
           /* tuiles en cours de reconstruction : on ignore ce clic */
         }
       });
-      for (const layer of ["events-icons", "signals-icons"]) {
+      for (const layer of ["events-core", "signals-icons"]) {
         map.on("mouseenter", layer, () => (map.getCanvas().style.cursor = "pointer"));
         map.on("mouseleave", layer, () => (map.getCanvas().style.cursor = ""));
       }
@@ -900,6 +1124,11 @@ export default function FireMap({ lang }: { lang: Lang }) {
 
     return () => {
       ro.disconnect();
+      smoke.remove();
+      smokeCanvasRef.current = null;
+      flameVideo.pause();
+      flameVideo.removeAttribute("src");
+      flameVideoRef.current = null;
       map.remove();
       mapRef.current = null;
     };
@@ -1170,18 +1399,17 @@ export default function FireMap({ lang }: { lang: Lang }) {
   // Applique le mode aux couches carte + marqueurs pulsants des départs < 20 min
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.getLayer("events-icons")) return;
+    if (!map || !map.getLayer("events-core")) return;
     for (const m of pulseMarkersRef.current) m.remove();
     pulseMarkersRef.current = [];
 
     if (mode === "departs") {
-      const freshFilter: maplibregl.FilterSpecification = [
-        "<=",
-        ["get", "firstAgeMin"],
-        DEPART_WATCH_MIN,
-      ];
-      map.setFilter("events-icons", freshFilter);
-      map.setFilter("events-glow", freshFilter);
+      const fresh = ["<=", ["get", "firstAgeMin"], DEPART_WATCH_MIN] as unknown as maplibregl.FilterSpecification;
+      map.setFilter("events-heat", fresh);
+      map.setFilter("events-aura", fresh);
+      map.setFilter("events-core", fresh);
+      map.setFilter("events-spark", fresh);
+      map.setFilter("events-dot", ["all", fresh, ["<", ["get", "lastAgeH"], 12]] as unknown as maplibregl.FilterSpecification);
       // Un signalement n'est un "départ" que si ses PREMIÈRES mentions sont
       // récentes (newFire) — un feu qui dure fait encore parler de lui.
       map.setFilter("signals-icons", [
@@ -1219,8 +1447,11 @@ export default function FireMap({ lang }: { lang: Lang }) {
         );
       }
     } else {
-      map.setFilter("events-icons", null);
-      map.setFilter("events-glow", ["<", ["get", "lastAgeH"], 3]);
+      map.setFilter("events-heat", null);
+      map.setFilter("events-aura", null);
+      map.setFilter("events-core", null);
+      map.setFilter("events-spark", null);
+      map.setFilter("events-dot", ["<", ["get", "lastAgeH"], 12]);
       map.setFilter("signals-icons", null);
     }
   }, [mode, events, signals]);
@@ -1273,6 +1504,101 @@ export default function FireMap({ lang }: { lang: Lang }) {
     });
   }, []);
 
+  // Plumes de vent : pour les foyers actifs visibles (zoom rapproché), on
+  // récupère le vent PAR LOTS (1 appel pour ~30 foyers, caches serveur et
+  // client) et on oriente chaque panache sous le vent = direction de
+  // propagation probable.
+  const updateWindFeathers = useCallback(async () => {
+    const map = mapRef.current;
+    if (!map) return;
+    const b = map.getBounds();
+    const inView = eventsRef.current
+      .filter(
+        (ev) =>
+          hoursAgo(ev.lastSeen) < 24 &&
+          ev.centroid[0] >= b.getWest() &&
+          ev.centroid[0] <= b.getEast() &&
+          ev.centroid[1] >= b.getSouth() &&
+          ev.centroid[1] <= b.getNorth()
+      )
+      .sort((a, x) => x.maxFrp - a.maxFrp);
+    // Flammes filmées : à TOUS les zooms (taille proportionnelle), pour les
+    // foyers qui brûlent vraiment (< 12 h). Plafond large : dézoomées, elles
+    // ne font que quelques pixels.
+    videoFiresRef.current = inView
+      .filter((ev) => hoursAgo(ev.lastSeen) < 12)
+      .slice(0, 150)
+      .map((ev) => {
+        const w = windCacheRef.current.get(ev.id);
+        const ph = phaseOf(ev.id);
+        return {
+          lon: ev.centroid[0],
+          lat: ev.centroid[1],
+          frp: ev.maxFrp,
+          rot: w ? (w.deg + 180) % 360 : null,
+          kmh: w?.kmh ?? 0,
+          mirror: Math.floor(ph * 10) % 2 === 1,
+          sx: Math.floor(ph * 100) % 3,
+        };
+      });
+    // Vent + fumée : réservés au zoom rapproché (coût API maîtrisé).
+    if (map.getZoom() < 4.4) {
+      smokeSourcesRef.current = [];
+      return;
+    }
+    const windTargets = inView.slice(0, 40);
+    const now = Date.now();
+    const missing = windTargets.filter((ev) => {
+      const w = windCacheRef.current.get(ev.id);
+      return !w || now - w.at > 12 * 60 * 1000;
+    });
+    if (missing.length > 0) {
+      try {
+        const pts = missing
+          .map((ev) => `${ev.centroid[1].toFixed(2)},${ev.centroid[0].toFixed(2)}`)
+          .join(";");
+        const res = await fetch(`/api/winds?pts=${pts}`);
+        if (res.ok) {
+          const { winds } = (await res.json()) as { winds: ({ deg: number; kmh: number } | null)[] };
+          missing.forEach((ev, i) => {
+            const w = winds[i];
+            if (w) windCacheRef.current.set(ev.id, { ...w, at: now });
+          });
+        }
+      } catch {
+        /* vent indisponible : fumée absente ce tour-ci */
+      }
+    }
+    // Les sources de fumée du simulateur de particules.
+    smokeSourcesRef.current = windTargets.flatMap((ev) => {
+      const w = windCacheRef.current.get(ev.id);
+      // Vent quasi nul : pas de panache directionnel à montrer.
+      if (!w || w.kmh < 3) return [];
+      return [
+        {
+          id: ev.id,
+          lon: ev.centroid[0],
+          lat: ev.centroid[1],
+          // Météo = direction d'OÙ vient le vent ; la fumée part à l'opposé.
+          rot: (w.deg + 180) % 360,
+          kmh: w.kmh,
+          frp: ev.maxFrp,
+        },
+      ];
+    });
+  }, []);
+
+  // Recalcule les plumes quand la vue ou les foyers changent (anti-rafale 700 ms).
+  useEffect(() => {
+    if (windTimerRef.current) clearTimeout(windTimerRef.current);
+    windTimerRef.current = setTimeout(() => {
+      updateWindFeathers();
+    }, 700);
+    return () => {
+      if (windTimerRef.current) clearTimeout(windTimerRef.current);
+    };
+  }, [viewBounds, events, updateWindFeathers]);
+
   // Recentre la carte sur les Canadair (clic sur le compteur).
   const fitPlanes = () => {
     const map = mapRef.current;
@@ -1307,21 +1633,209 @@ export default function FireMap({ lang }: { lang: Lang }) {
     let raf = 0;
     const loop = () => {
       const map = mapRef.current;
-      if (map && map.getLayer("events-glow")) {
-        const s = 0.5 + 0.5 * Math.sin(performance.now() / 800); // 0..1, cycle ~5 s
+      if (map && map.getLayer("events-core")) {
+        const t = performance.now() / 1000;
         try {
-          // Toutes les flammes « respirent » en opacité -> animation toujours
-          // visible partout où il y a des feux (sobre, cycle lent).
-          map.setPaintProperty("events-icons", "icon-opacity", 0.62 + 0.38 * s);
-          // Halo des foyers actifs (< 3 h) : anneau qui pulse comme un radar
-          // (grandit puis s'estompe).
-          const r = 1 + 0.45 * s;
-          map.setPaintProperty("events-glow", "circle-radius", [
-            "interpolate", ["linear"], ["zoom"], 2, 12 * r, 8, 30 * r,
+          // Respiration organique : chaque braise gonfle/dégonfle lentement,
+          // déphasée par foyer (jamais métronome).
+          map.setPaintProperty("events-core", "circle-radius", emberRadius(CORE_MULT, CORE_MINS, t));
+          map.setPaintProperty("events-aura", "circle-opacity", [
+            "interpolate", ["linear"], ["zoom"],
+            4.4, 0,
+            5.4, ["+", 0.11, ["*", 0.05, ["sin", ["+", t * 0.8, ["get", "phase"]]]]],
           ]);
-          map.setPaintProperty("events-glow", "circle-opacity", 0.05 + 0.17 * (1 - s));
+          // La nappe thermique « couve » doucement (respiration globale lente).
+          map.setPaintProperty("events-heat", "heatmap-opacity", [
+            "interpolate", ["linear"], ["zoom"],
+            5, 0.8 + 0.07 * Math.sin(t * 0.55),
+            6.5, 0,
+          ]);
         } catch {
           /* couches pas prêtes : on réessaie à la frame suivante */
+        }
+      }
+
+      // --- FUMÉE VIVANTE : simulation de particules --------------------
+      // Chaque foyer venté émet des bouffées sombres qui dérivent sous le
+      // vent, enflent et se dissipent : la direction de propagation se lit
+      // par le MOUVEMENT (aucune flèche nécessaire).
+      const smoke = smokeCanvasRef.current;
+      if (map && smoke) {
+        const nowMs = performance.now();
+        const dt = Math.min(0.1, (nowMs - lastSimRef.current) / 1000) || 0.016;
+        lastSimRef.current = nowMs;
+        const ctx = smoke.getContext("2d");
+        if (ctx) {
+          // Resynchronisation du buffer À CHAQUE FRAME : zoom navigateur,
+          // redimensionnement ou course avec l'observer ne peuvent plus
+          // désaligner le calque (les positions viennent de map.project en
+          // pixels CSS — le buffer doit suivre exactement).
+          const dpr = window.devicePixelRatio || 1;
+          const host = containerRef.current;
+          if (host) {
+            const bw = Math.round(host.clientWidth * dpr);
+            const bh = Math.round(host.clientHeight * dpr);
+            if (smoke.width !== bw || smoke.height !== bh) {
+              smoke.width = bw;
+              smoke.height = bh;
+            }
+          }
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          ctx.clearRect(0, 0, smoke.width / dpr, smoke.height / dpr);
+          const z = map.getZoom();
+          const parts = smokePartsRef.current;
+
+
+          if (z >= 4.6) {
+            const zs = Math.min(3, Math.max(0.5, 2 ** (z - 7)));
+            // Émission (cadence accélérée pour les feux puissants).
+            for (const s of smokeSourcesRef.current) {
+              const interval = s.frp > 80 ? 180 : 320;
+              const last = smokeSpawnRef.current.get(s.id) ?? 0;
+              if (nowMs - last < interval) continue;
+              smokeSpawnRef.current.set(s.id, nowMs);
+              const p = map.project([s.lon, s.lat]);
+              const rad = (s.rot * Math.PI) / 180;
+              const spd = Math.min(100, (12 + s.kmh * 0.6) * zs);
+              parts.push({
+                x: p.x + (Math.random() - 0.5) * 5,
+                y: p.y + (Math.random() - 0.5) * 5,
+                vx: Math.sin(rad) * spd,
+                vy: -Math.cos(rad) * spd,
+                born: nowMs,
+                life: 2400 + Math.random() * 1600,
+                s0: (9 + Math.min(16, s.frp * 0.05)) * zs,
+                w: Math.random() * 6.28,
+              });
+            }
+            if (parts.length > 900) parts.splice(0, parts.length - 900);
+            // Advection + rendu (sprite pré-rendu : quasi gratuit).
+            const sprite =
+              smokeSpriteRef.current ?? (smokeSpriteRef.current = smokePuffSprite());
+            for (let i = parts.length - 1; i >= 0; i--) {
+              const pt = parts[i];
+              const age = (nowMs - pt.born) / pt.life;
+              if (age >= 1) {
+                parts.splice(i, 1);
+                continue;
+              }
+              pt.x += pt.vx * dt;
+              pt.y += pt.vy * dt;
+              const size = pt.s0 * (1 + 4.2 * age);
+              const wobble = Math.sin(nowMs / 500 + pt.w) * size * 0.08;
+              ctx.globalAlpha = 0.72 * (1 - age) ** 1.25;
+              ctx.drawImage(sprite, pt.x - size / 2 + wobble, pt.y - size / 2, size, size);
+            }
+            ctx.globalAlpha = 1;
+          } else if (parts.length > 0) {
+            parts.length = 0;
+          }
+
+          // --- VRAI FEU FILMÉ, à TOUS les zooms -------------------------
+          // 1) Détourage par luminance (1 fois par frame, partagé) : le fond
+          //    noir devient VRAIE transparence, les bords sont fondus par le
+          //    masque — plus jamais de carré visible.
+          // 2) Dessin : taille proportionnelle au zoom et à l'intensité,
+          //    inclinaison synchronisée avec le vent.
+          const video = flameVideoRef.current;
+          if (video && video.readyState >= 2 && video.videoWidth > 0 && videoFiresRef.current.length > 0) {
+            const vw = video.videoWidth;
+            const vh = video.videoHeight;
+            let kc = keyCanvasRef.current;
+            if (!kc) {
+              kc = document.createElement("canvas");
+              kc.width = vw;
+              kc.height = vh;
+              keyCanvasRef.current = kc;
+            }
+            const kctx = kc.getContext("2d", { willReadFrequently: true });
+            if (kctx) {
+              kctx.drawImage(video, 0, 0);
+              const img = kctx.getImageData(0, 0, vw, vh);
+              const d = img.data;
+              let mask = keyMaskRef.current;
+              if (!mask || mask.length !== vw * vh) {
+                mask = buildEdgeMask(vw, vh);
+                keyMaskRef.current = mask;
+              }
+              for (let i = 0, j = 0; i < d.length; i += 4, j++) {
+                const l = 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+                // Seuils durs : l'ambiance rouge sombre du tournage disparaît,
+                // seules la flamme vive et les braises chaudes subsistent.
+                const a = l <= 36 ? 0 : l >= 110 ? 255 : ((l - 36) * 255) / 74;
+                d[i + 3] = a * mask[j];
+              }
+              kctx.putImageData(img, 0, 0);
+
+              const cw = smoke.width / dpr;
+              const ch = smoke.height / dpr;
+              // Échelle continue : petite au zoom monde, imposante zoomée.
+              const zs2 = Math.min(5, Math.max(0.16, 2 ** (z - 8)));
+              // Fenêtre source légèrement décalée par foyer : pas de clones.
+              const sw = vw * 0.92;
+              for (const f of videoFiresRef.current) {
+                const p = map.project([f.lon, f.lat]);
+                if (p.x < -110 || p.y < -110 || p.x > cw + 110 || p.y > ch + 110) continue;
+                // Taille fortement PROPORTIONNELLE à la puissance du feu :
+                // petit départ = flamme discrète, brasier = flamme dominante.
+                const hh = (31 + 23 * Math.log(f.frp + 1)) * zs2;
+                if (hh < 4) continue;
+                const ww = hh * (sw / vh) * 1.25; // aspect naturel, élargi de 25 %
+                const sxo = f.sx * vw * 0.04;
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                if (f.rot != null) {
+                  // Synchronisée avec le vent : penche franchement sous le vent.
+                  const rad = (f.rot * Math.PI) / 180;
+                  ctx.rotate(Math.min(0.5, f.kmh * 0.012) * Math.sin(rad));
+                }
+                if (f.mirror) ctx.scale(-1, 1);
+                ctx.globalAlpha = 0.95;
+                ctx.drawImage(kc, sxo, 0, sw, vh, -ww / 2, -hh * 0.94, ww, hh);
+                ctx.restore();
+              }
+              ctx.globalAlpha = 1;
+            }
+          }
+
+          // --- FLÈCHES DE VENT : chevrons clairs au-dessus de la fumée ---
+          // Trois chevrons fins alignés sous le vent ; une vague d'opacité
+          // les parcourt vers l'extérieur — le flux se lit sans encombrer.
+          if (z >= 4.6 && smokeSourcesRef.current.length > 0) {
+            const zs3 = Math.min(3, Math.max(0.5, 2 ** (z - 7)));
+            const tSec = nowMs / 1000;
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            for (const s of smokeSourcesRef.current) {
+              const p = map.project([s.lon, s.lat]);
+              const rad = (s.rot * Math.PI) / 180;
+              const size = Math.min(4.5, Math.max(1.8, 2.2 * zs3));
+              const d0 = 18 * zs3;
+              const gap = 9 * zs3;
+              for (let i2 = 0; i2 < 3; i2++) {
+                const d = d0 + i2 * gap;
+                const ax = p.x + Math.sin(rad) * d;
+                const ay = p.y - Math.cos(rad) * d;
+                const wave = 0.5 + 0.5 * Math.sin(tSec * 2.6 - i2 * 1.1 + s.rot * 0.01);
+                const a = 0.2 + 0.6 * wave * wave;
+                ctx.save();
+                ctx.translate(ax, ay);
+                ctx.rotate(rad);
+                ctx.beginPath();
+                ctx.moveTo(-size, size * 0.7);
+                ctx.lineTo(0, -size * 0.5);
+                ctx.lineTo(size, size * 0.7);
+                // Liseré sombre (lisible même hors fumée), puis trait clair.
+                ctx.strokeStyle = `rgba(40,30,24,${(a * 0.45).toFixed(3)})`;
+                ctx.lineWidth = 2.2;
+                ctx.stroke();
+                ctx.strokeStyle = `rgba(255,248,238,${a.toFixed(3)})`;
+                ctx.lineWidth = 1.2;
+                ctx.stroke();
+                ctx.restore();
+              }
+            }
+          }
         }
       }
       raf = requestAnimationFrame(loop);
