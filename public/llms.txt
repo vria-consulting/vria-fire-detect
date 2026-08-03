@@ -24,6 +24,11 @@
 - [Feux en France par département (FR)](https://kanari.io/fr/feux) : situation
   locale en temps réel pour chacun des 101 départements français, e.g.
   https://kanari.io/fr/feux/gironde, https://kanari.io/fr/feux/var.
+- [Guides feux de forêt (FR)](https://kanari.io/fr/guide) : que faire en cas
+  de feu (https://kanari.io/fr/guide/que-faire-feu-de-foret), comment
+  fonctionne un Canadair (https://kanari.io/fr/guide/comment-fonctionne-un-canadair),
+  détection satellite (https://kanari.io/fr/guide/detection-feux-satellite),
+  météo des forêts (https://kanari.io/fr/guide/meteo-des-forets).
 - [FAQ (EN)](https://kanari.io/en/faq): how the map works, tracking water
   bombers live, what to do when witnessing a fire.
 - [FAQ (FR)](https://kanari.io/fr/faq) : fonctionnement de la carte, suivi

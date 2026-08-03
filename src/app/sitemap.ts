@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { DEPARTEMENTS } from "@/lib/departements";
+import { GUIDES } from "@/lib/guides";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = "https://kanari.io";
@@ -11,7 +12,20 @@ export default function sitemap(): MetadataRoute.Sitemap {
     changeFrequency: "hourly" as const,
     priority: 0.7,
   }));
+  const guidePages: MetadataRoute.Sitemap = GUIDES.map((g) => ({
+    url: `${base}/fr/guide/${g.slug}`,
+    lastModified: new Date(g.updated),
+    changeFrequency: "monthly" as const,
+    priority: 0.7,
+  }));
   return [
+    {
+      url: `${base}/fr/guide`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    ...guidePages,
     {
       url: `${base}/fr/feux`,
       lastModified: new Date(),
