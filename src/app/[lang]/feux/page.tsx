@@ -5,6 +5,7 @@ import { isValidLang } from "@/lib/i18n";
 import { DEPARTEMENTS, DEPT_RADIUS_KM, distKm } from "@/lib/departements";
 import { getEvents, staleEvents, staleBlobEvents } from "@/lib/eventscache";
 import type { FireEvent } from "@/lib/cluster";
+import { SiteFooter } from "@/components/SiteFooter";
 
 // Hub des pages locales : « feux de forêt en France aujourd'hui ».
 export const revalidate = 900;
@@ -128,6 +129,7 @@ export default async function FeuxHub({ params }: { params: Promise<{ lang: stri
           kanari est un service d'information indépendant et gratuit, pas un canal d'alerte
           officiel. En cas d'urgence : 18 ou 112. Voir aussi : <Link href="/fr/feu" style={{ color: "var(--link)" }}>historique des feux</Link> · <Link href="/fr/canadair" style={{ color: "var(--link)" }}>Canadair en direct</Link> · <Link href="/fr/faq" style={{ color: "var(--link)" }}>FAQ</Link>.
         </p>
+        <SiteFooter lang="fr" />
       </div>
     </div>
   );

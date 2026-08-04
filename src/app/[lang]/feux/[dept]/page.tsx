@@ -6,6 +6,8 @@ import { DEPT_BY_SLUG, DEPT_RADIUS_KM, DEPARTEMENTS, distKm } from "@/lib/depart
 import { getEvents, staleEvents, staleBlobEvents } from "@/lib/eventscache";
 import { computeFireRisk, type FireRisk } from "@/lib/firerisk";
 import type { FireEvent } from "@/lib/cluster";
+import { listFiresByDept, type ArchivedFire } from "@/lib/firearchive";
+import { SiteFooter } from "@/components/SiteFooter";
 
 // Pages locales SEO « Incendie [département] aujourd'hui » : rendu dynamique
 // (les données feux vivent dans un cache d'instance + Blob, le rendu reste
@@ -88,9 +90,10 @@ export default async function DeptPage({
   // Contenu français uniquement : une seule URL canonique.
   if (lang !== "fr") redirect(`/fr/feux/${d.slug}`);
 
-  const [fires, meteo] = await Promise.all([
+  const [fires, meteo, archived] = await Promise.all([
     loadLocalFires(d.lat, d.lon),
     loadRisk(d.lat, d.lon),
+    listFiresByDept(d.slug, 12),
   ]);
   const sorted = (fires ?? []).sort((a, b) => Date.parse(b.lastSeen) - Date.parse(a.lastSeen));
   const active = sorted.filter((ev) => hoursAgo(ev.lastSeen) < 24);
@@ -222,6 +225,45 @@ export default async function DeptPage({
           </p>
         </section>
 
+        {/* Mémoire locale : les feux archivés du département — le contenu
+            unique qui distingue cette page d'un simple gabarit. */}
+        {archived.length > 0 && (
+          <section className="mb-8">
+            <h2 className="mb-2 text-[19px] font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>
+              La mémoire des feux en {d.name}
+            </h2>
+            <p className="mb-3 text-[14.5px] leading-relaxed" style={{ color: "var(--ink-2)" }}>
+              Depuis le 3 août 2026, kanari a archivé <strong>{archived.length >= 12 ? "12+" : archived.length} feu{archived.length > 1 ? "x" : ""} significatif{archived.length > 1 ? "s" : ""}</strong> en {d.name}
+              {archived[0] ? <> — le plus puissant : {Math.round(Math.max(...archived.map((f) => f.max_frp)))} MW</> : null}.
+              Chaque feu garde une page permanente avec sa chronologie complète.
+            </p>
+            <div className="flex flex-col gap-2">
+              {archived.slice(0, 5).map((f: ArchivedFire) => (
+                <Link
+                  key={f.slug}
+                  href={`/fr/feu/${f.slug}`}
+                  className="flex items-center gap-3 rounded-[14px] px-4 py-3"
+                  style={{ background: "var(--white)", boxShadow: "var(--shadow-s)" }}
+                >
+                  <span className="h-[9px] w-[9px] shrink-0 rounded-full" style={{ background: f.status === "active" ? "#D64545" : "#8A8880" }} />
+                  <span className="min-w-0 flex-1">
+                    <strong className="block truncate text-[14.5px]" style={{ color: "var(--ink)" }}>
+                      {f.place ?? "Détection satellite"} · {f.first_seen.slice(0, 10)}
+                    </strong>
+                    <span className="text-[12.5px]" style={{ color: "var(--ink-2)" }}>
+                      {f.detections} détection{f.detections > 1 ? "s" : ""} · {Math.round(f.max_frp)} MW max
+                      {f.aircraft.length > 0 ? ` · ${f.aircraft.length} moyen(s) aérien(s)` : ""}
+                    </span>
+                  </span>
+                  <span className="whitespace-nowrap text-[12px]" style={{ color: "var(--ink-3)" }}>
+                    {f.status === "active" ? "actif" : "terminé"}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Maillage interne */}
         <section className="mb-4">
           <h2 className="mb-2 text-[15px] font-semibold" style={{ color: "var(--ink)" }}>Départements voisins</h2>
@@ -239,6 +281,7 @@ export default async function DeptPage({
           officiel. En cas d'urgence : 18 ou 112. Données : NASA FIRMS, NOAA GOES, EUMETSAT MTG,
           témoignages vérifiés.
         </p>
+        <SiteFooter lang="fr" />
       </div>
     </div>
   );

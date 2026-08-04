@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { isValidLang } from "@/lib/i18n";
 import { COUNTRIES, COUNTRY_BY_CC } from "@/lib/countries";
 import { listFiresBetween } from "@/lib/firearchive";
+import { SiteFooter } from "@/components/SiteFooter";
 
 // English hub: wildfires by country, with live counts from the archive.
 export const dynamic = "force-dynamic";
@@ -105,6 +106,7 @@ export default async function FiresHub({ params }: { params: Promise<{ lang: str
           <Link href="/en/faq" style={{ color: "var(--link)" }}>FAQ</Link> ·{" "}
           <a href="/opendata/feux.csv" style={{ color: "var(--link)" }}>open data (CSV)</a>.
         </p>
+        <SiteFooter lang="en" />
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { isValidLang } from "@/lib/i18n";
 import { listFiresBetween } from "@/lib/firearchive";
+import { SiteFooter } from "@/components/SiteFooter";
 
 // Hub des bilans quotidiens (30 derniers jours).
 export const dynamic = "force-dynamic";
@@ -85,6 +86,7 @@ export default async function BilanHub({ params }: { params: Promise<{ lang: str
           <Link href="/fr/statistiques" style={{ color: "var(--link)" }}>l'observatoire des feux</Link> ·{" "}
           <Link href="/fr/feu" style={{ color: "var(--link)" }}>l'historique feu par feu</Link>.
         </p>
+        <SiteFooter lang="fr" />
       </div>
     </div>
   );

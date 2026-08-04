@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isValidLang, type Lang } from "@/lib/i18n";
 import { getWaterBombers, FRENCH_FLEET, type Plane } from "@/lib/aircraft";
+import { SiteFooter } from "@/components/SiteFooter";
 
 // Landing « Canadair en direct » : requête en forte croissance à chaque
 // épisode de feu, quasi sans concurrence. Rendu ISR court (2 min) : la page
@@ -232,6 +233,7 @@ export default async function CanadairPage({ params }: { params: Promise<{ lang:
             <>See also: <Link href="/en/faq" style={{ color: "var(--link)" }}>FAQ</Link>. Data: ADS-B via airplanes.live. In an emergency call 112 / 911.</>
           )}
         </p>
+        <SiteFooter lang={lang} />
       </div>
     </div>
   );

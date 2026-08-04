@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { isValidLang } from "@/lib/i18n";
 import { COUNTRY_BY_SLUG } from "@/lib/countries";
 import { listFiresByCountry, type ArchivedFire } from "@/lib/firearchive";
+import { SiteFooter } from "@/components/SiteFooter";
 
 // English local pages: "wildfires in [country] today" — the same play as the
 // French department pages, worldwide market.
@@ -89,7 +90,7 @@ export default async function CountryFires({
               {fires.map((f: ArchivedFire) => (
                 <Link
                   key={f.slug}
-                  href={`/en?lat=${f.lat.toFixed(3)}&lon=${f.lon.toFixed(3)}&z=10`}
+                  href={`/fr/feu/${f.slug}`}
                   className="flex items-center gap-3 rounded-[14px] px-4 py-3"
                   style={{ background: "var(--white)", boxShadow: "var(--shadow-s)" }}
                 >
@@ -132,6 +133,7 @@ export default async function CountryFires({
           kanari is a free, independent information service — not an official alert channel.
           Open data: <a href="/opendata/feux.csv" style={{ color: "var(--link)" }}>full fire archive (CSV, CC BY 4.0)</a>.
         </p>
+        <SiteFooter lang="en" />
       </div>
     </div>
   );

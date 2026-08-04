@@ -250,6 +250,68 @@ export async function archiveEvents(
 }
 
 // ---- Lecture (pages) ------------------------------------------------------
+// PostgREST plafonne chaque réponse à 1000 lignes : toute lecture qui peut
+// dépasser ce seuil doit paginer par offset, sinon les totaux mentent.
+const PAGE = 1000;
+
+async function fetchPaged<T>(query: string, limit: number): Promise<T[]> {
+  const sb = supabaseCreds();
+  if (!sb) return [];
+  const H = { apikey: sb.key, Authorization: `Bearer ${sb.key}` };
+  const out: T[] = [];
+  try {
+    for (let offset = 0; offset < limit; offset += PAGE) {
+      const size = Math.min(PAGE, limit - offset);
+      const res = await fetch(
+        `${sb.url}/rest/v1/fire_events?${query}&limit=${size}&offset=${offset}`,
+        { headers: H, cache: "no-store" }
+      );
+      if (!res.ok) break;
+      const rows = (await res.json()) as T[];
+      out.push(...rows);
+      if (rows.length < size) break;
+    }
+  } catch {
+    /* lecture partielle : on renvoie ce qu'on a */
+  }
+  return out;
+}
+
+// Comptage exact sans rapatrier les lignes (en-tête Content-Range).
+export async function countFires(filter: string): Promise<number | null> {
+  const sb = supabaseCreds();
+  if (!sb) return null;
+  try {
+    const res = await fetch(`${sb.url}/rest/v1/fire_events?select=archive_key&${filter}&limit=1`, {
+      method: "HEAD",
+      headers: { apikey: sb.key, Authorization: `Bearer ${sb.key}`, Prefer: "count=exact" },
+      cache: "no-store",
+    });
+    const range = res.headers.get("content-range"); // ex. "0-0/4321"
+    const total = range?.split("/")[1];
+    return total && total !== "*" ? Number(total) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Version allégée pour les agrégats (top pays/départements) : ~60 octets par
+// ligne, on peut charger toute l'archive sans se ruiner.
+export type FireLite = {
+  first_seen: string;
+  status: string;
+  country: string | null;
+  dept_slug: string | null;
+  max_frp: number;
+};
+
+export async function listFiresLite(fromIso: string, limit = 50000): Promise<FireLite[]> {
+  return fetchPaged<FireLite>(
+    `select=first_seen,status,country,dept_slug,max_frp&first_seen=gte.${encodeURIComponent(fromIso)}&order=first_seen.desc`,
+    limit
+  );
+}
+
 export async function getFireBySlug(slug: string): Promise<ArchivedFire | null> {
   const sb = supabaseCreds();
   if (!sb) return null;
@@ -288,18 +350,19 @@ export async function listFiresBetween(
   toIso: string,
   limit = 2000
 ): Promise<ArchivedFire[]> {
-  const sb = supabaseCreds();
-  if (!sb) return [];
-  try {
-    const res = await fetch(
-      `${sb.url}/rest/v1/fire_events?select=*&first_seen=gte.${encodeURIComponent(fromIso)}&first_seen=lt.${encodeURIComponent(toIso)}&order=max_frp.desc&limit=${limit}`,
-      { headers: { apikey: sb.key, Authorization: `Bearer ${sb.key}` }, cache: "no-store" }
-    );
-    if (!res.ok) return [];
-    return (await res.json()) as ArchivedFire[];
-  } catch {
-    return [];
-  }
+  return fetchPaged<ArchivedFire>(
+    `select=*&first_seen=gte.${encodeURIComponent(fromIso)}&first_seen=lt.${encodeURIComponent(toIso)}&order=max_frp.desc`,
+    limit
+  );
+}
+
+// Feux archivés d'un département français (pages /fr/feux/[dept]) — la
+// mémoire locale qui rend chaque page départementale unique.
+export async function listFiresByDept(deptSlug: string, limit = 30): Promise<ArchivedFire[]> {
+  return fetchPaged<ArchivedFire>(
+    `select=*&dept_slug=eq.${encodeURIComponent(deptSlug)}&order=last_seen.desc`,
+    limit
+  );
 }
 
 // Feux d'un pays (pages /en/fires/[country]) — plus récents d'abord.
@@ -336,16 +399,8 @@ export async function listFiresByAircraft(hex: string, limit = 30): Promise<Arch
 }
 
 export async function listFireSlugs(limit = 5000): Promise<{ slug: string; updated_at: string }[]> {
-  const sb = supabaseCreds();
-  if (!sb) return [];
-  try {
-    const res = await fetch(
-      `${sb.url}/rest/v1/fire_events?select=slug,updated_at&order=last_seen.desc&limit=${limit}`,
-      { headers: { apikey: sb.key, Authorization: `Bearer ${sb.key}` }, cache: "no-store" }
-    );
-    if (!res.ok) return [];
-    return (await res.json()) as { slug: string; updated_at: string }[];
-  } catch {
-    return [];
-  }
+  return fetchPaged<{ slug: string; updated_at: string }>(
+    `select=slug,updated_at&order=last_seen.desc`,
+    limit
+  );
 }

@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { isValidLang } from "@/lib/i18n";
 import { listRecentFires } from "@/lib/firearchive";
 import { DEPT_BY_SLUG } from "@/lib/departements";
+import { SiteFooter } from "@/components/SiteFooter";
 
 // Historique des feux : index des pages événement (mémoire publique kanari).
 export const dynamic = "force-dynamic";
@@ -104,6 +105,7 @@ export default async function FireIndex({ params }: { params: Promise<{ lang: st
           <Link href="/fr/canadair" style={{ color: "var(--link)" }}>Canadair en direct</Link> ·{" "}
           <Link href="/fr/guide" style={{ color: "var(--link)" }}>guides</Link>. En cas d'urgence : 18 ou 112.
         </p>
+        <SiteFooter lang="fr" />
       </div>
     </div>
   );

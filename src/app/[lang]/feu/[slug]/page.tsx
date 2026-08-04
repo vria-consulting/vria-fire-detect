@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { isValidLang } from "@/lib/i18n";
 import { getFireBySlug, type ArchivedFire } from "@/lib/firearchive";
 import { DEPT_BY_SLUG } from "@/lib/departements";
+import { SiteFooter } from "@/components/SiteFooter";
 
 // Page événement permanente : chaque feu significatif archivé a son URL à
 // vie (« incendie [lieu] [date] »). Mise à jour tant que le feu est actif,
@@ -41,11 +42,21 @@ export async function generateMetadata({
   const f = await getFireBySlug(slug);
   if (!f) return {};
   const t = titleOf(f);
+  // Titre façon Discover : un chiffre précis + l'enjeu, 90-105 caractères,
+  // sans sensationnalisme (les filtres 2026 le sanctionnent).
+  const title = `${t} : ${Math.round(f.max_frp)} MW, ${f.detections} détection${f.detections > 1 ? "s" : ""} satellite le ${frDate(f.first_seen)}`;
+  const img = `https://kanari.io/ogfire/${f.slug}`;
   return {
-    title: `${t} — ${frDate(f.first_seen)} : chronologie et carte | kanari`,
+    title,
     description: `${t} détecté le ${frDate(f.first_seen)} : ${f.detections} détection${f.detections > 1 ? "s" : ""} satellite, puissance max ${Math.round(f.max_frp)} MW${f.aircraft.length > 0 ? `, ${f.aircraft.length} moyen(s) aérien(s) engagé(s)` : ""}. Chronologie complète et carte sur kanari.`,
     alternates: { canonical: `/fr/feu/${f.slug}` },
     robots: { index: true, follow: true },
+    openGraph: {
+      type: "article",
+      title,
+      images: [{ url: img, width: 1200, height: 630, alt: t }],
+    },
+    twitter: { card: "summary_large_image", images: [img] },
   };
 }
 
@@ -65,10 +76,12 @@ export default async function FirePage({
   const lastAgeH = (Date.now() - new Date(f.last_seen).getTime()) / 3_600_000;
   const title = titleOf(f);
 
+  const heroImg = `https://kanari.io/ogfire/${f.slug}`;
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
     headline: `${title} — ${frDate(f.first_seen)}`,
+    image: [heroImg],
     datePublished: f.first_seen,
     dateModified: f.updated_at ?? f.last_seen,
     inLanguage: "fr",
@@ -76,6 +89,45 @@ export default async function FirePage({
     publisher: { "@id": "https://kanari.io/#org" },
     mainEntityOfPage: `https://kanari.io/fr/feu/${f.slug}`,
   };
+
+  // Gros feu encore actif : balisage LiveBlogPosting (badge « EN DIRECT »
+  // dans Top Stories) construit sur la chronologie réelle.
+  const isMajor = active && (f.aircraft.length > 0 || f.max_frp >= 50 || f.confidence === "corrobore");
+  const liveJsonLd = isMajor
+    ? {
+        "@context": "https://schema.org",
+        "@type": "LiveBlogPosting",
+        headline: `${title} : suivi en direct`,
+        coverageStartTime: f.first_seen,
+        dateModified: f.updated_at ?? f.last_seen,
+        inLanguage: "fr",
+        about: { "@type": "Event", name: title, startDate: f.first_seen },
+        publisher: { "@id": "https://kanari.io/#org" },
+        mainEntityOfPage: `https://kanari.io/fr/feu/${f.slug}`,
+        liveBlogUpdate: [
+          {
+            "@type": "BlogPosting",
+            headline: `Première détection satellite (${Math.round(f.max_frp)} MW max mesurés depuis)`,
+            datePublished: f.first_seen,
+          },
+          ...(f.first_press
+            ? [{ "@type": "BlogPosting", headline: "Premier article de presse repéré", datePublished: f.first_press }]
+            : []),
+          ...(f.aircraft.length > 0
+            ? [{
+                "@type": "BlogPosting",
+                headline: `${f.aircraft.length} moyen(s) aérien(s) observé(s) sur zone`,
+                datePublished: f.aircraft[0].day,
+              }]
+            : []),
+          {
+            "@type": "BlogPosting",
+            headline: `Dernier signal satellite (${f.detections} détections cumulées)`,
+            datePublished: f.last_seen,
+          },
+        ],
+      }
+    : null;
 
   const timeline: { label: string; value: string; color: string }[] = [
     { label: "Première détection", value: frDateTime(f.first_seen), color: "var(--ember)" },
@@ -88,6 +140,9 @@ export default async function FirePage({
   return (
     <div className="k-scroll h-full overflow-y-auto" style={{ background: "var(--paper)" }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      {liveJsonLd && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(liveJsonLd) }} />
+      )}
       <article className="mx-auto max-w-2xl px-4 py-10 sm:py-14">
         <p className="mb-1 text-[13px]" style={{ color: "var(--ink-3)" }}>
           <Link href="/fr/feu" style={{ color: "var(--link)" }}>Historique des feux</Link>
@@ -123,6 +178,18 @@ export default async function FirePage({
           Détecté le {frDate(f.first_seen)} · position {f.lat.toFixed(3)}, {f.lon.toFixed(3)}
           {f.admin && !deptName ? ` · ${f.admin}` : ""}
         </p>
+
+        {/* Image satellite (NASA GIBS, vraie couleur, jour de la détection) :
+            la grande image unique par page qu'exige Google Discover. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={`/ogfire/${f.slug}`}
+          alt={`Image satellite de la zone — ${title}, ${frDate(f.first_seen)}`}
+          width={1200}
+          height={630}
+          className="mb-6 w-full rounded-[18px]"
+          style={{ boxShadow: "var(--shadow-s)" }}
+        />
 
         {/* Chiffres clés */}
         <div className="mb-6 flex flex-wrap gap-3">
@@ -210,6 +277,7 @@ export default async function FirePage({
           kanari est un service d'information indépendant et gratuit, pas un canal d'alerte
           officiel. En cas d'urgence : 18 ou 112. Page mise à jour le {frDateTime(f.updated_at ?? f.last_seen)}.
         </p>
+        <SiteFooter lang="fr" />
       </article>
     </div>
   );

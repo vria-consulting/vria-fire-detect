@@ -62,7 +62,19 @@ export async function generateMetadata({
       description: t.metaDescription,
       images: ["/og.png"],
     },
-    robots: { index: true, follow: true },
+    robots: {
+      index: true,
+      follow: true,
+      // Grandes vignettes autorisées : condition d'éligibilité Google
+      // Discover (et aperçus riches dans la recherche).
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+        "max-video-preview": -1,
+      },
+    },
   };
 }
 
@@ -162,6 +174,46 @@ export default async function RootLayout({
             >
               {t.navFaq}
             </Link>
+            {/* Menu « Explorer » : maillage SSR vers tout le hub de contenu.
+                La home carte est plein écran (pas de footer possible) : c'est
+                ici que visiteurs ET crawlers atteignent feux par département,
+                mémoire des feux, observatoire… depuis chaque page. */}
+            <details className="relative hidden sm:block">
+              <summary
+                className="cursor-pointer list-none text-sm font-medium [&::-webkit-details-marker]:hidden"
+                style={{ color: "var(--ink)" }}
+              >
+                {lang === "fr" ? "Explorer" : "Explore"} ▾
+              </summary>
+              <nav
+                className="absolute right-0 top-9 z-50 flex w-60 flex-col gap-2 rounded-[18px] p-4 text-[13.5px]"
+                style={{ background: "var(--white)", boxShadow: "var(--shadow-m)" }}
+              >
+                {(lang === "fr"
+                  ? [
+                      ["/fr/feux", "Feux par département"],
+                      ["/fr/canadair", "Canadair en direct"],
+                      ["/fr/feu", "Mémoire des feux"],
+                      ["/fr/bilan", "Bilans quotidiens"],
+                      ["/fr/statistiques", "Observatoire et statistiques"],
+                      ["/fr/guide", "Guides feux de forêt"],
+                      ["/fr/widget", "Widget pour votre site"],
+                      ["/opendata/feux.csv", "Open data (CSV)"],
+                    ]
+                  : [
+                      ["/en/fires", "Wildfires by country"],
+                      ["/en/canadair", "Water bombers live"],
+                      ["/fr/statistiques", "Observatory (FR)"],
+                      ["/fr/widget", "Embed widget"],
+                      ["/opendata/feux.csv", "Open data (CSV)"],
+                    ]
+                ).map(([href, label]) => (
+                  <Link key={href} href={href} style={{ color: "var(--ink)" }}>
+                    {label}
+                  </Link>
+                ))}
+              </nav>
+            </details>
             {/* Bouton Contribuer : jaune plein de la charte (ressort nettement,
                 sans concurrencer le rouge d'urgence). Icône seule sur petit
                 écran (le libellé apparaît dès 380 px), icône + texte au-delà. */}

@@ -2,8 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { isValidLang } from "@/lib/i18n";
-import { listFiresBetween, type ArchivedFire } from "@/lib/firearchive";
+import {
+  countFires,
+  listFiresBetween,
+  listFiresLite,
+  type ArchivedFire,
+} from "@/lib/firearchive";
 import { DEPT_BY_SLUG } from "@/lib/departements";
+import { SiteFooter } from "@/components/SiteFooter";
 
 // Observatoire des feux : chiffres agrégés citables (presse, LLM) + open data.
 export const dynamic = "force-dynamic";
@@ -35,26 +41,41 @@ export default async function StatsPage({ params }: { params: Promise<{ lang: st
   if (lang !== "fr") redirect("/fr/statistiques");
 
   const now = new Date();
-  const fires = await listFiresBetween(`${ARCHIVE_START}T00:00:00Z`, now.toISOString(), 10000);
   const today = now.toISOString().slice(0, 10);
   const weekAgo = new Date(now.getTime() - 7 * 86400_000).toISOString();
 
-  const active = fires.filter((f) => f.status === "active");
-  const todayFires = fires.filter((f) => f.first_seen.slice(0, 10) === today);
-  const week = fires.filter((f) => f.first_seen >= weekAgo);
-  const frFires = fires.filter((f) => f.country === "FR");
+  // Compteurs exacts côté base (l'API plafonne chaque lecture à 1000 lignes :
+  // compter en rapatriant les lignes mentirait dès que l'archive grossit) +
+  // lecture allégée de toute l'archive pour les agrégats pays/départements.
+  const [activeCount, todayCount, weekCount, totalCount, lite, biggest, withAircraft] =
+    await Promise.all([
+      countFires("status=eq.active"),
+      countFires(`first_seen=gte.${encodeURIComponent(`${today}T00:00:00Z`)}`),
+      countFires(`first_seen=gte.${encodeURIComponent(weekAgo)}`),
+      countFires(`first_seen=gte.${encodeURIComponent(`${ARCHIVE_START}T00:00:00Z`)}`),
+      listFiresLite(`${ARCHIVE_START}T00:00:00Z`),
+      listFiresBetween(`${ARCHIVE_START}T00:00:00Z`, now.toISOString(), 1000).then((rows) =>
+        rows.slice(0, 5)
+      ),
+      countFires("aircraft=neq.[]"),
+    ]);
+
+  const active = { length: activeCount ?? lite.filter((f) => f.status === "active").length };
+  const todayFires = { length: todayCount ?? lite.filter((f) => f.first_seen.slice(0, 10) === today).length };
+  const week = { length: weekCount ?? lite.filter((f) => f.first_seen >= weekAgo).length };
+  const fires = { length: totalCount ?? lite.length };
 
   const byCountry = new Map<string, number>();
-  for (const f of fires) byCountry.set(f.country ?? "??", (byCountry.get(f.country ?? "??") ?? 0) + 1);
+  for (const f of lite) byCountry.set(f.country ?? "??", (byCountry.get(f.country ?? "??") ?? 0) + 1);
   const topCountries = [...byCountry.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12);
 
   const byDept = new Map<string, number>();
-  for (const f of frFires) if (f.dept_slug) byDept.set(f.dept_slug, (byDept.get(f.dept_slug) ?? 0) + 1);
+  for (const f of lite) {
+    if (f.country === "FR" && f.dept_slug) byDept.set(f.dept_slug, (byDept.get(f.dept_slug) ?? 0) + 1);
+  }
   const topDepts = [...byDept.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
 
-  const biggest = [...fires].sort((a, b) => b.max_frp - a.max_frp).slice(0, 5);
-  const aircraftIds = new Set<string>();
-  for (const f of fires) for (const a of f.aircraft) aircraftIds.add(a.id);
+  const aircraftFires = withAircraft ?? 0;
 
   const updated = now.toLocaleString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
 
@@ -183,7 +204,7 @@ export default async function StatsPage({ params }: { params: Promise<{ lang: st
           <p className="text-[14px] leading-relaxed" style={{ color: "var(--ink-2)" }}>
             L'archive complète est librement réutilisable (licence CC BY 4.0, mention « kanari.io ») :{" "}
             <a href="/opendata/feux.csv" style={{ color: "var(--link)", fontWeight: 600 }}>télécharger le CSV</a>.
-            Journalistes, chercheurs, collectivités : servez-vous. {aircraftIds.size > 0 ? `${aircraftIds.size} moyens aériens distincts observés sur zone à ce jour.` : ""}
+            Journalistes, chercheurs, collectivités : servez-vous. {aircraftFires > 0 ? `${aircraftFires} feux avec moyens aériens observés sur zone à ce jour.` : ""}
           </p>
         </section>
 
@@ -195,6 +216,7 @@ export default async function StatsPage({ params }: { params: Promise<{ lang: st
           <Link href="/fr/feu" style={{ color: "var(--link)" }}>historique feu par feu</Link> ·{" "}
           <Link href="/fr" style={{ color: "var(--link)" }}>carte en direct</Link>.
         </p>
+        <SiteFooter lang="fr" />
       </div>
     </div>
   );
