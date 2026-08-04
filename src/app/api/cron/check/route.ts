@@ -12,6 +12,7 @@ import type { FireEvent } from "@/lib/cluster";
 import { dfciCode } from "@/lib/dfci";
 import { archiveEvents } from "@/lib/firearchive";
 import { getWaterBombers } from "@/lib/aircraft";
+import { pingIndexNow } from "@/lib/indexnow";
 
 export const runtime = "nodejs";
 // Le cron réchauffe les caches 24 h + 6 h : à froid c'est le passage le plus
@@ -56,7 +57,19 @@ export async function GET(req: NextRequest) {
   let archived = 0;
   try {
     const planes = await getWaterBombers().catch(() => []);
-    archived = await archiveEvents(events, planes);
+    const res = await archiveEvents(events, planes);
+    archived = res.count;
+    // IndexNow : les nouvelles pages feu + les pages fraîches du jour partent
+    // immédiatement vers l'index Bing (qui nourrit ChatGPT/Copilot/Perplexity).
+    if (res.newSlugs.length > 0) {
+      const day = new Date().toISOString().slice(0, 10);
+      await pingIndexNow([
+        ...res.newSlugs.map((s) => `/fr/feu/${s}`),
+        `/fr/bilan/${day}`,
+        "/fr/statistiques",
+        "/fr/feu",
+      ]);
+    }
   } catch (e) {
     console.error("fire archive failed:", e);
   }

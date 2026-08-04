@@ -67,7 +67,7 @@ export default async function FirePage({
 
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "Article",
+    "@type": "NewsArticle",
     headline: `${title} — ${frDate(f.first_seen)}`,
     datePublished: f.first_seen,
     dateModified: f.updated_at ?? f.last_seen,

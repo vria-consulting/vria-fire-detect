@@ -123,9 +123,12 @@ function nearestCity(lat: number, lon: number): { place: string | null; country:
 // ---- Écriture -------------------------------------------------------------
 const CONF_ORDER: Record<string, number> = { possible: 1, probable: 2, corrobore: 3 };
 
-export async function archiveEvents(events: FireEvent[], planes: Plane[]): Promise<number> {
+export async function archiveEvents(
+  events: FireEvent[],
+  planes: Plane[]
+): Promise<{ count: number; newSlugs: string[] }> {
   const sb = supabaseCreds();
-  if (!sb) return 0;
+  if (!sb) return { count: 0, newSlugs: [] };
   const H = {
     apikey: sb.key,
     Authorization: `Bearer ${sb.key}`,
@@ -133,7 +136,7 @@ export async function archiveEvents(events: FireEvent[], planes: Plane[]): Promi
   };
 
   const candidates = events.filter(isSignificant).slice(0, 120);
-  if (candidates.length === 0) return 0;
+  if (candidates.length === 0) return { count: 0, newSlugs: [] };
 
   // Lignes existantes pour ces clés (fusion des maxima côté JS).
   const keys = [...new Set(candidates.map(archiveKey))];
@@ -153,6 +156,7 @@ export async function archiveEvents(events: FireEvent[], planes: Plane[]): Promi
 
   const today = new Date().toISOString().slice(0, 10);
   const rows: ArchivedFire[] = [];
+  const newSlugs: string[] = [];
 
   for (const ev of candidates) {
     const key = archiveKey(ev);
@@ -191,6 +195,7 @@ export async function archiveEvents(events: FireEvent[], planes: Plane[]): Promi
         ? ev.confidence ?? prev?.confidence ?? null
         : prev?.confidence ?? null;
 
+    if (!prev) newSlugs.push(slug);
     rows.push({
       archive_key: key,
       slug,
@@ -241,7 +246,7 @@ export async function archiveEvents(events: FireEvent[], planes: Plane[]): Promi
     /* clôture au prochain passage */
   }
 
-  return rows.length;
+  return { count: rows.length, newSlugs };
 }
 
 // ---- Lecture (pages) ------------------------------------------------------

@@ -6,6 +6,10 @@ import type { MetadataRoute } from "next";
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [{ userAgent: "*", allow: "/", disallow: ["/api/", "/veille"] }],
-    sitemap: ["https://kanari.io/sitemap.xml", "https://kanari.io/sitemap-events.xml"],
+    sitemap: [
+      "https://kanari.io/sitemap.xml",
+      "https://kanari.io/sitemap-events.xml",
+      "https://kanari.io/sitemap-news.xml",
+    ],
   };
 }

@@ -44,6 +44,7 @@ export async function generateMetadata({
     alternates: {
       canonical: `/${l}`,
       languages: { fr: "/fr", en: "/en", "x-default": "/" },
+      types: { "application/rss+xml": "https://kanari.io/feed.xml" },
     },
     openGraph: {
       type: "website",

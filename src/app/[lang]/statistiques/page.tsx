@@ -111,6 +111,20 @@ export default async function StatsPage({ params }: { params: Promise<{ lang: st
           </div>
         </div>
 
+        {/* Phrase citable (GEO) : chiffre daté + source, prêt à être repris. */}
+        <blockquote
+          className="mb-8 rounded-[18px] border-l-4 p-5 text-[15px] leading-relaxed"
+          style={{ background: "var(--canary-tint)", borderColor: "var(--canary-strong)", color: "var(--ink)" }}
+        >
+          « Au {updated}, kanari suit <strong>{active.length} feux actifs</strong> dans le monde ;{" "}
+          <strong>{todayFires.length} départ{todayFires.length > 1 ? "s" : ""} significatif{todayFires.length > 1 ? "s" : ""}</strong>{" "}
+          ont été détectés aujourd&apos;hui et {fires.length} archivés depuis le 3 août 2026. »
+          <footer className="mt-1.5 text-[12.5px]" style={{ color: "var(--ink-3)" }}>
+            Source : kanari.io — satellites NASA FIRMS, GOES, Meteosat MTG et témoins vérifiés par
+            IA. Chiffres librement citables (CC BY 4.0).
+          </footer>
+        </blockquote>
+
         <section className="mb-8">
           <h2 className="mb-3 text-[19px] font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>
             Pays les plus touchés

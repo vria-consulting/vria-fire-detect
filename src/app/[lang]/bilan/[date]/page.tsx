@@ -75,7 +75,7 @@ export default async function BilanPage({
 
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "Article",
+    "@type": "NewsArticle",
     headline: `Bilan des feux de forêt du ${frLongDate(date)}`,
     datePublished: `${date}T00:00:00Z`,
     dateModified: new Date().toISOString(),
@@ -118,6 +118,23 @@ export default async function BilanPage({
             </div>
           )}
         </div>
+
+        {/* Phrase citable (GEO) : le format exact que les moteurs IA lèvent
+            tel quel — chiffre daté + source + licence. */}
+        {fires.length > 0 && (
+          <blockquote
+            className="mb-7 rounded-[18px] border-l-4 p-5 text-[15px] leading-relaxed"
+            style={{ background: "var(--canary-tint)", borderColor: "var(--canary-strong)", color: "var(--ink)" }}
+          >
+            « Le {frLongDate(date)}, kanari a détecté{" "}
+            <strong>{fires.length} départ{fires.length > 1 ? "s" : ""} de feu significatif{fires.length > 1 ? "s" : ""}</strong>{" "}
+            dans le monde{fr.length > 0 ? <>, dont <strong>{fr.length} en France</strong></> : null}. »
+            <footer className="mt-1.5 text-[12.5px]" style={{ color: "var(--ink-3)" }}>
+              Source : kanari.io — satellites NASA FIRMS, GOES, Meteosat MTG et témoins vérifiés
+              par IA. Chiffre librement citable (CC BY 4.0).
+            </footer>
+          </blockquote>
+        )}
 
         {top.length > 0 && (
           <section className="mb-7">
