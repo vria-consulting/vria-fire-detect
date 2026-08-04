@@ -53,7 +53,8 @@ export async function GET(
       tiles.push({
         left: Math.round(W / 2 - (xf - tx) * TILE),
         top: Math.round(H / 2 - (yf - ty) * TILE),
-        url: `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/${date}/GoogleMapsCompatible_Level9/${Z}/${ty}/${wx}.jpg`,
+        // NOAA-20 : Suomi-NPP est décommissionné (404 sur toute la couche).
+        url: `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_NOAA20_CorrectedReflectance_TrueColor/default/${date}/GoogleMapsCompatible_Level9/${Z}/${ty}/${wx}.jpg`,
       });
     }
   }
