@@ -209,6 +209,78 @@ export async function fetchBing(): Promise<{ connected: boolean; data?: BingData
   }
 }
 
+// ---- Backlinks ------------------------------------------------------------
+export async function fetchBacklinksRpc(): Promise<unknown | null> {
+  const sb = supabaseCreds();
+  if (!sb) return null;
+  try {
+    const res = await fetch(`${sb.url}/rest/v1/rpc/veille_backlinks`, {
+      method: "POST",
+      headers: {
+        apikey: sb.key,
+        Authorization: `Bearer ${sb.key}`,
+        "content-type": "application/json",
+      },
+      body: "{}",
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+// Liens entrants vus par l'index Bing : GetLinkCounts (pages cibles) puis
+// GetUrlLinks (sources) sur les premières cibles. Données lentes à se
+// peupler sur un site récent — l'UI l'explique.
+export type BingLinks = {
+  targets: { url: string; count: number }[];
+  sources: { target: string; url: string }[];
+  total: number;
+};
+
+export async function fetchBingLinks(): Promise<{ connected: boolean; data?: BingLinks }> {
+  const key = process.env.BING_WEBMASTER_API_KEY;
+  if (!key) return { connected: false };
+  const base = "https://ssl.bing.com/webmaster/api.svc/json";
+  const site = encodeURIComponent("https://kanari.io/");
+  try {
+    const targets: { url: string; count: number }[] = [];
+    for (let page = 0; page < 3; page++) {
+      const res = await fetch(`${base}/GetLinkCounts?siteUrl=${site}&page=${page}&apikey=${encodeURIComponent(key)}`, {
+        cache: "no-store",
+      });
+      if (!res.ok) break;
+      const j = (await res.json()) as { d?: { Links?: { Count: number; Url: string }[]; TotalPages?: number } };
+      for (const l of j.d?.Links ?? []) targets.push({ url: l.Url, count: l.Count });
+      if (page + 1 >= (j.d?.TotalPages ?? 1)) break;
+    }
+    targets.sort((a, b) => b.count - a.count);
+
+    const sources: { target: string; url: string }[] = [];
+    for (const t of targets.slice(0, 5)) {
+      try {
+        const res = await fetch(
+          `${base}/GetUrlLinks?siteUrl=${site}&link=${encodeURIComponent(t.url)}&page=0&apikey=${encodeURIComponent(key)}`,
+          { cache: "no-store" }
+        );
+        if (!res.ok) continue;
+        const j = (await res.json()) as { d?: { Links?: { Url: string }[] } };
+        for (const l of (j.d?.Links ?? []).slice(0, 10)) sources.push({ target: t.url, url: l.Url });
+      } catch {
+        /* source suivante */
+      }
+    }
+    return {
+      connected: true,
+      data: { targets: targets.slice(0, 20), sources, total: targets.reduce((s, t) => s + t.count, 0) },
+    };
+  } catch {
+    return { connected: false };
+  }
+}
+
 // ---- Panel de citations IA ------------------------------------------------
 // Chaque semaine, on pose les mêmes questions à un moteur IA avec recherche
 // web et on note si kanari est cité dans les sources (« share of voice »).

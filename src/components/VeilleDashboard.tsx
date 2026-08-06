@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { VeilleLogin } from "@/components/VeilleLogin";
 import { VeilleVisibility } from "@/components/VeilleVisibility";
+import { VeilleBacklinks } from "@/components/VeilleBacklinks";
+import { Delta, HoverChart, PeriodChips, ShareList, type ChartPoint } from "@/components/VeilleCharts";
 
 // ---- Types (miroir de public.veille_stats) --------------------------------
 type Totals = {
@@ -69,17 +71,44 @@ export function Card({ children, style }: { children: React.ReactNode; style?: R
   );
 }
 
-export function Kpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
+export function Kpi({
+  label,
+  value,
+  sub,
+  delta,
+  onClick,
+  active,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  delta?: React.ReactNode;
+  onClick?: () => void;
+  active?: boolean;
+}) {
   return (
-    <Card>
+    <div
+      onClick={onClick}
+      style={{
+        background: "var(--surface-card)",
+        border: `1px solid ${active ? "var(--canary-strong)" : "var(--line)"}`,
+        borderRadius: "var(--radius-l)",
+        padding: 18,
+        cursor: onClick ? "pointer" : "default",
+        transition: "border-color .12s",
+      }}
+    >
       <div style={{ color: "var(--ink-3)", fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".4px" }}>
         {label}
       </div>
-      <div style={{ fontFamily: "var(--font-display)", fontSize: 30, fontWeight: 600, color: "var(--ink)", lineHeight: 1.1, marginTop: 6 }}>
-        {value}
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 6 }}>
+        <span style={{ fontFamily: "var(--font-display)", fontSize: 30, fontWeight: 600, color: "var(--ink)", lineHeight: 1.1 }}>
+          {value}
+        </span>
+        {delta}
       </div>
       {sub && <div style={{ color: "var(--ink-3)", fontSize: 13, marginTop: 2 }}>{sub}</div>}
-    </Card>
+    </div>
   );
 }
 
@@ -121,37 +150,70 @@ export function BarList({
   );
 }
 
-// Courbe des visites (30 j) : barres visites + trait visiteurs uniques.
-function DailyChart({ data }: { data: { day: string; views: number; uniques: number }[] }) {
-  const W = 720, H = 180, P = 8;
-  const max = Math.max(1, ...data.map((d) => d.views));
-  const n = data.length;
-  const bw = n > 0 ? (W - P * 2) / n : 0;
-  const x = (i: number) => P + i * bw;
-  const y = (v: number) => H - P - (v / max) * (H - P * 2);
-  const line = data.map((d, i) => `${x(i) + bw / 2},${y(d.uniques)}`).join(" ");
+// Courbe des visites : barres (métrique choisie) + trait visiteurs +
+// pointillés période précédente + tooltip au survol (voir VeilleCharts).
+function VisitsChart({ daily }: { daily: { day: string; views: number; uniques: number }[] }) {
+  const [period, setPeriod] = useState<7 | 14 | 30>(14);
+  const [metric, setMetric] = useState<"views" | "uniques">("views");
+
+  const win = daily.slice(-period);
+  const prevWin = daily.length >= period * 2 ? daily.slice(-period * 2, -period) : null;
+  const data: ChartPoint[] = win.map((d, i) => ({
+    label: new Date(d.day).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" }),
+    main: metric === "views" ? d.views : d.uniques,
+    secondary: metric === "views" ? d.uniques : undefined,
+    compare: prevWin ? (metric === "views" ? prevWin[i]?.views : prevWin[i]?.uniques) : undefined,
+  }));
+
   return (
     <Card>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-        <h3 style={h3Style}>Visites — 30 jours</h3>
-        <div style={{ fontSize: 12, color: "var(--ink-3)", display: "flex", gap: 14 }}>
-          <span><span style={{ color: "var(--canary-strong)" }}>▊</span> vues</span>
-          <span><span style={{ color: "var(--ember)" }}>—</span> visiteurs</span>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <h3 style={h3Style}>Visites</h3>
+          <div style={{ display: "flex", gap: 4 }}>
+            {(["views", "uniques"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMetric(m)}
+                style={{
+                  background: metric === m ? "var(--canary-tint)" : "transparent",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "3px 9px",
+                  fontSize: 12,
+                  fontWeight: metric === m ? 700 : 500,
+                  color: metric === m ? "var(--ink)" : "var(--ink-3)",
+                  cursor: "pointer",
+                  fontFamily: "var(--font-body)",
+                }}
+              >
+                {m === "views" ? "Vues" : "Visiteurs"}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {prevWin && (
+            <span style={{ fontSize: 11.5, color: "var(--ink-3)" }}>┈ période précédente</span>
+          )}
+          <PeriodChips value={period} onChange={setPeriod} options={[7, 14, 30]} />
         </div>
       </div>
-      {n === 0 ? (
+      {data.length === 0 ? (
         <div style={emptyStyle}>Aucune donnée pour l&apos;instant</div>
       ) : (
-        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", marginTop: 10 }} preserveAspectRatio="none">
-          {data.map((d, i) => (
-            <rect key={i} x={x(i) + 1} y={y(d.views)} width={Math.max(1, bw - 2)} height={H - P - y(d.views)} rx={2} fill="var(--canary-soft)" />
-          ))}
-          <polyline points={line} fill="none" stroke="var(--ember)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-        </svg>
+        <div style={{ marginTop: 10 }}>
+          <HoverChart
+            data={data}
+            mainLabel={metric === "views" ? "vues" : "visiteurs"}
+            secondaryLabel={metric === "views" ? "visiteurs" : undefined}
+            compareLabel="période précéd."
+          />
+        </div>
       )}
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--ink-3)", marginTop: 4 }}>
-        <span>{data[0] ? shortDate(data[0].day) : ""}</span>
-        <span>{data[n - 1] ? shortDate(data[n - 1].day) : ""}</span>
+        <span>{win[0] ? shortDate(win[0].day) : ""}</span>
+        <span>aujourd&apos;hui (journée incomplète)</span>
       </div>
     </Card>
   );
@@ -173,7 +235,7 @@ export function VeilleDashboard() {
   const [expired, setExpired] = useState(false);
   const [loading, setLoading] = useState(true);
   const [updatedAt, setUpdatedAt] = useState<number>(0);
-  const [tab, setTab] = useState<"audience" | "visibilite">("audience");
+  const [tab, setTab] = useState<"audience" | "visibilite" | "referencement">("audience");
   // Incrémenté par ↻ : l'onglet Visibilité recharge quand il change.
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -219,6 +281,14 @@ export function VeilleDashboard() {
   const c = stats?.contrib;
   const convRate = c && c.views_contrib_7d > 0 ? Math.round((c.total / c.views_contrib_7d) * 100) : null;
 
+  // Deltas vs période précédente, calculés depuis la série quotidienne.
+  const daily = stats?.daily ?? [];
+  const sum = (from: number, to: number, k: "views" | "uniques") =>
+    daily.slice(from, to).reduce((s, d) => s + d[k], 0);
+  const n = daily.length;
+  const dToday = n >= 2 ? { cur: daily[n - 1].views, prev: daily[n - 2].views } : null;
+  const d7 = n >= 14 ? { cur: sum(n - 7, n, "views"), prev: sum(n - 14, n - 7, "views") } : null;
+
   return (
     <div style={{ maxWidth: 1040, margin: "0 auto", padding: "20px 16px 60px", fontFamily: "var(--font-body)" }}>
       {/* En-tête */}
@@ -255,7 +325,7 @@ export function VeilleDashboard() {
 
       {/* Onglets */}
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        {([["audience", "Audience"], ["visibilite", "Visibilité"]] as const).map(([key, label]) => (
+        {([["audience", "Audience"], ["visibilite", "Visibilité"], ["referencement", "Référencement"]] as const).map(([key, label]) => (
           <button
             key={key}
             onClick={() => setTab(key)}
@@ -277,27 +347,42 @@ export function VeilleDashboard() {
       </div>
 
       {tab === "visibilite" && <VeilleVisibility reloadKey={reloadKey} />}
+      {tab === "referencement" && <VeilleBacklinks reloadKey={reloadKey} />}
 
       {tab === "audience" && (
       <>
       {/* KPIs */}
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginBottom: 14 }}>
-        <Kpi label="Aujourd'hui" value={fmt(t?.today_views)} sub={`${fmt(t?.today_uniques)} visiteurs`} />
-        <Kpi label="7 jours" value={fmt(t?.views_7d)} sub={`${fmt(t?.uniques_7d)} visiteurs`} />
+        <Kpi
+          label="Aujourd'hui"
+          value={fmt(t?.today_views)}
+          sub={`${fmt(t?.today_uniques)} visiteurs`}
+          delta={dToday ? <Delta cur={dToday.cur} prev={dToday.prev} /> : undefined}
+        />
+        <Kpi
+          label="7 jours"
+          value={fmt(t?.views_7d)}
+          sub={`${fmt(t?.uniques_7d)} visiteurs`}
+          delta={d7 ? <Delta cur={d7.cur} prev={d7.prev} /> : undefined}
+        />
         <Kpi label="30 jours" value={fmt(t?.views_30d)} sub={`${fmt(t?.uniques_30d)} visiteurs`} />
         <Kpi label="Total" value={fmt(t?.views_all)} sub={`${fmt(t?.uniques_all)} visiteurs`} />
         <Kpi label="Contributions" value={fmt(c?.total)} sub={`${fmt(c?.new)} à traiter`} />
       </section>
 
-      {/* Courbe */}
+      {/* Courbe interactive */}
       <section style={{ marginBottom: 14 }}>
-        <DailyChart data={stats?.daily ?? []} />
+        <VisitsChart daily={daily} />
       </section>
 
       {/* Pages + Référents */}
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14, marginBottom: 14 }}>
-        <BarList title="Pages les plus vues (7 j)" rows={(stats?.top_paths ?? []).map((p) => ({ key: p.path, label: p.path, value: p.views }))} />
-        <BarList title="D'où viennent les visiteurs (7 j)" rows={(stats?.top_referrers ?? []).map((r) => ({ key: r.host, label: r.host, value: r.views }))} />
+        <Card>
+          <ShareList title="Pages les plus vues (7 j)" rows={(stats?.top_paths ?? []).map((p) => ({ key: p.path, label: p.path, value: p.views }))} />
+        </Card>
+        <Card>
+          <ShareList title="D'où viennent les visiteurs (7 j)" rows={(stats?.top_referrers ?? []).map((r) => ({ key: r.host, label: r.host, value: r.views }))} />
+        </Card>
       </section>
 
       {/* UTM — impact des campagnes (LinkedIn) */}
@@ -334,9 +419,15 @@ export function VeilleDashboard() {
 
       {/* Pays + Appareils + Navigateurs */}
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14, marginBottom: 14 }}>
-        <BarList title="Pays (30 j)" rows={(stats?.countries ?? []).map((c) => ({ key: c.country, label: <span>{flag(c.country)} {c.country}</span>, value: c.views }))} />
-        <BarList title="Appareils (30 j)" rows={(stats?.devices ?? []).map((d) => ({ key: d.device, label: d.device, value: d.views }))} />
-        <BarList title="Navigateurs (30 j)" rows={(stats?.browsers ?? []).map((b) => ({ key: b.browser, label: b.browser, value: b.views }))} />
+        <Card>
+          <ShareList title="Pays (30 j)" rows={(stats?.countries ?? []).map((c) => ({ key: c.country, label: <span>{flag(c.country)} {c.country}</span>, value: c.views }))} />
+        </Card>
+        <Card>
+          <ShareList title="Appareils (30 j)" rows={(stats?.devices ?? []).map((d) => ({ key: d.device, label: d.device, value: d.views }))} />
+        </Card>
+        <Card>
+          <ShareList title="Navigateurs (30 j)" rows={(stats?.browsers ?? []).map((b) => ({ key: b.browser, label: b.browser, value: b.views }))} />
+        </Card>
       </section>
 
       {/* Entonnoir + contributions récentes */}

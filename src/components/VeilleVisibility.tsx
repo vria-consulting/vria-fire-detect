@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { VeilleLogin } from "@/components/VeilleLogin";
-import { BarList, Card, Kpi, emptyStyle, fmt, h3Style } from "@/components/VeilleDashboard";
+import { Card, Kpi, emptyStyle, fmt, h3Style } from "@/components/VeilleDashboard";
+import { Delta as DeltaBadge, HoverChart, ShareList, type ChartPoint } from "@/components/VeilleCharts";
 
 // Onglet « Visibilité » : SEO (Google/Bing) + IA (bots, referrals, citations).
 // Même contrat que l'onglet Audience : chargement à l'ouverture, bouton ↻
@@ -109,6 +110,28 @@ export function VeilleVisibility({ reloadKey }: { reloadKey: number }) {
   const panel = (data?.citations ?? []).filter((c) => c.week === latestWeek && c.engine === "chatgpt-search");
   const cited = panel.filter((c) => c.cited).length;
 
+  // Série quotidienne : bots IA (barres) vs moteurs classiques (trait).
+  const botsChart: ChartPoint[] = (() => {
+    const byDay = new Map<string, { ai: number; engines: number }>();
+    for (let i = 13; i >= 0; i--) {
+      byDay.set(new Date(Date.now() - i * 86400_000).toISOString().slice(0, 10), { ai: 0, engines: 0 });
+    }
+    let any = false;
+    for (const r of data?.bots_daily ?? []) {
+      const slot = byDay.get(r.day.slice(0, 10));
+      if (!slot) continue;
+      any = true;
+      if (AI_BOTS.has(r.bot)) slot.ai += r.hits;
+      else slot.engines += r.hits;
+    }
+    if (!any) return [];
+    return [...byDay.entries()].map(([day, v]) => ({
+      label: new Date(day).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" }),
+      main: v.ai,
+      secondary: v.engines,
+    }));
+  })();
+
   return (
     <>
       {/* KPI */}
@@ -116,21 +139,43 @@ export function VeilleVisibility({ reloadKey }: { reloadKey: number }) {
         <Kpi
           label="Clics Google (7 j)"
           value={gClicks === null ? "—" : fmt(gClicks)}
-          sub={gClicks === null ? "Search Console non connectée" : `${delta(gClicks, gClicksPrev)} · dont ${fmt(gT!.discover.current.clicks)} Discover`}
+          delta={gClicks === null ? undefined : <DeltaBadge cur={gClicks} prev={gClicksPrev} />}
+          sub={gClicks === null ? "Search Console non connectée" : `dont ${fmt(gT!.discover.current.clicks)} Discover`}
         />
         <Kpi
           label="Impressions Google"
           value={gImpr === null ? "—" : fmt(gImpr)}
+          delta={gImpr === null ? undefined : <DeltaBadge cur={gImpr} prev={gT!.web.previous.impressions + gT!.discover.previous.impressions + gT!.news.previous.impressions} />}
           sub={gImpr === null ? "Search Console non connectée" : `position moyenne ${gT!.web.current.position.toFixed(1)}`}
         />
-        <Kpi label="Lectures par des IA (7 j)" value={fmt(aiHits7)} sub={delta(aiHits7, aiHitsPrev)} />
+        <Kpi label="Lectures par des IA (7 j)" value={fmt(aiHits7)} delta={<DeltaBadge cur={aiHits7} prev={aiHitsPrev} />} sub="bots IA sur les pages kanari" />
         <Kpi label="Consultations IA en direct" value={fmt(liveHits7)} sub="pages chargées pour répondre à un utilisateur" />
-        <Kpi label="Visites venues des IA (7 j)" value={fmt(refs7)} sub={delta(refs7, refsPrev)} />
+        <Kpi label="Visites venues des IA (7 j)" value={fmt(refs7)} delta={<DeltaBadge cur={refs7} prev={refsPrev} />} sub="referrals ChatGPT, Perplexity…" />
         <Kpi
           label="Citations IA (panel)"
           value={panel.length > 0 ? `${cited}/${panel.length}` : "—"}
           sub={panel.length > 0 ? `semaine ${latestWeek}` : "premier test au prochain cron hebdo"}
         />
+      </section>
+
+      {/* Activité quotidienne des bots (14 j) */}
+      <section style={{ marginBottom: 14 }}>
+        <Card>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
+            <h3 style={h3Style}>Passages de robots par jour (14 j)</h3>
+            <div style={{ fontSize: 12, color: "var(--ink-3)", display: "flex", gap: 14 }}>
+              <span><span style={{ color: "var(--canary-strong)" }}>▊</span> bots IA</span>
+              <span><span style={{ color: "#F0997B" }}>—</span> moteurs classiques</span>
+            </div>
+          </div>
+          {botsChart.length === 0 ? (
+            <div style={emptyStyle}>Le comptage vient d&apos;être activé — les barres apparaissent dès les premiers passages.</div>
+          ) : (
+            <div style={{ marginTop: 10 }}>
+              <HoverChart data={botsChart} mainLabel="bots IA" secondaryLabel="moteurs" height={150} />
+            </div>
+          )}
+        </Card>
       </section>
 
       {/* Google */}
@@ -179,8 +224,11 @@ export function VeilleVisibility({ reloadKey }: { reloadKey: number }) {
                 Fenêtre {g.data!.window.start} → {g.data!.window.end} (la Search Console publie avec ~2 jours de retard).
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14, marginTop: 14 }}>
-                <BarList title="Top requêtes (Recherche)" rows={g.data!.top_queries.map((q) => ({ key: q.query, label: q.query, value: q.clicks }))} />
-                <BarList
+                <ShareList
+                  title="Top requêtes (Recherche)"
+                  rows={g.data!.top_queries.map((q) => ({ key: q.query, label: q.query, value: q.clicks, sub: `${fmt(q.impressions)} impr.` }))}
+                />
+                <ShareList
                   title="Top pages (Recherche + Discover)"
                   rows={g.data!.top_pages.map((p) => ({
                     key: `${p.type}-${p.page}`,
@@ -191,6 +239,7 @@ export function VeilleVisibility({ reloadKey }: { reloadKey: number }) {
                       </span>
                     ),
                     value: p.clicks,
+                    sub: `${fmt(p.impressions)} impr.`,
                   }))}
                 />
               </div>
@@ -236,8 +285,12 @@ export function VeilleVisibility({ reloadKey }: { reloadKey: number }) {
           )}
         </Card>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <BarList title="Pages les plus lues par les bots (7 j)" rows={(data?.bot_top_paths ?? []).map((p) => ({ key: p.path, label: p.path, value: p.hits }))} />
-          <BarList title="Visites venues des moteurs IA (7 j)" rows={refs.map((r) => ({ key: r.host, label: r.host, value: r.views_7d }))} />
+          <Card>
+            <ShareList title="Pages les plus lues par les bots (7 j)" rows={(data?.bot_top_paths ?? []).map((p) => ({ key: p.path, label: p.path, value: p.hits }))} />
+          </Card>
+          <Card>
+            <ShareList title="Visites venues des moteurs IA (7 j)" rows={refs.map((r) => ({ key: r.host, label: r.host, value: r.views_7d }))} />
+          </Card>
         </div>
       </section>
 
