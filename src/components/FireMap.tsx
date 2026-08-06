@@ -465,6 +465,63 @@ function photonZoom(type: string | undefined): number {
   }
 }
 
+// ---- Nuit solaire (terminator) --------------------------------------------
+// Polygone de l'hémisphère nuit, recalculé chaque minute : voile sombre sur
+// la carte/globe, les feux brillent côté nuit. Maths standards (déclinaison
+// solaire + angle horaire), précision largement suffisante pour un voile.
+function nightPolygon(now = new Date()): GeoJSON.Feature<GeoJSON.Polygon> {
+  const rad = Math.PI / 180;
+  const day = (Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) - Date.UTC(now.getUTCFullYear(), 0, 0)) / 86400000;
+  const decl = -23.44 * Math.cos(rad * (360 / 365) * (day + 10)); // déclinaison (°)
+  const utcH = now.getUTCHours() + now.getUTCMinutes() / 60 + now.getUTCSeconds() / 3600;
+  const sunLon = -15 * (utcH - 12); // longitude subsolaire (°)
+  const ring: [number, number][] = [];
+  for (let lon = -180; lon <= 180; lon += 2) {
+    // Latitude du terminator pour cette longitude.
+    const ha = rad * (lon - sunLon); // angle horaire local
+    const lat = Math.atan(-Math.cos(ha) / Math.tan(rad * decl || 1e-9)) / rad;
+    ring.push([lon, Math.max(-89.9, Math.min(89.9, lat))]);
+  }
+  // Ferme le polygone par le pôle opposé au soleil.
+  const pole = decl > 0 ? -89.9 : 89.9;
+  ring.push([180, pole], [-180, pole], ring[0]);
+  return { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [ring] } };
+}
+
+// ---- Imagerie GOES GeoColor (GIBS, 10 min, gratuite) ----------------------
+// Vraie couleur le jour / infrarouge la nuit, pour le mode replay. Latence de
+// publication ~40-50 min : on borne le temps demandé en conséquence.
+const GEOCOLOR_MAX_Z = 7;
+function geocolorTiles(layer: "GOES-East_ABI_GeoColor" | "GOES-West_ABI_GeoColor", tMs: number): string {
+  const t = new Date(Math.floor(tMs / 600_000) * 600_000);
+  const iso = t.toISOString().slice(0, 16) + ":00Z";
+  return `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer}/default/${iso}/GoogleMapsCompatible_Level${GEOCOLOR_MAX_Z}/{z}/{y}/{x}.png`;
+}
+const REPLAY_SPAN_MS = 24 * 3600 * 1000;
+const REPLAY_STEP_MS = 10 * 60 * 1000;
+// La latence de publication de GeoColor sur GIBS varie de ~1 h à ~12 h+ : la
+// dernière image réellement disponible est SONDÉE à l'ouverture du replay
+// (petites requêtes de tuiles), ce repli ne sert qu'en attendant.
+const REPLAY_FALLBACK_LAG_MS = 13 * 3600 * 1000;
+
+// Dernier créneau GeoColor publié : lu côté serveur dans les capabilities
+// GIBS (champ <Default>) via /api/geocolor — exact et léger.
+async function fetchGeocolorMax(): Promise<number | null> {
+  try {
+    const r = await fetch("/api/geocolor");
+    if (!r.ok) return null;
+    const j = (await r.json()) as { east: string | null; west: string | null };
+    const times = [j.east, j.west]
+      .map((s) => (s ? Date.parse(s) : NaN))
+      .filter((t) => Number.isFinite(t));
+    if (times.length === 0) return null;
+    // La fin de fenêtre commune = le moins frais des deux satellites.
+    return Math.floor(Math.min(...times) / REPLAY_STEP_MS) * REPLAY_STEP_MS;
+  } catch {
+    return null;
+  }
+}
+
 // Position du visiteur (cookie posé par le middleware depuis la géo Vercel) :
 // la carte s'ouvre sur son pays. Repli : France.
 function visitorStart(): { center: [number, number]; zoom: number } {
@@ -519,6 +576,22 @@ export default function FireMap({ lang }: { lang: Lang }) {
   // Recherche de ville / zone
   const [query, setQuery] = useState("");
   const [sugs, setSugs] = useState<Suggestion[]>([]);
+  // --- Replay 24 h : scrubber temporel + imagerie GOES GeoColor -----------
+  const [replayOn, setReplayOn] = useState(false);
+  const [replayT, setReplayT] = useState<number>(() => Date.now());
+  const [replayPlaying, setReplayPlaying] = useState(false);
+  // Fin de fenêtre = dernière imagerie GeoColor réellement publiée (sondée).
+  const [replayMax, setReplayMax] = useState<number>(() => Date.now() - REPLAY_FALLBACK_LAG_MS);
+  const replayProbedRef = useRef(0); // horodatage du dernier sondage
+  const replayOnRef = useRef(false); // lu par la boucle rAF (flammes/fumée off)
+  // --- Champ de vent réel (grille 5×4 interpolée) pour advecter la fumée --
+  const windFieldRef = useRef<{
+    at: number;
+    west: number; south: number; east: number; north: number;
+    cols: number; rows: number;
+    u: Float32Array; v: Float32Array; kmh: Float32Array;
+  } | null>(null);
+  const windFieldBusyRef = useRef(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [geoBusy, setGeoBusy] = useState(false);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -725,16 +798,57 @@ export default function FireMap({ lang }: { lang: Lang }) {
     pendingSelectRef.current = params.get("ev");
     // Sans lien profond : la carte s'ouvre sur le pays du visiteur (géo).
     const start = visitorStart();
+    // Intro cinématique : le globe entier, puis plongée vers le pays du
+    // visiteur. Une fois par session, jamais sur lien profond, et respect de
+    // prefers-reduced-motion.
+    const reducedMotion =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let intro = false;
+    try {
+      intro = !hasDeepLink && !reducedMotion && sessionStorage.getItem("kanari-intro") !== "1";
+      if (intro) sessionStorage.setItem("kanari-intro", "1");
+    } catch {
+      /* sessionStorage indisponible : pas d'intro */
+    }
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: MAP_STYLE,
-      center: hasDeepLink ? [pLon, pLat] : start.center,
-      zoom: hasDeepLink ? (isFinite(pZ) ? pZ : 9) : start.zoom,
+      center: hasDeepLink ? [pLon, pLat] : intro ? [start.center[0], 16] : start.center,
+      zoom: hasDeepLink ? (isFinite(pZ) ? pZ : 9) : intro ? 1.15 : start.zoom,
       attributionControl: false,
     });
     mapRef.current = map;
+    // Vue GLOBE (MapLibre v5, projection composite adaptative) : planète au
+    // dézoom, mercator classique en zoomant — aucune régression de rendu.
+    map.on("style.load", () => {
+      try {
+        (map as unknown as { setProjection: (p: { type: string }) => void }).setProjection({ type: "globe" });
+      } catch {
+        /* runtime sans globe : mercator, comme avant */
+      }
+      try {
+        (map as unknown as { setSky: (s: Record<string, unknown>) => void }).setSky({
+          "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 1, 6, 0.4, 8, 0],
+        });
+      } catch {
+        /* halo atmosphérique indisponible : sans gravité */
+      }
+    });
+    if (intro) {
+      // Un court instant de planète, puis vol vers chez le visiteur.
+      map.once("load", () => {
+        window.setTimeout(() => {
+          map.flyTo({ center: start.center, zoom: start.zoom, duration: 4200, curve: 1.55 });
+        }, 900);
+      });
+    }
     if (process.env.NODE_ENV === "development") {
       // Inspection en dev uniquement (jamais présent en prod).
+      (window as unknown as { __kmap?: maplibregl.Map }).__kmap = map;
+    } else if (new URLSearchParams(window.location.search).has("kdebug")) {
+      // Poignée de diagnostic lecture seule, uniquement sur demande explicite
+      // (?kdebug) : permet de vérifier l'état de la carte en prod.
       (window as unknown as { __kmap?: maplibregl.Map }).__kmap = map;
     }
     // Commandes en bas à gauche : le coin bas-droite est réservé au bandeau
@@ -821,6 +935,40 @@ export default function FireMap({ lang }: { lang: Lang }) {
       map.addLayer({ id: "sat-labels", type: "raster", source: "sat-labels", layout: { visibility: "visible" } });
       // Satellite par défaut : on masque le fond « plan ».
       map.setLayoutProperty("carto", "visibility", "none");
+
+      // Imagerie GOES GeoColor pour le replay (cachée hors replay). Ajoutée
+      // SOUS le voile de nuit et sous les feux.
+      for (const gl of ["GOES-East_ABI_GeoColor", "GOES-West_ABI_GeoColor"] as const) {
+        const id = gl.startsWith("GOES-East") ? "geocolor-east" : "geocolor-west";
+        map.addSource(id, {
+          type: "raster",
+          tiles: [geocolorTiles(gl, Date.now() - REPLAY_FALLBACK_LAG_MS)],
+          tileSize: 256,
+          maxzoom: GEOCOLOR_MAX_Z,
+          attribution: "GeoColor &copy; NOAA/NASA GIBS",
+        });
+        map.addLayer({
+          id,
+          type: "raster",
+          source: id,
+          layout: { visibility: "none" },
+          paint: { "raster-opacity": 0.92, "raster-fade-duration": 0 },
+        });
+      }
+
+      // Voile de NUIT solaire : l'hémisphère nuit assombri, recalculé chaque
+      // minute — sur le globe, les feux brillent côté nuit.
+      map.addSource("night", { type: "geojson", data: nightPolygon() });
+      map.addLayer({
+        id: "night",
+        type: "fill",
+        source: "night",
+        paint: { "fill-color": "#0A1030", "fill-opacity": 0.34, "fill-antialias": false },
+      });
+      window.setInterval(() => {
+        const src = map.getSource("night") as maplibregl.GeoJSONSource | undefined;
+        if (src) src.setData(nightPolygon());
+      }, 60_000);
 
       map.addSource("events", {
         type: "geojson",
@@ -1403,20 +1551,32 @@ export default function FireMap({ lang }: { lang: Lang }) {
     for (const m of pulseMarkersRef.current) m.remove();
     pulseMarkersRef.current = [];
 
+    // Replay : un foyer n'existe à l'instant T que si sa 1re détection est
+    // antérieure — firstAgeMin (âge en minutes au moment du chargement des
+    // données) suffit : apparu ⇔ firstAgeMin ≥ (maintenant − T).
+    const replayAgeMin = replayOn ? (Date.now() - replayT) / 60000 : null;
+    const timeF =
+      replayAgeMin === null
+        ? null
+        : ([">=", ["get", "firstAgeMin"], replayAgeMin] as unknown as maplibregl.FilterSpecification);
+    const andTime = (f: maplibregl.FilterSpecification | null): maplibregl.FilterSpecification | null =>
+      timeF === null ? f : f === null ? timeF : (["all", f, timeF] as unknown as maplibregl.FilterSpecification);
+
     if (mode === "departs") {
       const fresh = ["<=", ["get", "firstAgeMin"], DEPART_WATCH_MIN] as unknown as maplibregl.FilterSpecification;
-      map.setFilter("events-heat", fresh);
-      map.setFilter("events-aura", fresh);
-      map.setFilter("events-core", fresh);
-      map.setFilter("events-spark", fresh);
-      map.setFilter("events-dot", ["all", fresh, ["<", ["get", "lastAgeH"], 12]] as unknown as maplibregl.FilterSpecification);
+      map.setFilter("events-heat", andTime(fresh));
+      map.setFilter("events-aura", andTime(fresh));
+      map.setFilter("events-core", andTime(fresh));
+      map.setFilter("events-spark", andTime(fresh));
+      map.setFilter("events-dot", andTime(["all", fresh, ["<", ["get", "lastAgeH"], 12]] as unknown as maplibregl.FilterSpecification));
       // Un signalement n'est un "départ" que si ses PREMIÈRES mentions sont
       // récentes (newFire) — un feu qui dure fait encore parler de lui.
-      map.setFilter("signals-icons", [
-        "all",
-        ["==", ["get", "newFire"], 1],
-        ["<=", ["get", "firstAgeMin"], DEPART_WATCH_MIN],
-      ]);
+      map.setFilter(
+        "signals-icons",
+        replayOn
+          ? (["==", ["get", "newFire"], -999] as unknown as maplibregl.FilterSpecification)
+          : ["all", ["==", ["get", "newFire"], 1], ["<=", ["get", "firstAgeMin"], DEPART_WATCH_MIN]]
+      );
 
       for (const ev of events) {
         if (hoursAgo(ev.firstSeen) * 60 > DEPART_HOT_MIN) continue;
@@ -1447,14 +1607,78 @@ export default function FireMap({ lang }: { lang: Lang }) {
         );
       }
     } else {
-      map.setFilter("events-heat", null);
-      map.setFilter("events-aura", null);
-      map.setFilter("events-core", null);
-      map.setFilter("events-spark", null);
-      map.setFilter("events-dot", ["<", ["get", "lastAgeH"], 12]);
-      map.setFilter("signals-icons", null);
+      map.setFilter("events-heat", andTime(null));
+      map.setFilter("events-aura", andTime(null));
+      map.setFilter("events-core", andTime(null));
+      map.setFilter("events-spark", andTime(null));
+      map.setFilter("events-dot", andTime(["<", ["get", "lastAgeH"], 12] as unknown as maplibregl.FilterSpecification));
+      map.setFilter("signals-icons", replayOn ? (["==", ["get", "newFire"], -999] as unknown as maplibregl.FilterSpecification) : null);
     }
-  }, [mode, events, signals]);
+  }, [mode, events, signals, replayOn, replayT]);
+
+  // --- Replay : synchronisation carte (imagerie GeoColor + calques) -------
+  useEffect(() => {
+    replayOnRef.current = replayOn;
+    const map = mapRef.current;
+    if (!map || !map.getLayer("geocolor-east")) return;
+    const vis = replayOn ? "visible" : "none";
+    map.setLayoutProperty("geocolor-east", "visibility", vis);
+    map.setLayoutProperty("geocolor-west", "visibility", vis);
+    if (replayOn) {
+      // Borne l'instant demandé à la fraîcheur réelle de GeoColor.
+      const t = Math.min(replayT, replayMax);
+      for (const [id, gl] of [
+        ["geocolor-east", "GOES-East_ABI_GeoColor"],
+        ["geocolor-west", "GOES-West_ABI_GeoColor"],
+      ] as const) {
+        const src = map.getSource(id) as (maplibregl.RasterTileSource & { setTiles?: (t: string[]) => void }) | undefined;
+        if (src?.setTiles) src.setTiles([geocolorTiles(gl, t)]);
+      }
+    }
+    // Les Canadair n'ont pas d'historique : masqués pendant le replay.
+    if (map.getLayer("planes-icons")) {
+      map.setLayoutProperty("planes-icons", "visibility", replayOn ? "none" : "visible");
+    }
+  }, [replayOn, replayT, replayMax]);
+
+  // Lecture automatique du replay : un pas de 10 min toutes les 600 ms.
+  useEffect(() => {
+    if (!replayOn || !replayPlaying) return;
+    const id = setInterval(() => {
+      setReplayT((t) => {
+        const next = t + REPLAY_STEP_MS;
+        if (next >= replayMax) {
+          setReplayPlaying(false);
+          return replayMax;
+        }
+        return next;
+      });
+    }, 600);
+    return () => clearInterval(id);
+  }, [replayOn, replayPlaying, replayMax]);
+
+  const openReplay = () => {
+    // Le replay a besoin d'un historique riche : force la fenêtre 24 h+.
+    if (hours < 24) changeHours(24);
+    setReplayT(replayMax - REPLAY_SPAN_MS);
+    setReplayOn(true);
+    setReplayPlaying(true);
+    // Recale la fenêtre sur la dernière imagerie réellement publiée (latence
+    // GIBS variable : 1 h à 12 h+). Cache 15 min côté client ET serveur.
+    if (Date.now() - replayProbedRef.current > 15 * 60 * 1000) {
+      replayProbedRef.current = Date.now();
+      fetchGeocolorMax().then((max) => {
+        if (max === null) return;
+        setReplayMax(max);
+        setReplayT(max - REPLAY_SPAN_MS);
+        setReplayPlaying(true);
+      });
+    }
+  };
+  const closeReplay = () => {
+    setReplayOn(false);
+    setReplayPlaying(false);
+  };
 
   // Rafraîchissement automatique toutes les 2 min, dans tous les modes,
   // sans clignotement (silent) — les données doivent coller au temps réel.
@@ -1546,6 +1770,62 @@ export default function FireMap({ lang }: { lang: Lang }) {
       smokeSourcesRef.current = [];
       return;
     }
+    // --- Champ de vent RÉEL : grille 5×4 sur la vue (20 points, un appel
+    // batché, cache serveur 15 min par cellule). La fumée est advectée par
+    // interpolation bilinéaire — elle suit le vrai vent partout.
+    {
+      const b = map.getBounds();
+      const padX = (b.getEast() - b.getWest()) * 0.15;
+      const padY = (b.getNorth() - b.getSouth()) * 0.15;
+      const west = b.getWest() - padX;
+      const east = b.getEast() + padX;
+      const south = Math.max(-80, b.getSouth() - padY);
+      const north = Math.min(80, b.getNorth() + padY);
+      const f = windFieldRef.current;
+      const stale = !f || Date.now() - f.at > 15 * 60 * 1000;
+      const moved =
+        !f ||
+        Math.abs(f.west - west) > (east - west) * 0.35 ||
+        Math.abs(f.east - east) > (east - west) * 0.35 ||
+        Math.abs(f.south - south) > (north - south) * 0.35 ||
+        Math.abs(f.north - north) > (north - south) * 0.35;
+      if ((stale || moved) && !windFieldBusyRef.current) {
+        windFieldBusyRef.current = true;
+        const cols = 5;
+        const rows = 4;
+        const pts: string[] = [];
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const lon = west + ((east - west) * c) / (cols - 1);
+            const lat = south + ((north - south) * r) / (rows - 1);
+            pts.push(`${lat.toFixed(2)},${lon.toFixed(2)}`);
+          }
+        }
+        fetch(`/api/winds?pts=${pts.join(";")}`)
+          .then((r) => (r.ok ? r.json() : null))
+          .then((j: { winds: ({ deg: number; kmh: number } | null)[] } | null) => {
+            if (!j) return;
+            const u = new Float32Array(cols * rows);
+            const v = new Float32Array(cols * rows);
+            const kmh = new Float32Array(cols * rows);
+            j.winds.forEach((w, i) => {
+              if (!w) return;
+              // Direction météo = d'où VIENT le vent ; le flux va à l'opposé.
+              const rad = (((w.deg + 180) % 360) * Math.PI) / 180;
+              u[i] = Math.sin(rad) * w.kmh;
+              v[i] = -Math.cos(rad) * w.kmh;
+              kmh[i] = w.kmh;
+            });
+            windFieldRef.current = { at: Date.now(), west, south, east, north, cols, rows, u, v, kmh };
+          })
+          .catch(() => {
+            /* champ indisponible : la fumée retombe sur le vent par foyer */
+          })
+          .finally(() => {
+            windFieldBusyRef.current = false;
+          });
+      }
+    }
     const windTargets = inView.slice(0, 40);
     const now = Date.now();
     const missing = windTargets.filter((ev) => {
@@ -1586,6 +1866,29 @@ export default function FireMap({ lang }: { lang: Lang }) {
         },
       ];
     });
+  }, []);
+
+  // Vent interpolé (bilinéaire) au point demandé — null hors grille/sans champ.
+  const sampleWind = useCallback((lon: number, lat: number): { u: number; v: number; kmh: number } | null => {
+    const f = windFieldRef.current;
+    if (!f) return null;
+    const fx = ((lon - f.west) / (f.east - f.west)) * (f.cols - 1);
+    const fy = ((lat - f.south) / (f.north - f.south)) * (f.rows - 1);
+    if (fx < 0 || fy < 0 || fx > f.cols - 1 || fy > f.rows - 1) return null;
+    const x0 = Math.floor(fx);
+    const y0 = Math.floor(fy);
+    const x1 = Math.min(f.cols - 1, x0 + 1);
+    const y1 = Math.min(f.rows - 1, y0 + 1);
+    const tx = fx - x0;
+    const ty = fy - y0;
+    const at = (arr: Float32Array) => {
+      const a = arr[y0 * f.cols + x0];
+      const b = arr[y0 * f.cols + x1];
+      const c = arr[y1 * f.cols + x0];
+      const d = arr[y1 * f.cols + x1];
+      return a * (1 - tx) * (1 - ty) + b * tx * (1 - ty) + c * (1 - tx) * ty + d * tx * ty;
+    };
+    return { u: at(f.u), v: at(f.v), kmh: at(f.kmh) };
   }, []);
 
   // Recalcule les plumes quand la vue ou les foyers changent (anti-rafale 700 ms).
@@ -1686,22 +1989,35 @@ export default function FireMap({ lang }: { lang: Lang }) {
           const parts = smokePartsRef.current;
 
 
-          if (z >= 4.6) {
+          if (z >= 4.6 && !replayOnRef.current) {
             const zs = Math.min(3, Math.max(0.5, 2 ** (z - 7)));
-            // Émission (cadence accélérée pour les feux puissants).
+            // Émission (cadence accélérée pour les feux puissants). Direction
+            // initiale : champ de vent réel au foyer, sinon vent du foyer.
             for (const s of smokeSourcesRef.current) {
               const interval = s.frp > 80 ? 180 : 320;
               const last = smokeSpawnRef.current.get(s.id) ?? 0;
               if (nowMs - last < interval) continue;
               smokeSpawnRef.current.set(s.id, nowMs);
               const p = map.project([s.lon, s.lat]);
-              const rad = (s.rot * Math.PI) / 180;
-              const spd = Math.min(100, (12 + s.kmh * 0.6) * zs);
+              const fw = sampleWind(s.lon, s.lat);
+              const kmh = fw ? fw.kmh : s.kmh;
+              const spd = Math.min(100, (12 + kmh * 0.6) * zs);
+              let vx: number;
+              let vy: number;
+              if (fw && fw.kmh > 0.5) {
+                const n = Math.hypot(fw.u, fw.v) || 1;
+                vx = (fw.u / n) * spd;
+                vy = (fw.v / n) * spd;
+              } else {
+                const rad = (s.rot * Math.PI) / 180;
+                vx = Math.sin(rad) * spd;
+                vy = -Math.cos(rad) * spd;
+              }
               parts.push({
                 x: p.x + (Math.random() - 0.5) * 5,
                 y: p.y + (Math.random() - 0.5) * 5,
-                vx: Math.sin(rad) * spd,
-                vy: -Math.cos(rad) * spd,
+                vx,
+                vy,
                 born: nowMs,
                 life: 2400 + Math.random() * 1600,
                 s0: (9 + Math.min(16, s.frp * 0.05)) * zs,
@@ -1709,7 +2025,9 @@ export default function FireMap({ lang }: { lang: Lang }) {
               });
             }
             if (parts.length > 900) parts.splice(0, parts.length - 900);
-            // Advection + rendu (sprite pré-rendu : quasi gratuit).
+            // Advection + rendu (sprite pré-rendu : quasi gratuit). Chaque
+            // particule RÉ-ÉCHANTILLONNE le champ à sa position : la fumée
+            // s'incurve en traversant des vents différents — vent réel.
             const sprite =
               smokeSpriteRef.current ?? (smokeSpriteRef.current = smokePuffSprite());
             for (let i = parts.length - 1; i >= 0; i--) {
@@ -1718,6 +2036,17 @@ export default function FireMap({ lang }: { lang: Lang }) {
               if (age >= 1) {
                 parts.splice(i, 1);
                 continue;
+              }
+              if (windFieldRef.current) {
+                const g = map.unproject([pt.x, pt.y]);
+                const fw2 = sampleWind(g.lng, g.lat);
+                if (fw2 && fw2.kmh > 0.5) {
+                  const spd2 = Math.min(100, (12 + fw2.kmh * 0.6) * zs);
+                  const n2 = Math.hypot(fw2.u, fw2.v) || 1;
+                  // Lissage 15 %/frame : virage fluide, pas de zigzag.
+                  pt.vx += ((fw2.u / n2) * spd2 - pt.vx) * 0.15;
+                  pt.vy += ((fw2.v / n2) * spd2 - pt.vy) * 0.15;
+                }
               }
               pt.x += pt.vx * dt;
               pt.y += pt.vy * dt;
@@ -1738,7 +2067,7 @@ export default function FireMap({ lang }: { lang: Lang }) {
           // 2) Dessin : taille proportionnelle au zoom et à l'intensité,
           //    inclinaison synchronisée avec le vent.
           const video = flameVideoRef.current;
-          if (video && video.readyState >= 2 && video.videoWidth > 0 && videoFiresRef.current.length > 0) {
+          if (video && video.readyState >= 2 && video.videoWidth > 0 && videoFiresRef.current.length > 0 && !replayOnRef.current) {
             const vw = video.videoWidth;
             const vh = video.videoHeight;
             let kc = keyCanvasRef.current;
@@ -1773,7 +2102,19 @@ export default function FireMap({ lang }: { lang: Lang }) {
               const zs2 = Math.min(5, Math.max(0.16, 2 ** (z - 8)));
               // Fenêtre source légèrement décalée par foyer : pas de clones.
               const sw = vw * 0.92;
+              // Vue GLOBE : les billboards canvas ne sont pas occultés par la
+              // sphère — on saute les foyers au-delà de l'horizon (~80° du
+              // centre), sinon leurs flammes « transpercent » l'océan.
+              const globeView = z < 3.2;
+              const cLL = globeView ? map.getCenter() : null;
+              const RAD = Math.PI / 180;
               for (const f of videoFiresRef.current) {
+                if (cLL) {
+                  const cosD =
+                    Math.sin(cLL.lat * RAD) * Math.sin(f.lat * RAD) +
+                    Math.cos(cLL.lat * RAD) * Math.cos(f.lat * RAD) * Math.cos((f.lon - cLL.lng) * RAD);
+                  if (cosD < 0.17) continue; // > ~80° : derrière l'horizon
+                }
                 const p = map.project([f.lon, f.lat]);
                 if (p.x < -110 || p.y < -110 || p.x > cw + 110 || p.y > ch + 110) continue;
                 // Taille fortement PROPORTIONNELLE à la puissance du feu :
@@ -1801,7 +2142,7 @@ export default function FireMap({ lang }: { lang: Lang }) {
           // --- FLÈCHES DE VENT : chevrons clairs au-dessus de la fumée ---
           // Trois chevrons fins alignés sous le vent ; une vague d'opacité
           // les parcourt vers l'extérieur — le flux se lit sans encombrer.
-          if (z >= 4.6 && smokeSourcesRef.current.length > 0) {
+          if (z >= 4.6 && smokeSourcesRef.current.length > 0 && !replayOnRef.current) {
             const zs3 = Math.min(3, Math.max(0.5, 2 ** (z - 7)));
             const tSec = nowMs / 1000;
             ctx.lineCap = "round";
@@ -2079,6 +2420,18 @@ export default function FireMap({ lang }: { lang: Lang }) {
             {t.legend}
           </button>
           <button
+            onClick={() => (replayOn ? closeReplay() : openReplay())}
+            className={chip}
+            title={lang === "fr" ? "Rejouer les dernières 24 h (feux + imagerie satellite)" : "Replay the last 24 h (fires + satellite imagery)"}
+            style={
+              replayOn
+                ? { background: "var(--charcoal)", color: "var(--canary)", boxShadow: "var(--shadow-s)" }
+                : { background: "var(--white)", color: "var(--ink-2)", boxShadow: "var(--shadow-s)" }
+            }
+          >
+            ⏪ Replay
+          </button>
+          <button
             onClick={reportFire}
             disabled={reportBusy}
             className={`${chip} hidden sm:flex`}
@@ -2087,6 +2440,57 @@ export default function FireMap({ lang }: { lang: Lang }) {
             {reportBusy ? "…" : `🔥 ${t.reportBtn}`}
           </button>
         </div>
+
+        {/* Barre de replay : scrubber 24 h + lecture. L'imagerie GOES GeoColor
+            (10 min) s'anime sous les détections qui apparaissent dans l'ordre
+            réel — le « magnétoscope » de la journée. */}
+        {replayOn && (
+          <div
+            className="fixed inset-x-0 bottom-[70px] z-30 mx-auto flex w-[min(560px,92vw)] items-center gap-3 rounded-[22px] px-4 py-3"
+            style={{ background: "rgba(20,20,24,0.88)", backdropFilter: "blur(8px)", boxShadow: "var(--shadow-m)" }}
+          >
+            <button
+              onClick={() => setReplayPlaying((p) => !p)}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[15px]"
+              style={{ background: "var(--canary)", color: "var(--charcoal)" }}
+              aria-label={replayPlaying ? "Pause" : "Lecture"}
+            >
+              {replayPlaying ? "⏸" : "▶"}
+            </button>
+            <div className="min-w-0 flex-1">
+              <div className="mb-1 flex items-baseline justify-between text-[12px]" style={{ color: "#E8D9B0" }}>
+                <span className="font-bold" style={{ color: "#FBF9F4" }}>
+                  {new Date(Math.floor(replayT / REPLAY_STEP_MS) * REPLAY_STEP_MS).toLocaleString(
+                    lang === "fr" ? "fr-FR" : "en-GB",
+                    { weekday: "short", hour: "2-digit", minute: "2-digit" }
+                  )}
+                </span>
+                <span>{lang === "fr" ? "imagerie GOES · feux réels" : "GOES imagery · real detections"}</span>
+              </div>
+              <input
+                type="range"
+                min={replayMax - REPLAY_SPAN_MS}
+                max={replayMax}
+                step={REPLAY_STEP_MS}
+                value={Math.min(replayT, replayMax)}
+                onChange={(e) => {
+                  setReplayPlaying(false);
+                  setReplayT(Number(e.target.value));
+                }}
+                className="w-full accent-[var(--canary)]"
+                aria-label="Position temporelle"
+              />
+            </div>
+            <button
+              onClick={closeReplay}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[14px]"
+              style={{ background: "rgba(255,255,255,0.14)", color: "#FBF9F4" }}
+              aria-label={lang === "fr" ? "Fermer le replay" : "Close replay"}
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* Sur mobile, le bouton de signalement a sa propre ligne (la rangée
             de périodes est déjà pleine). */}
