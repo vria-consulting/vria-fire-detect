@@ -497,6 +497,10 @@ function geocolorTiles(layer: "GOES-East_ABI_GeoColor" | "GOES-West_ABI_GeoColor
   const iso = t.toISOString().slice(0, 16) + ":00Z";
   return `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer}/default/${iso}/GoogleMapsCompatible_Level${GEOCOLOR_MAX_Z}/{z}/{y}/{x}.png`;
 }
+// Replay désactivé pour le moment (rendu jugé pas assez fiable en prod le
+// 07/08/2026) : le code reste en place, repasser ce drapeau à true pour le
+// réactiver une fois fiabilisé.
+const REPLAY_ENABLED = false;
 const REPLAY_SPAN_MS = 24 * 3600 * 1000;
 const REPLAY_STEP_MS = 10 * 60 * 1000;
 // La latence de publication de GeoColor sur GIBS varie de ~1 h à ~12 h+ : la
@@ -584,6 +588,10 @@ export default function FireMap({ lang }: { lang: Lang }) {
   const [replayMax, setReplayMax] = useState<number>(() => Date.now() - REPLAY_FALLBACK_LAG_MS);
   const replayProbedRef = useRef(0); // horodatage du dernier sondage
   const replayOnRef = useRef(false); // lu par la boucle rAF (flammes/fumée off)
+  // Pendant l'intro (globe qui tourne puis zoom), la projection change à
+  // chaque frame : les billboards canvas seraient dessinés au mauvais
+  // endroit — on ne les affiche qu'une fois le vol terminé.
+  const introActiveRef = useRef(false);
   // --- Champ de vent réel (grille 5×4 interpolée) pour advecter la fumée --
   const windFieldRef = useRef<{
     at: number;
@@ -836,12 +844,22 @@ export default function FireMap({ lang }: { lang: Lang }) {
       }
     });
     if (intro) {
-      // Un court instant de planète, puis vol vers chez le visiteur.
+      // Un court instant de planète, puis vol vers chez le visiteur. Les
+      // flammes canvas restent masquées jusqu'à la fin du vol (projection
+      // instable pendant l'animation = billboards mal posés).
+      introActiveRef.current = true;
       map.once("load", () => {
         window.setTimeout(() => {
           map.flyTo({ center: start.center, zoom: start.zoom, duration: 4200, curve: 1.55 });
+          map.once("moveend", () => {
+            introActiveRef.current = false;
+          });
         }, 900);
       });
+      // Ceinture de sécurité : quoi qu'il arrive, on libère après 7 s.
+      window.setTimeout(() => {
+        introActiveRef.current = false;
+      }, 7000);
     }
     if (process.env.NODE_ENV === "development") {
       // Inspection en dev uniquement (jamais présent en prod).
@@ -1989,7 +2007,7 @@ export default function FireMap({ lang }: { lang: Lang }) {
           const parts = smokePartsRef.current;
 
 
-          if (z >= 4.6 && !replayOnRef.current) {
+          if (z >= 4.6 && !replayOnRef.current && !introActiveRef.current) {
             const zs = Math.min(3, Math.max(0.5, 2 ** (z - 7)));
             // Émission (cadence accélérée pour les feux puissants). Direction
             // initiale : champ de vent réel au foyer, sinon vent du foyer.
@@ -2067,7 +2085,7 @@ export default function FireMap({ lang }: { lang: Lang }) {
           // 2) Dessin : taille proportionnelle au zoom et à l'intensité,
           //    inclinaison synchronisée avec le vent.
           const video = flameVideoRef.current;
-          if (video && video.readyState >= 2 && video.videoWidth > 0 && videoFiresRef.current.length > 0 && !replayOnRef.current) {
+          if (video && video.readyState >= 2 && video.videoWidth > 0 && videoFiresRef.current.length > 0 && !replayOnRef.current && !introActiveRef.current) {
             const vw = video.videoWidth;
             const vh = video.videoHeight;
             let kc = keyCanvasRef.current;
@@ -2142,7 +2160,7 @@ export default function FireMap({ lang }: { lang: Lang }) {
           // --- FLÈCHES DE VENT : chevrons clairs au-dessus de la fumée ---
           // Trois chevrons fins alignés sous le vent ; une vague d'opacité
           // les parcourt vers l'extérieur — le flux se lit sans encombrer.
-          if (z >= 4.6 && smokeSourcesRef.current.length > 0 && !replayOnRef.current) {
+          if (z >= 4.6 && smokeSourcesRef.current.length > 0 && !replayOnRef.current && !introActiveRef.current) {
             const zs3 = Math.min(3, Math.max(0.5, 2 ** (z - 7)));
             const tSec = nowMs / 1000;
             ctx.lineCap = "round";
@@ -2419,18 +2437,20 @@ export default function FireMap({ lang }: { lang: Lang }) {
           >
             {t.legend}
           </button>
-          <button
-            onClick={() => (replayOn ? closeReplay() : openReplay())}
-            className={chip}
-            title={lang === "fr" ? "Rejouer les dernières 24 h (feux + imagerie satellite)" : "Replay the last 24 h (fires + satellite imagery)"}
-            style={
-              replayOn
-                ? { background: "var(--charcoal)", color: "var(--canary)", boxShadow: "var(--shadow-s)" }
-                : { background: "var(--white)", color: "var(--ink-2)", boxShadow: "var(--shadow-s)" }
-            }
-          >
-            ⏪ Replay
-          </button>
+          {REPLAY_ENABLED && (
+            <button
+              onClick={() => (replayOn ? closeReplay() : openReplay())}
+              className={chip}
+              title={lang === "fr" ? "Rejouer les dernières 24 h (feux + imagerie satellite)" : "Replay the last 24 h (fires + satellite imagery)"}
+              style={
+                replayOn
+                  ? { background: "var(--charcoal)", color: "var(--canary)", boxShadow: "var(--shadow-s)" }
+                  : { background: "var(--white)", color: "var(--ink-2)", boxShadow: "var(--shadow-s)" }
+              }
+            >
+              ⏪ Replay
+            </button>
+          )}
           <button
             onClick={reportFire}
             disabled={reportBusy}
@@ -2444,7 +2464,7 @@ export default function FireMap({ lang }: { lang: Lang }) {
         {/* Barre de replay : scrubber 24 h + lecture. L'imagerie GOES GeoColor
             (10 min) s'anime sous les détections qui apparaissent dans l'ordre
             réel — le « magnétoscope » de la journée. */}
-        {replayOn && (
+        {REPLAY_ENABLED && replayOn && (
           <div
             className="fixed inset-x-0 bottom-[70px] z-30 mx-auto flex w-[min(560px,92vw)] items-center gap-3 rounded-[22px] px-4 py-3"
             style={{ background: "rgba(20,20,24,0.88)", backdropFilter: "blur(8px)", boxShadow: "var(--shadow-m)" }}
