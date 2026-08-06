@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { VeilleLogin } from "@/components/VeilleLogin";
+import { VeilleVisibility } from "@/components/VeilleVisibility";
 
 // ---- Types (miroir de public.veille_stats) --------------------------------
 type Totals = {
@@ -34,13 +35,13 @@ type Stats = {
 
 // ---- Helpers d'affichage --------------------------------------------------
 const nf = new Intl.NumberFormat("fr-FR");
-const fmt = (n: number | undefined) => nf.format(n ?? 0);
+export const fmt = (n: number | undefined) => nf.format(n ?? 0);
 
 function flag(cc: string): string {
   if (!cc || cc.length !== 2 || !/^[A-Z]{2}$/.test(cc)) return "🏳️";
   return String.fromCodePoint(...[...cc].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65));
 }
-function timeAgo(iso: string): string {
+export function timeAgo(iso: string): string {
   const d = (Date.now() - new Date(iso).getTime()) / 1000;
   if (d < 60) return "à l'instant";
   if (d < 3600) return `il y a ${Math.floor(d / 60)} min`;
@@ -52,7 +53,7 @@ function shortDate(iso: string): string {
 }
 
 // ---- Composants réutilisables ---------------------------------------------
-function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+export function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
     <div
       style={{
@@ -68,7 +69,7 @@ function Card({ children, style }: { children: React.ReactNode; style?: React.CS
   );
 }
 
-function Kpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
+export function Kpi({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <Card>
       <div style={{ color: "var(--ink-3)", fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".4px" }}>
@@ -82,7 +83,7 @@ function Kpi({ label, value, sub }: { label: string; value: string; sub?: string
   );
 }
 
-function BarList({
+export function BarList({
   title,
   rows,
   render,
@@ -156,10 +157,10 @@ function DailyChart({ data }: { data: { day: string; views: number; uniques: num
   );
 }
 
-const h3Style: React.CSSProperties = {
+export const h3Style: React.CSSProperties = {
   fontFamily: "var(--font-display)", fontSize: 15, fontWeight: 600, color: "var(--ink)", margin: 0,
 };
-const emptyStyle: React.CSSProperties = { color: "var(--ink-3)", fontSize: 13, marginTop: 12, fontStyle: "italic" };
+export const emptyStyle: React.CSSProperties = { color: "var(--ink-3)", fontSize: 13, marginTop: 12, fontStyle: "italic" };
 
 const statusColor: Record<string, string> = {
   new: "var(--canary-strong)", reviewed: "var(--ink-3)", done: "#3aa76d",
@@ -172,6 +173,9 @@ export function VeilleDashboard() {
   const [expired, setExpired] = useState(false);
   const [loading, setLoading] = useState(true);
   const [updatedAt, setUpdatedAt] = useState<number>(0);
+  const [tab, setTab] = useState<"audience" | "visibilite">("audience");
+  // Incrémenté par ↻ : l'onglet Visibilité recharge quand il change.
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Chargement à l'ouverture uniquement (pas de rafraîchissement automatique) —
   // le bouton « Rafraîchir » relance à la demande.
@@ -240,7 +244,7 @@ export function VeilleDashboard() {
             <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>{fmt(stats?.live)}</span>
             <span style={{ fontSize: 12, color: "var(--ink-3)" }}>en direct</span>
           </div>
-          <button onClick={load} disabled={loading} title="Rafraîchir les données" style={{ background: "none", border: "1px solid var(--line)", borderRadius: "var(--radius-pill)", padding: "6px 13px", fontSize: 13, color: "var(--ink-2)", cursor: loading ? "wait" : "pointer", fontFamily: "var(--font-body)", opacity: loading ? 0.6 : 1 }}>
+          <button onClick={() => { load(); setReloadKey((k) => k + 1); }} disabled={loading} title="Rafraîchir les données" style={{ background: "none", border: "1px solid var(--line)", borderRadius: "var(--radius-pill)", padding: "6px 13px", fontSize: 13, color: "var(--ink-2)", cursor: loading ? "wait" : "pointer", fontFamily: "var(--font-body)", opacity: loading ? 0.6 : 1 }}>
             ↻ Rafraîchir
           </button>
           <button onClick={logout} style={{ background: "none", border: "1px solid var(--line)", borderRadius: "var(--radius-pill)", padding: "6px 13px", fontSize: 13, color: "var(--ink-2)", cursor: "pointer", fontFamily: "var(--font-body)" }}>
@@ -249,6 +253,33 @@ export function VeilleDashboard() {
         </div>
       </header>
 
+      {/* Onglets */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        {([["audience", "Audience"], ["visibilite", "Visibilité"]] as const).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            style={{
+              background: tab === key ? "var(--canary)" : "var(--surface-card)",
+              border: "1px solid var(--line)",
+              borderRadius: "var(--radius-pill)",
+              padding: "7px 16px",
+              fontSize: 13.5,
+              fontWeight: 700,
+              color: tab === key ? "var(--charcoal, #1B1C1E)" : "var(--ink-2)",
+              cursor: "pointer",
+              fontFamily: "var(--font-body)",
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "visibilite" && <VeilleVisibility reloadKey={reloadKey} />}
+
+      {tab === "audience" && (
+      <>
       {/* KPIs */}
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginBottom: 14 }}>
         <Kpi label="Aujourd'hui" value={fmt(t?.today_views)} sub={`${fmt(t?.today_uniques)} visiteurs`} />
@@ -359,6 +390,8 @@ export function VeilleDashboard() {
           )}
         </Card>
       </section>
+      </>
+      )}
 
       <style>{`@keyframes veille-pulse{0%{transform:scale(1);opacity:.7}100%{transform:scale(2.6);opacity:0}}`}</style>
     </div>

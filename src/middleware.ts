@@ -1,5 +1,54 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextFetchEvent, NextRequest, NextResponse } from "next/server";
 import { FRANCOPHONE, isValidLang, type Lang } from "@/lib/i18n";
+
+// Crawlers SEO + IA qu'on veut compter (onglet Visibilité de /veille).
+// ChatGPT-User / Perplexity-User / Claude-User = fetchs déclenchés par une
+// question d'utilisateur en direct : kanari consulté pour bâtir une réponse.
+// L'ordre compte (GoogleOther avant Googlebot).
+const TRACKED_BOTS: [RegExp, string][] = [
+  [/OAI-SearchBot/i, "OAI-SearchBot"],
+  [/ChatGPT-User/i, "ChatGPT-User"],
+  [/GPTBot/i, "GPTBot"],
+  [/Claude-SearchBot/i, "Claude-SearchBot"],
+  [/Claude-User/i, "Claude-User"],
+  [/ClaudeBot|anthropic-ai/i, "ClaudeBot"],
+  [/Perplexity-User/i, "Perplexity-User"],
+  [/PerplexityBot/i, "PerplexityBot"],
+  [/Amazonbot/i, "Amazonbot"],
+  [/Applebot/i, "Applebot"],
+  [/Bytespider/i, "Bytespider"],
+  [/meta-externalagent|FacebookBot/i, "Meta"],
+  [/cohere/i, "Cohere"],
+  [/MistralAI/i, "MistralAI"],
+  [/GoogleOther/i, "GoogleOther"],
+  [/Googlebot/i, "Googlebot"],
+  [/bingbot/i, "Bingbot"],
+  [/DuckDuckBot/i, "DuckDuckBot"],
+  [/YandexBot/i, "YandexBot"],
+];
+
+// Insertion fire-and-forget (waitUntil : ne retarde jamais la réponse au bot).
+function logBotHit(req: NextRequest, event: NextFetchEvent): void {
+  const ua = req.headers.get("user-agent") ?? "";
+  if (!ua) return;
+  const hit = TRACKED_BOTS.find(([re]) => re.test(ua));
+  if (!hit) return;
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return;
+  event.waitUntil(
+    fetch(`${url.replace(/\/$/, "")}/rest/v1/bot_hits`, {
+      method: "POST",
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        "content-type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({ bot: hit[1], path: req.nextUrl.pathname.slice(0, 300) }),
+    }).catch(() => {})
+  );
+}
 
 // Choix de langue : 1) préférence explicite (cookie posé par le sélecteur),
 // 2) pays du visiteur (géo Vercel) — français en France/pays francophones et
@@ -17,8 +66,9 @@ function detectLang(req: NextRequest): Lang {
   return /(^|[,;])\s*fr/i.test(accept) ? "fr" : "en";
 }
 
-export function middleware(req: NextRequest) {
+export function middleware(req: NextRequest, event: NextFetchEvent) {
   const { pathname, search } = req.nextUrl;
+  logBotHit(req, event);
 
   // Espace de veille : non localisé, jamais préfixé par la langue.
   if (pathname === "/veille" || pathname.startsWith("/veille/")) {

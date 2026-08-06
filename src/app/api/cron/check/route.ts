@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import webpush from "web-push";
+import { citationsDue, runCitationsPanel } from "@/lib/visibility";
 import { getEvents, rebuildAll } from "@/lib/eventscache";
 import {
   readJson,
@@ -72,6 +74,19 @@ export async function GET(req: NextRequest) {
     }
   } catch (e) {
     console.error("fire archive failed:", e);
+  }
+
+  // Panel de citations IA (onglet Visibilité de /veille) : au plus une fois
+  // par semaine, après la réponse (after) pour ne jamais retarder le cron.
+  try {
+    if (await citationsDue()) {
+      after(async () => {
+        const r = await runCitationsPanel();
+        console.log("citations panel:", JSON.stringify(r));
+      });
+    }
+  } catch {
+    /* le prochain passage retentera */
   }
 
   const subs = await readJson<PushSubscriptionRecord[]>(SUBS_PATH, []);
