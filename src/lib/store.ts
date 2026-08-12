@@ -16,7 +16,14 @@ export type PushSubscriptionRecord = {
 export async function readJson<T>(pathname: string, fallback: T): Promise<T> {
   try {
     const meta = await head(pathname);
-    const res = await fetch(meta.downloadUrl, { cache: "no-store" });
+    // Blobs privés : le downloadUrl seul répond désormais « Forbidden » — le
+    // token est exigé au téléchargement (constaté le 12/08/2026 ; la lecture
+    // échouait en silence et tout retombait sur les fallbacks).
+    const token = process.env.BLOB_READ_WRITE_TOKEN;
+    const res = await fetch(meta.downloadUrl, {
+      cache: "no-store",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
     if (!res.ok) return fallback;
     return (await res.json()) as T;
   } catch {
