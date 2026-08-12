@@ -497,6 +497,35 @@ function geocolorTiles(layer: "GOES-East_ABI_GeoColor" | "GOES-West_ABI_GeoColor
   const iso = t.toISOString().slice(0, 16) + ":00Z";
   return `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer}/default/${iso}/GoogleMapsCompatible_Level${GEOCOLOR_MAX_Z}/{z}/{y}/{x}.png`;
 }
+// Cône de propagation ESTIMÉE (v1, vent seul) : ellipse sous le vent façon
+// Van Wagner. Volontairement grossier (ni combustible, ni pente, ni barrières)
+// et affiché comme « estimation indicative » — jamais comme une prévision.
+function spreadRing(lon: number, lat: number, degTo: number, kmh: number, minutes: number): number[][] {
+  const ros = 6 + 1.7 * kmh; // m/min — ordre de grandeur forêt/garrigue
+  const dHead = Math.min(15_000, ros * minutes);
+  const dBack = dHead * 0.15;
+  const lb = Math.min(4, 1 + 0.45 * Math.sqrt(kmh)); // rapport longueur/largeur
+  const a = (dHead + dBack) / 2;
+  const bAxis = a / lb;
+  const beta = (degTo * Math.PI) / 180;
+  const ux = Math.sin(beta);
+  const uy = Math.cos(beta);
+  const cE = ((dHead - dBack) / 2) * ux;
+  const cN = ((dHead - dBack) / 2) * uy;
+  const mLat = 110_574;
+  const mLon = Math.max(20_000, 111_320 * Math.cos((lat * Math.PI) / 180));
+  const ring: number[][] = [];
+  for (let i = 0; i <= 24; i++) {
+    const th = (i / 24) * Math.PI * 2;
+    const x = a * Math.cos(th);
+    const y = bAxis * Math.sin(th);
+    const east = cE + x * ux + y * uy;
+    const north = cN + x * uy - y * ux;
+    ring.push([lon + east / mLon, lat + north / mLat]);
+  }
+  return ring;
+}
+
 // Replay désactivé pour le moment (rendu jugé pas assez fiable en prod le
 // 07/08/2026) : le code reste en place, repasser ce drapeau à true pour le
 // réactiver une fois fiabilisé.
@@ -987,6 +1016,38 @@ export default function FireMap({ lang }: { lang: Lang }) {
         const src = map.getSource("night") as maplibregl.GeoJSONSource | undefined;
         if (src) src.setData(nightPolygon());
       }, 60_000);
+
+      // Cônes de propagation estimée (vent seul) : sous les icônes/flammes,
+      // au-dessus du fond et du voile de nuit. Trois horizons superposés
+      // (1 h / 3 h / 6 h) dont les opacités s'additionnent près du foyer.
+      map.addSource("spread", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+      map.addLayer({
+        id: "spread-fill",
+        type: "fill",
+        source: "spread",
+        minzoom: 6.8,
+        paint: {
+          "fill-color": "#E8622C",
+          "fill-opacity": ["get", "op"] as unknown as maplibregl.ExpressionSpecification,
+          "fill-antialias": false,
+        },
+      });
+      map.addLayer({
+        id: "spread-line",
+        type: "line",
+        source: "spread",
+        minzoom: 6.8,
+        filter: ["==", ["get", "edge"], 1],
+        paint: {
+          "line-color": "#E8622C",
+          "line-opacity": 0.45,
+          "line-width": 1.1,
+          "line-dasharray": [2, 2],
+        },
+      });
 
       map.addSource("events", {
         type: "geojson",
@@ -1909,16 +1970,72 @@ export default function FireMap({ lang }: { lang: Lang }) {
     return { u: at(f.u), v: at(f.v), kmh: at(f.kmh) };
   }, []);
 
+  // Cônes de propagation estimée (vent seul) : recalculés une fois les vents
+  // à jour. Réservés aux foyers significatifs et frais, zoom rapproché, hors
+  // replay/intro — et TOUJOURS étiquetés « indicatif » (légende + fiche).
+  const updateSpreadCones = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const src = map.getSource("spread") as maplibregl.GeoJSONSource | undefined;
+    if (!src) return;
+    const empty: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+    if (map.getZoom() < 6.8 || replayOnRef.current || introActiveRef.current) {
+      src.setData(empty);
+      return;
+    }
+    const b = map.getBounds();
+    const now = Date.now();
+    // Grand horizon d'abord : les petits cônes se superposent par-dessus et
+    // leurs opacités s'additionnent près du foyer.
+    const HORIZONS: [number, number, number][] = [
+      [360, 0.05, 1],
+      [180, 0.09, 0],
+      [60, 0.15, 0],
+    ];
+    const feats: GeoJSON.Feature[] = [];
+    let n = 0;
+    for (const ev of eventsRef.current) {
+      if (n >= 60) break;
+      const [lon, lat] = ev.centroid;
+      if (lon < b.getWest() || lon > b.getEast() || lat < b.getSouth() || lat > b.getNorth()) continue;
+      if (now - Date.parse(ev.lastSeen) > 6 * 3600 * 1000) continue;
+      if (!(ev.maxFrp >= 30 || ev.count >= 8 || ev.confidence === "corrobore")) continue;
+      const w = windCacheRef.current.get(ev.id);
+      let degTo: number | null = null;
+      let kmh = 0;
+      if (w) {
+        degTo = (w.deg + 180) % 360;
+        kmh = w.kmh;
+      } else {
+        const g = sampleWind(lon, lat);
+        if (g) {
+          degTo = ((Math.atan2(g.u, -g.v) * 180) / Math.PI + 360) % 360;
+          kmh = g.kmh;
+        }
+      }
+      if (degTo === null || kmh < 2) continue;
+      n++;
+      for (const [minutes, op, edge] of HORIZONS) {
+        feats.push({
+          type: "Feature",
+          properties: { op, edge },
+          geometry: { type: "Polygon", coordinates: [spreadRing(lon, lat, degTo, kmh, minutes)] },
+        });
+      }
+    }
+    src.setData(feats.length > 0 ? { type: "FeatureCollection", features: feats } : empty);
+  }, [sampleWind]);
+
   // Recalcule les plumes quand la vue ou les foyers changent (anti-rafale 700 ms).
   useEffect(() => {
     if (windTimerRef.current) clearTimeout(windTimerRef.current);
     windTimerRef.current = setTimeout(() => {
-      updateWindFeathers();
+      updateWindFeathers().then(updateSpreadCones);
     }, 700);
     return () => {
       if (windTimerRef.current) clearTimeout(windTimerRef.current);
     };
-  }, [viewBounds, events, updateWindFeathers]);
+  }, [viewBounds, events, updateWindFeathers, updateSpreadCones]);
 
   // Recentre la carte sur les Canadair (clic sur le compteur).
   const fitPlanes = () => {
@@ -2548,6 +2665,13 @@ export default function FireMap({ lang }: { lang: Lang }) {
             ))}
             <span className="flex items-center gap-[9px]">
               <span
+                className="inline-block h-[11px] w-[11px] shrink-0 rounded-[3px]"
+                style={{ background: "#E8622C", opacity: 0.35 }}
+              />
+              {t.legendSpread}
+            </span>
+            <span className="flex items-center gap-[9px]">
+              <span
                 className="inline-flex h-[11px] w-[11px] shrink-0 items-center justify-center"
                 style={{ fontSize: 11 }}
                 aria-hidden="true"
@@ -3095,6 +3219,17 @@ export default function FireMap({ lang }: { lang: Lang }) {
                 <span className="h-[7px] w-[7px] rounded-full" style={{ background: "var(--ink-3)" }} />
                 {t.wind(wind.speed, compass(wind.direction))}
                 {wind.gusts > wind.speed + 10 ? t.gusts(wind.gusts) : ""}
+              </span>
+            )}
+            {/* Propagation estimée (vent seul) : même modèle que les cônes de
+                la carte, toujours accompagné de la mention « indicatif ». */}
+            {wind && wind.speed >= 2 && hoursAgo(selected.lastSeen) < 6 && (
+              <span className="flex items-center gap-2 text-xs" style={{ color: "var(--ink-3)" }}>
+                <span className="h-[7px] w-[7px] rounded-full" style={{ background: "#E8622C", opacity: 0.55 }} />
+                {t.spreadLine(
+                  Math.round(Math.min(15, ((6 + 1.7 * wind.speed) * 180) / 1000) * 10) / 10,
+                  compass((wind.direction + 180) % 360)
+                )}
               </span>
             )}
             {wind?.risk && (

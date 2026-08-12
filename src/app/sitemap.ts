@@ -78,6 +78,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "hourly",
       priority: 0.9,
     },
+    {
+      url: `${base}/fr/api`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.6,
+      alternates: { languages: { fr: `${base}/fr/api`, en: `${base}/en/api` } },
+    },
+    {
+      url: `${base}/fr/sdis`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
     ...deptPages,
     {
       url: `${base}/fr/canadair`,

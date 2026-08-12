@@ -198,8 +198,9 @@ export default async function RootLayout({
                       ["/fr/bilan", "Bilans quotidiens"],
                       ["/fr/statistiques", "Observatoire et statistiques"],
                       ["/fr/guide", "Guides feux de forêt"],
+                      ["/fr/sdis", "Pour les SDIS"],
                       ["/fr/widget", "Widget pour votre site"],
-                      ["/opendata/feux.csv", "Open data (CSV)"],
+                      ["/fr/api", "API et open data"],
                     ]
                   : [
                       ["/en/fires", "Wildfires by country"],

@@ -24,6 +24,7 @@ const FR: { title: string; items: Item[] }[] = [
       { href: "/fr/feu", label: "Historique feu par feu" },
       { href: "/fr/bilan", label: "Bilans quotidiens" },
       { href: "/opendata/feux.csv", label: "Open data (CSV, CC BY 4.0)" },
+      { href: "/fr/api", label: "API publique (JSON)" },
       { href: "/feed.xml", label: "Flux RSS des feux" },
     ],
   },
@@ -33,6 +34,7 @@ const FR: { title: string; items: Item[] }[] = [
       { href: "/fr/guide", label: "Guides feux de forêt" },
       { href: "/fr/faq", label: "Questions fréquentes" },
       { href: "/fr/a-propos", label: "À propos de kanari" },
+      { href: "/fr/sdis", label: "Pour les SDIS et collectivités" },
       { href: "/fr/widget", label: "Widget pour votre site" },
     ],
   },
@@ -52,6 +54,7 @@ const EN: { title: string; items: Item[] }[] = [
     items: [
       { href: "/fr/statistiques", label: "Observatory (FR)" },
       { href: "/opendata/feux.csv", label: "Open data (CSV, CC BY 4.0)" },
+      { href: "/en/api", label: "Public API (JSON)" },
       { href: "/feed.xml", label: "RSS feed" },
     ],
   },

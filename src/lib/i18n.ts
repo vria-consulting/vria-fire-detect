@@ -153,6 +153,9 @@ const fr = {
   satFirst: "1er signal satellite",
   lastSignal: "Dernier signal",
   wind: (speed: number, dir: string) => `Vent ${speed} km/h de ${dir}`,
+  spreadLine: (km: number, dir: string) =>
+    `Propagation estimée 3 h : ~${km} km vers ${dir} (vent seul, indicatif)`,
+  legendSpread: "Cône orangé : propagation estimée (vent seul, indicatif)",
   gusts: (g: number) => ` · rafales ${g}`,
   riskLabel: "Risque météo estimé",
   riskLevels: ["faible", "modéré", "élevé", "très élevé"],
@@ -295,6 +298,9 @@ const en: typeof fr = {
   satFirst: "First satellite signal",
   lastSignal: "Last signal",
   wind: (speed: number, dir: string) => `Wind ${speed} km/h from ${dir}`,
+  spreadLine: (km: number, dir: string) =>
+    `Estimated 3 h spread: ~${km} km ${dir} (wind only, indicative)`,
+  legendSpread: "Orange cone: estimated spread (wind only, indicative)",
   gusts: (g: number) => ` · gusts ${g}`,
   riskLabel: "Estimated fire-weather risk",
   riskLevels: ["low", "moderate", "high", "very high"],

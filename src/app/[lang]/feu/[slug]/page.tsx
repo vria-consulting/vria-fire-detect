@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { isValidLang } from "@/lib/i18n";
 import { getFireBySlug, type ArchivedFire } from "@/lib/firearchive";
 import { DEPT_BY_SLUG } from "@/lib/departements";
+import { fetchStrategicPoints, type StrategicPoint } from "@/lib/strategic";
 import { SiteFooter } from "@/components/SiteFooter";
 
 // Page événement permanente : chaque feu significatif archivé a son URL à
@@ -73,6 +74,9 @@ export default async function FirePage({
 
   const deptName = f.dept_slug ? DEPT_BY_SLUG.get(f.dept_slug)?.name : null;
   const active = f.status === "active";
+  // Points stratégiques (OSM) : seulement pour les feux en cours — les pages
+  // archivées, massivement crawlées, ne doivent pas solliciter Overpass.
+  const strategic: StrategicPoint[] = active ? await fetchStrategicPoints(f.lat, f.lon) : [];
   const lastAgeH = (Date.now() - new Date(f.last_seen).getTime()) / 3_600_000;
   const title = titleOf(f);
 
@@ -275,6 +279,42 @@ export default async function FirePage({
             <p className="mt-2 text-[12.5px]" style={{ color: "var(--ink-3)" }}>
               Appareils détectés en ADS-B à moins de 40 km du foyer pendant son activité —
               voir <Link href="/fr/canadair" style={{ color: "var(--link)" }}>les Canadair en direct</Link>.
+            </p>
+          </section>
+        )}
+
+        {/* Points stratégiques (feux actifs) : l'information opérationnelle
+            de proximité — points d'eau, casernes, héli-surfaces (OSM). */}
+        {strategic.length > 0 && (
+          <section className="mb-7">
+            <h2 className="mb-3 text-[19px] font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>
+              Points stratégiques à proximité
+            </h2>
+            <div className="flex flex-col gap-2">
+              {strategic.map((p, i) => (
+                <Link
+                  key={`${p.kind}-${i}`}
+                  href={`/fr?lat=${p.lat.toFixed(4)}&lon=${p.lon.toFixed(4)}&z=13`}
+                  className="flex items-center gap-3 rounded-[14px] px-4 py-3"
+                  style={{ background: "var(--white)", boxShadow: "var(--shadow-s)" }}
+                >
+                  <span style={{ fontSize: 16 }}>
+                    {p.kind === "water" ? "💧" : p.kind === "station" ? "🚒" : "🚁"}
+                  </span>
+                  <span className="flex-1 text-[14px]" style={{ color: "var(--ink)" }}>
+                    {p.label}
+                    {p.name ? ` — ${p.name}` : ""}
+                  </span>
+                  <span className="whitespace-nowrap text-[12.5px]" style={{ color: "var(--ink-2)" }}>
+                    {p.dist} km {p.bearing}
+                  </span>
+                </Link>
+              ))}
+            </div>
+            <p className="mt-2 text-[12.5px]" style={{ color: "var(--ink-3)" }}>
+              Données OpenStreetMap (ODbL), indicatives et non vérifiées sur le terrain : elles ne
+              remplacent en aucun cas les référentiels opérationnels (DECI/DFCI) des services
+              d&apos;incendie et de secours.
             </p>
           </section>
         )}
