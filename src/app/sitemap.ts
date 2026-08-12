@@ -72,6 +72,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "hourly",
       priority: 0.9,
     },
+    {
+      url: `${base}/fr/feux-en-cours`,
+      lastModified: new Date(),
+      changeFrequency: "hourly",
+      priority: 0.9,
+    },
     ...deptPages,
     {
       url: `${base}/fr/canadair`,

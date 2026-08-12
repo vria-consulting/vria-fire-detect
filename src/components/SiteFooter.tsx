@@ -12,6 +12,7 @@ const FR: { title: string; items: Item[] }[] = [
     title: "En direct",
     items: [
       { href: "/fr", label: "Carte des feux en direct" },
+      { href: "/fr/feux-en-cours", label: "Incendies en cours (liste live)" },
       { href: "/fr/canadair", label: "Canadair et bombardiers d'eau" },
       { href: "/fr/feux", label: "Feux par département" },
       { href: "/fr/statistiques", label: "Observatoire et statistiques" },

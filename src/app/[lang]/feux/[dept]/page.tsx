@@ -274,6 +274,11 @@ export default async function DeptPage({
               </Link>
             ))}
           </p>
+          <p className="mt-2 text-[14px]">
+            <Link href="/fr/feux-en-cours" style={{ color: "var(--link)" }}>
+              → Tous les incendies en cours en France (liste nationale)
+            </Link>
+          </p>
         </section>
 
         <p className="mt-8 border-t pt-4 text-[12.5px]" style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}>

@@ -90,6 +90,24 @@ export default async function FirePage({
     mainEntityOfPage: `https://kanari.io/fr/feu/${f.slug}`,
   };
 
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "kanari", item: "https://kanari.io/fr" },
+      { "@type": "ListItem", position: 2, name: "Historique des feux", item: "https://kanari.io/fr/feu" },
+      ...(f.dept_slug && deptName
+        ? [{ "@type": "ListItem", position: 3, name: `Feux en ${deptName}`, item: `https://kanari.io/fr/feux/${f.dept_slug}` }]
+        : []),
+      {
+        "@type": "ListItem",
+        position: f.dept_slug && deptName ? 4 : 3,
+        name: title,
+        item: `https://kanari.io/fr/feu/${f.slug}`,
+      },
+    ],
+  };
+
   // Gros feu encore actif : balisage LiveBlogPosting (badge « EN DIRECT »
   // dans Top Stories) construit sur la chronologie réelle.
   const isMajor = active && (f.aircraft.length > 0 || f.max_frp >= 50 || f.confidence === "corrobore");
@@ -140,6 +158,7 @@ export default async function FirePage({
   return (
     <div className="k-scroll h-full overflow-y-auto" style={{ background: "var(--paper)" }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
       {liveJsonLd && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(liveJsonLd) }} />
       )}

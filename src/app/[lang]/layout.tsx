@@ -191,6 +191,7 @@ export default async function RootLayout({
               >
                 {(lang === "fr"
                   ? [
+                      ["/fr/feux-en-cours", "Incendies en cours (liste)"],
                       ["/fr/feux", "Feux par département"],
                       ["/fr/canadair", "Canadair en direct"],
                       ["/fr/feu", "Mémoire des feux"],

@@ -102,10 +102,20 @@ export default async function BilanPage({
     publisher: { "@id": "https://kanari.io/#org" },
     mainEntityOfPage: `https://kanari.io/fr/bilan/${date}`,
   };
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "kanari", item: "https://kanari.io/fr" },
+      { "@type": "ListItem", position: 2, name: "Bilans quotidiens", item: "https://kanari.io/fr/bilan" },
+      { "@type": "ListItem", position: 3, name: `Bilan du ${frLongDate(date)}`, item: `https://kanari.io/fr/bilan/${date}` },
+    ],
+  };
 
   return (
     <div className="k-scroll h-full overflow-y-auto" style={{ background: "var(--paper)" }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
       <article className="mx-auto max-w-2xl px-4 py-10 sm:py-14">
         <p className="mb-1 text-[13px]" style={{ color: "var(--ink-3)" }}>
           <Link href="/fr/bilan" style={{ color: "var(--link)" }}>Bilans quotidiens</Link>

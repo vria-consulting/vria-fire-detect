@@ -201,6 +201,68 @@ export default async function Precocite({ params }: { params: Promise<{ lang: st
             </>
           )}
 
+          <H2>{fr ? "Étude de cas : le feu du Diois (Drôme), 3 août 2026" : "Case study: the Diois fire (Drôme, France), August 3, 2026"}</H2>
+          <p>
+            {fr ? (
+              <>
+                Le 3 août 2026 à <strong>18 h 00 heure de Paris</strong> (16:00 UTC), le satellite
+                géostationnaire Meteosat MTG capte un point chaud dans le sud-est de la Drôme, en
+                zone du Diois (foyer rattaché à Serres, la ville la plus proche de notre
+                gazetteer). En <strong>2 h 30</strong>, kanari cumule{" "}
+                <strong>174 détections satellite</strong> sur ce foyer, avec une intensité maximale
+                mesurée de <strong>1 193 MW</strong> — le foyer français le plus puissant enregistré
+                par notre archive depuis son ouverture. Chaque détection est horodatée par EUMETSAT
+                (une image toutes les 10 minutes), pas par nous.
+              </>
+            ) : (
+              <>
+                On August 3, 2026 at <strong>16:00 UTC</strong>, the Meteosat MTG geostationary
+                satellite picked up a hotspot in the south-east of the Drôme department (Diois
+                area, anchored to Serres, the nearest town in our gazetteer). Within{" "}
+                <strong>2.5 hours</strong>, kanari accumulated{" "}
+                <strong>174 satellite detections</strong> on this fire, with a peak measured
+                intensity of <strong>1,193 MW</strong> — the most powerful French fire recorded in
+                our archive since it opened. Every detection is timestamped by EUMETSAT (one image
+                every 10 minutes), not by us.
+              </>
+            )}
+          </p>
+          <blockquote
+            className="border-l-4 py-1 pl-4 text-[14px]"
+            style={{ borderColor: "var(--canary)", color: "var(--ink)" }}
+          >
+            {fr
+              ? "Le 3 août 2026, kanari a mesuré en Drôme un foyer de 1 193 MW : 174 détections satellite en 2 h 30, la première à 18 h 00 (heure de Paris). Source : kanari.io, données Meteosat MTG (EUMETSAT), licence CC BY 4.0."
+              : "On August 3, 2026, kanari measured a 1,193 MW fire in the Drôme (France): 174 satellite detections in 2.5 hours, the first at 16:00 UTC. Source: kanari.io, Meteosat MTG data (EUMETSAT), CC BY 4.0."}
+          </blockquote>
+          <p>
+            {fr ? (
+              <>
+                Ce cas illustre la densité de mesure du suivi géostationnaire, pas une avance sur
+                l&apos;alerte : nous n&apos;avons pas d&apos;horodatage presse fiable pour ce foyer.
+                La chronologie complète est publique :{" "}
+                <Link href="/fr/feu/serres-2026-08-03-1ei8" style={{ color: "var(--link)" }}>
+                  page permanente du feu
+                </Link>{" "}
+                ·{" "}
+                <Link href="/fr/feux/drome" style={{ color: "var(--link)" }}>
+                  situation en Drôme
+                </Link>
+                .
+              </>
+            ) : (
+              <>
+                This case shows the measurement density of geostationary monitoring, not a lead
+                over official alerts: we have no reliable press timestamp for this fire. The full
+                chronology is public:{" "}
+                <Link href="/fr/feu/serres-2026-08-03-1ei8" style={{ color: "var(--link)" }}>
+                  permanent fire page
+                </Link>
+                .
+              </>
+            )}
+          </p>
+
           <H2>{fr ? "Limites" : "Limits"}</H2>
           <ul className="list-disc space-y-2 pl-5">
             <li>

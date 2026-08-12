@@ -81,11 +81,16 @@ export default async function FeuxHub({ params }: { params: Promise<{ lang: stri
         </p>
         <Link
           href="/fr"
-          className="mb-8 flex h-[50px] items-center justify-center rounded-full text-[15px] font-semibold"
+          className="mb-3 flex h-[50px] items-center justify-center rounded-full text-[15px] font-semibold"
           style={{ background: "var(--canary)", color: "var(--charcoal)", boxShadow: "var(--shadow-m)" }}
         >
           Ouvrir la carte de France en direct →
         </Link>
+        <p className="mb-8 text-center text-[14px]">
+          <Link href="/fr/feux-en-cours" style={{ color: "var(--link)" }}>
+            → Liste nominative des incendies en cours (mise à jour continue)
+          </Link>
+        </p>
 
         {hot.length > 0 && (
           <section className="mb-8">

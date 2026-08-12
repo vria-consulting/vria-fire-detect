@@ -79,7 +79,7 @@ function makeSlug(place: string | null, key: string): string {
   return `${slugify(place ?? "feu")}-${date}-${hash4(key)}`;
 }
 
-function nearestDept(lat: number, lon: number): { code: string; slug: string } | null {
+export function nearestDept(lat: number, lon: number): { code: string; slug: string } | null {
   if (!inFrance(lat, lon)) return null;
   let best: { code: string; slug: string } | null = null;
   let bestD = 60; // km
@@ -100,7 +100,7 @@ import citiesJson from "../data/cities.json";
 type GazEntry = [number, number, string, string]; // [lat, lon, CC, nom]
 let FLAT: { lat: number; lon: number; cc: string; name: string }[] | null = null;
 
-function nearestCity(lat: number, lon: number): { place: string | null; country: string | null } {
+export function nearestCity(lat: number, lon: number): { place: string | null; country: string | null } {
   if (!FLAT) {
     FLAT = [];
     for (const entries of Object.values(citiesJson as unknown as Record<string, GazEntry[]>)) {
@@ -361,6 +361,15 @@ export async function listFiresBetween(
 export async function listFiresByDept(deptSlug: string, limit = 30): Promise<ArchivedFire[]> {
   return fetchPaged<ArchivedFire>(
     `select=*&dept_slug=eq.${encodeURIComponent(deptSlug)}&order=last_seen.desc`,
+    limit
+  );
+}
+
+// Feux encore actifs d'un pays (page /fr/feux-en-cours) : liens vers les
+// pages permanentes des foyers en cours de suivi.
+export async function listActiveFires(cc: string, limit = 100): Promise<ArchivedFire[]> {
+  return fetchPaged<ArchivedFire>(
+    `select=*&country=eq.${encodeURIComponent(cc)}&status=eq.active&order=last_seen.desc`,
     limit
   );
 }
