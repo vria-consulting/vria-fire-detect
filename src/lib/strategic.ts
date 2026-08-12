@@ -52,13 +52,29 @@ export async function fetchStrategicPoints(lat: number, lon: number): Promise<St
     `nwr(around:15000,${la},${lo})["amenity"="fire_station"];` +
     `nwr(around:15000,${la},${lo})["aeroway"~"^(helipad|heliport)$"];` +
     `);out center 80;`;
+  // Overpass laisse traîner (tarpit) les requêtes sans User-Agent identifiable
+  // — appris à la dure depuis Vercel. UA explicite + miroir de secours.
+  const ENDPOINTS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+  ];
+  let j: { elements?: OverpassElement[] } | null = null;
+  for (const ep of ENDPOINTS) {
+    try {
+      const res = await fetch(`${ep}?data=${encodeURIComponent(q)}`, {
+        headers: { "User-Agent": "kanari.io wildfire map (github.com/vria-consulting/vria-fire-detect)" },
+        next: { revalidate: 21600 },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) continue;
+      j = (await res.json()) as { elements?: OverpassElement[] };
+      break;
+    } catch {
+      /* endpoint suivant */
+    }
+  }
+  if (!j) return [];
   try {
-    const res = await fetch(
-      `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(q)}`,
-      { next: { revalidate: 21600 }, signal: AbortSignal.timeout(8000) }
-    );
-    if (!res.ok) return [];
-    const j = (await res.json()) as { elements?: OverpassElement[] };
     const out: StrategicPoint[] = [];
     for (const e of j.elements ?? []) {
       const pLat = e.lat ?? e.center?.lat;
