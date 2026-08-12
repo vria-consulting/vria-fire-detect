@@ -500,10 +500,17 @@ function geocolorTiles(layer: "GOES-East_ABI_GeoColor" | "GOES-West_ABI_GeoColor
 // Cône de propagation ESTIMÉE (v1, vent seul) : ellipse sous le vent façon
 // Van Wagner. Volontairement grossier (ni combustible, ni pente, ni barrières)
 // et affiché comme « estimation indicative » — jamais comme une prévision.
-function spreadRing(lon: number, lat: number, degTo: number, kmh: number, minutes: number): number[][] {
+function spreadRing(
+  lon: number,
+  lat: number,
+  degTo: number,
+  kmh: number,
+  minutes: number,
+  slope = 1 // facteur de pente sous le vent (v2) : >1 en montée, <1 en descente
+): number[][] {
   const ros = 6 + 1.7 * kmh; // m/min — ordre de grandeur forêt/garrigue
-  const dHead = Math.min(15_000, ros * minutes);
-  const dBack = dHead * 0.15;
+  const dHead = Math.min(15_000, ros * minutes * slope);
+  const dBack = Math.min(2_000, ros * minutes * 0.15); // l'arrière ignore la pente
   const lb = Math.min(4, 1 + 0.45 * Math.sqrt(kmh)); // rapport longueur/largeur
   const a = (dHead + dBack) / 2;
   const bAxis = a / lb;
@@ -2112,12 +2119,33 @@ export default function FireMap({ lang }: { lang: Lang }) {
         }
       }
       if (degTo === null || kmh < 2) continue;
+      // v2 : la PENTE sous le vent accélère (montée, facteur Van Wagner borné
+      // ×3) ou freine (descente, plancher ×0,7) le front. Échantillonnée sur
+      // le MNT déjà chargé — disponible seulement quand le relief est actif
+      // (z ≥ 8,2), sinon vent seul comme avant.
+      let slope = 1;
+      try {
+        if (map.getTerrain()) {
+          const e0 = map.queryTerrainElevation([lon, lat]);
+          const rad = (degTo * Math.PI) / 180;
+          const dM = 600;
+          const dLat2 = (Math.cos(rad) * dM) / 110_574;
+          const dLon2 = (Math.sin(rad) * dM) / Math.max(20_000, 111_320 * Math.cos((lat * Math.PI) / 180));
+          const e1 = map.queryTerrainElevation([lon + dLon2, lat + dLat2]);
+          if (e0 != null && e1 != null) {
+            const tanT = (e1 - e0) / dM;
+            slope = tanT > 0 ? Math.min(3, Math.exp(3.533 * Math.pow(tanT, 1.2))) : Math.max(0.7, 1 / (1 + 2 * Math.abs(tanT)));
+          }
+        }
+      } catch {
+        /* MNT non chargé ici : vent seul */
+      }
       n++;
       for (const [minutes, op, edge] of HORIZONS) {
         feats.push({
           type: "Feature",
           properties: { op, edge },
-          geometry: { type: "Polygon", coordinates: [spreadRing(lon, lat, degTo, kmh, minutes)] },
+          geometry: { type: "Polygon", coordinates: [spreadRing(lon, lat, degTo, kmh, minutes, slope)] },
         });
       }
     }
