@@ -139,10 +139,12 @@ export default async function SdisPage({ params }: { params: Promise<{ lang: str
             </li>
           </ol>
           <p className="mt-3">
-            Un besoin spécifique (périmètre, format, intégration) ? Écrivez-nous via{" "}
+            Un besoin spécifique (périmètre, format, intégration) ? Écrivez-nous :{" "}
+            <a href="mailto:contact@kanari.io" style={{ color: "var(--link)", fontWeight: 600 }}>contact@kanari.io</a>{" "}
+            — les demandes des services d&apos;incendie et des collectivités sont prioritaires. Côté
+            technique, les tickets{" "}
             <a href="https://github.com/vria-consulting/vria-fire-detect/issues" style={{ color: "var(--link)" }}>GitHub</a>{" "}
-            ou la page <Link href="/fr/a-propos" style={{ color: "var(--link)" }}>À propos</Link> : les demandes des
-            services d&apos;incendie et des collectivités sont prioritaires.
+            fonctionnent aussi.
           </p>
         </section>
 

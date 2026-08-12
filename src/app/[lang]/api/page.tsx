@@ -173,17 +173,19 @@ export default async function ApiPage({ params }: { params: Promise<{ lang: stri
           <p className="mt-3">
             {fr ? (
               <>
-                Une question, un besoin (webhooks, formats, volumes) ? Ouvrez un ticket sur{" "}
-                <a href="https://github.com/vria-consulting/vria-fire-detect/issues" style={{ color: "var(--link)" }}>GitHub</a>{" "}
-                ou passez par la page <Link href="/fr/a-propos" style={{ color: "var(--link)" }}>À propos</Link>.
+                Une question, un besoin (webhooks, formats, volumes) ? Écrivez à{" "}
+                <a href="mailto:contact@kanari.io" style={{ color: "var(--link)", fontWeight: 600 }}>contact@kanari.io</a>{" "}
+                ou ouvrez un ticket sur{" "}
+                <a href="https://github.com/vria-consulting/vria-fire-detect/issues" style={{ color: "var(--link)" }}>GitHub</a>.
                 Pour intégrer la carte elle-même, le plus simple reste le{" "}
                 <Link href="/fr/widget" style={{ color: "var(--link)" }}>widget gratuit</Link>.
               </>
             ) : (
               <>
-                Questions or needs (webhooks, formats, volumes)? Open a ticket on{" "}
-                <a href="https://github.com/vria-consulting/vria-fire-detect/issues" style={{ color: "var(--link)" }}>GitHub</a>{" "}
-                or use the <Link href="/en/a-propos" style={{ color: "var(--link)" }}>About</Link> page.
+                Questions or needs (webhooks, formats, volumes)? Write to{" "}
+                <a href="mailto:contact@kanari.io" style={{ color: "var(--link)", fontWeight: 600 }}>contact@kanari.io</a>{" "}
+                or open a ticket on{" "}
+                <a href="https://github.com/vria-consulting/vria-fire-detect/issues" style={{ color: "var(--link)" }}>GitHub</a>.
                 To embed the map itself, use the free{" "}
                 <Link href="/fr/widget" style={{ color: "var(--link)" }}>widget</Link>.
               </>
