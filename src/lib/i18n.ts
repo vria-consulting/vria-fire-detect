@@ -126,6 +126,15 @@ const fr = {
   reportFailed: "Envoi impossible — réessaie.",
   reportRateLimited: "Un signalement maximum toutes les 5 minutes.",
   reportPopup: (age: string) => `Témoin direct · ${age}`,
+  reportPhotoAsk: "Signalement envoyé. Ajoute une photo du feu pour vérification par IA ? (optionnel)",
+  reportPhotoAdd: "📸 Ajouter une photo",
+  reportPhotoSkip: "Non merci",
+  reportPhotoChecking: "Vérification de la photo par IA…",
+  reportPhotoVerified: "Photo vérifiée ✓ Ton signalement est marqué comme authentifié.",
+  reportPhotoRejected:
+    "Photo non concluante : le signalement reste affiché, sans badge de vérification.",
+  reportPhotoFailed: "Envoi de la photo impossible. Le signalement reste pris en compte.",
+  reportPhotoBadge: "📸 Photo vérifiée par IA",
 
   // Fiches
   badgeNewFire: "NOUVEAU FEU",
@@ -272,6 +281,14 @@ const en: typeof fr = {
   reportFailed: "Could not send — try again.",
   reportRateLimited: "One report every 5 minutes maximum.",
   reportPopup: (age: string) => `Direct witness · ${age}`,
+  reportPhotoAsk: "Report sent. Add a photo of the fire for AI verification? (optional)",
+  reportPhotoAdd: "📸 Add a photo",
+  reportPhotoSkip: "No thanks",
+  reportPhotoChecking: "AI is checking the photo…",
+  reportPhotoVerified: "Photo verified ✓ Your report is now marked as authenticated.",
+  reportPhotoRejected: "Photo inconclusive: your report stays visible, without the verified badge.",
+  reportPhotoFailed: "Could not upload the photo. Your report still counts.",
+  reportPhotoBadge: "📸 Photo verified by AI",
 
   badgeNewFire: "NEW FIRE",
   badgeReport: "REPORT",

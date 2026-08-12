@@ -16,6 +16,11 @@ export type CitizenReport = {
   lon: number;
   note?: string;
   at: string; // ISO
+  // Vérification photo par IA (optionnelle) : champs remplis à la LECTURE en
+  // fusionnant les verdicts de /api/report/photo — jamais stockés ici (deux
+  // routes qui réécrivent le même blob s'écraseraient mutuellement).
+  photoUrl?: string;
+  photoVerified?: boolean;
 };
 
 const REPORTS_PATH = "citizen-reports.json";
@@ -33,7 +38,21 @@ function prune(reports: CitizenReport[]): CitizenReport[] {
 }
 
 export async function GET() {
-  const reports = prune(await readJson<CitizenReport[]>(REPORTS_PATH, []));
+  const [reports, verdicts] = await Promise.all([
+    readJson<CitizenReport[]>(REPORTS_PATH, []).then(prune),
+    readJson<{ id: string; verified: boolean; photoUrl?: string }[]>(
+      "citizen-photo-verdicts.json",
+      []
+    ),
+  ]);
+  const byId = new Map(verdicts.map((v) => [v.id, v]));
+  for (const r of reports) {
+    const v = byId.get(r.id);
+    if (v) {
+      r.photoVerified = v.verified;
+      if (v.verified && v.photoUrl) r.photoUrl = v.photoUrl;
+    }
+  }
   return NextResponse.json(
     { reports },
     { headers: { "cache-control": "public, max-age=30, s-maxage=60, stale-while-revalidate=300" } }

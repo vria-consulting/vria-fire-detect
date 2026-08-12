@@ -592,8 +592,14 @@ export default function FireMap({ lang }: { lang: Lang }) {
   // (< 2 h) — l'onglet pilote aussi les filtres de la carte.
   const [mode, setMode] = useState<"tout" | "departs">("tout");
   const [signals, setSignals] = useState<SocialSignal[]>([]);
-  const reportsRef = useRef<{ id: string; lat: number; lon: number; note?: string; at: string }[]>([]);
+  const reportsRef = useRef<
+    { id: string; lat: number; lon: number; note?: string; at: string; photoUrl?: string; photoVerified?: boolean }[]
+  >([]);
   const [reportBusy, setReportBusy] = useState(false);
+  // Vérification photo IA : après un signalement, on propose au témoin de
+  // joindre une photo — jugée par vision, badge « vérifié » si concluante.
+  const [photoAskId, setPhotoAskId] = useState<string | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const pulseMarkersRef = useRef<maplibregl.Marker[]>([]);
   const [, setTick] = useState(0); // re-rendu périodique des "il y a X min"
   // Emprise affichée [ouest, sud, est, nord] : filtre le flux de droite.
@@ -774,7 +780,10 @@ export default function FireMap({ lang }: { lang: Lang }) {
         });
       // Signalements citoyens directs (« Je vois un feu ») : affichés en
       // signaux « à vérifier », jamais en foyers confirmés.
-      let reports: { id: string; lat: number; lon: number; note?: string; at: string }[] = [];
+      let reports: {
+        id: string; lat: number; lon: number; note?: string; at: string;
+        photoUrl?: string; photoVerified?: boolean;
+      }[] = [];
       if (repRes?.ok) {
         const repData = await repRes.json().catch(() => null);
         if (repData?.reports) reports = repData.reports;
@@ -787,7 +796,7 @@ export default function FireMap({ lang }: { lang: Lang }) {
           features: reports.map((r) => ({
             type: "Feature" as const,
             geometry: { type: "Point" as const, coordinates: [r.lon, r.lat] },
-            properties: { repId: r.id },
+            properties: { repId: r.id, verified: r.photoVerified ? 1 : 0 },
           })),
         });
 
@@ -973,6 +982,34 @@ export default function FireMap({ lang }: { lang: Lang }) {
         attribution: "Imagery &copy; Esri, Maxar, Earthstar Geographics",
       });
       map.addLayer({ id: "sat", type: "raster", source: "sat", layout: { visibility: "visible" } });
+
+      // RELIEF 3D : MNT mondial gratuit (AWS Terrain Tiles, encodage
+      // terrarium, sans clé). Activé seulement en zoom rapproché — dézoomé,
+      // l'ACP/globe n'en a pas besoin et le GPU mobile est épargné.
+      try {
+        map.addSource("dem", {
+          type: "raster-dem",
+          tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
+          encoding: "terrarium",
+          tileSize: 256,
+          maxzoom: 12,
+          attribution: "Relief : Mapzen/AWS Terrain Tiles",
+        });
+        const syncTerrain = () => {
+          try {
+            const on = map.getZoom() >= 8.2;
+            const cur = map.getTerrain();
+            if (on && !cur) map.setTerrain({ source: "dem", exaggeration: 1.15 });
+            else if (!on && cur) map.setTerrain(null);
+          } catch {
+            /* terrain indisponible : la carte reste plate */
+          }
+        };
+        map.on("zoomend", syncTerrain);
+        syncTerrain();
+      } catch {
+        /* source DEM refusée : carte plate */
+      }
       map.addSource("sat-labels", {
         type: "raster",
         tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"],
@@ -1194,13 +1231,19 @@ export default function FireMap({ lang }: { lang: Lang }) {
         },
       });
 
-      // Témoins directs : petite flamme « à vérifier ».
+      // Témoins directs : petite flamme « à vérifier » — pleine (bleue) si la
+      // photo du témoin a été validée par la vérification IA.
       map.addLayer({
         id: "reports-icons",
         type: "symbol",
         source: "reports",
         layout: {
-          "icon-image": "flame-unverified",
+          "icon-image": [
+            "case",
+            ["==", ["get", "verified"], 1],
+            "flame-citizen",
+            "flame-unverified",
+          ],
           "icon-size": ["interpolate", ["linear"], ["zoom"], 2, 0.24, 9, 0.46],
           "icon-allow-overlap": true,
           "icon-ignore-placement": true,
@@ -1314,6 +1357,19 @@ export default function FireMap({ lang }: { lang: Lang }) {
               const div = document.createElement("div");
               div.style.cssText = "font: 12.5px var(--font-body); color: var(--ink-2)";
               div.textContent = t.reportPopup(t.ago(age));
+              if (rep.photoVerified) {
+                const badge = document.createElement("div");
+                badge.style.cssText = "margin-top:4px;font-weight:600;color:#22684A";
+                badge.textContent = t.reportPhotoBadge;
+                div.appendChild(badge);
+                if (rep.photoUrl) {
+                  const img = document.createElement("img");
+                  img.src = rep.photoUrl;
+                  img.alt = t.reportPhotoBadge;
+                  img.style.cssText = "margin-top:6px;max-width:190px;border-radius:10px;display:block";
+                  div.appendChild(img);
+                }
+              }
               new maplibregl.Popup({ closeButton: true, offset: 12 })
                 .setLngLat([rep.lon, rep.lat])
                 .setDOMContent(div)
@@ -1605,6 +1661,8 @@ export default function FireMap({ lang }: { lang: Lang }) {
           else if (!res.ok) setAlertMsg(t.reportFailed);
           else {
             setAlertMsg(t.reportSent);
+            const j = (await res.json().catch(() => null)) as { id?: string } | null;
+            if (j?.id) setPhotoAskId(j.id);
             if (mapRef.current) {
               mapRef.current.flyTo({ center: [longitude, latitude], zoom: 10 });
               loadData(mapRef.current, hours, true);
@@ -1621,6 +1679,46 @@ export default function FireMap({ lang }: { lang: Lang }) {
       },
       { timeout: 8000, enableHighAccuracy: true }
     );
+  };
+
+  // Downscale la photo du témoin côté client (~1280 px JPEG) puis la soumet
+  // au jugement vision (/api/report/photo). La photo n'apparaît sur la carte
+  // que si la vérification IA la valide.
+  const sendReportPhoto = async (file: File) => {
+    if (!photoAskId) return;
+    setPhotoBusy(true);
+    const objUrl = URL.createObjectURL(file);
+    try {
+      const img = new Image();
+      await new Promise<void>((res, rej) => {
+        img.onload = () => res();
+        img.onerror = () => rej(new Error("img"));
+        img.src = objUrl;
+      });
+      const scale = Math.min(1, 1280 / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const c = document.createElement("canvas");
+      c.width = w;
+      c.height = h;
+      c.getContext("2d")!.drawImage(img, 0, 0, w, h);
+      const dataUrl = c.toDataURL("image/jpeg", 0.8);
+      const res = await fetch("/api/report/photo", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id: photoAskId, dataUrl }),
+      });
+      const j = (await res.json().catch(() => null)) as { verified?: boolean } | null;
+      if (!res.ok) setAlertMsg(t.reportPhotoFailed);
+      else setAlertMsg(j?.verified ? t.reportPhotoVerified : t.reportPhotoRejected);
+      if (res.ok && mapRef.current) loadData(mapRef.current, hours, true);
+    } catch {
+      setAlertMsg(t.reportPhotoFailed);
+    } finally {
+      URL.revokeObjectURL(objUrl);
+      setPhotoBusy(false);
+      setPhotoAskId(null);
+    }
   };
 
   // Applique le mode aux couches carte + marqueurs pulsants des départs < 20 min
@@ -3027,6 +3125,42 @@ export default function FireMap({ lang }: { lang: Lang }) {
 
       {/* CTA principal : alerte sur la zone affichée (maquette v2) */}
       <div className="absolute bottom-6 left-1/2 z-30 flex -translate-x-1/2 flex-col items-center gap-2">
+        {photoAskId && (
+          <div
+            className="k-rise flex max-w-[min(420px,calc(100vw-24px))] flex-col items-center gap-2 rounded-[14px] px-4 py-3 text-center text-[13px]"
+            style={{ ...card, color: "var(--ink-2)" }}
+          >
+            <span>{photoBusy ? t.reportPhotoChecking : t.reportPhotoAsk}</span>
+            {!photoBusy && (
+              <span className="flex gap-2">
+                <label
+                  className="flex h-[34px] cursor-pointer items-center rounded-full px-4 text-[12.5px] font-semibold"
+                  style={{ background: "var(--canary)", color: "var(--charcoal)" }}
+                >
+                  {t.reportPhotoAdd}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) sendReportPhoto(file);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+                <button
+                  onClick={() => setPhotoAskId(null)}
+                  className="h-[34px] rounded-full px-4 text-[12.5px] font-medium"
+                  style={{ background: "var(--paper-2)", color: "var(--ink-2)" }}
+                >
+                  {t.reportPhotoSkip}
+                </button>
+              </span>
+            )}
+          </div>
+        )}
         {alertMsg && (
           <div
             className="k-rise max-w-[min(420px,calc(100vw-24px))] rounded-[14px] px-4 py-2.5 text-center text-[13px]"
