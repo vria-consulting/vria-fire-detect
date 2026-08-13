@@ -46,11 +46,35 @@ const CARDS: { title: string; body: string }[] = [
   },
 ];
 
+const FAQ: { q: string; a: string }[] = [
+  {
+    q: "Combien coûte kanari pour un SDIS ou une commune ?",
+    a: "Rien : la carte, les alertes par zone, l'API et l'open data sont gratuits, sans compte et sans engagement. kanari est un service d'information indépendant financé par son fondateur.",
+  },
+  {
+    q: "kanari remplace-t-il nos systèmes opérationnels ou nos caméras ?",
+    a: "Non. kanari est une couche de veille complémentaire : il ne remplace ni les systèmes de gestion opérationnelle, ni les caméras terrestres, ni les vigies, et n'est pas un canal d'alerte officiel. Il ajoute une couverture satellite mondiale rafraîchie toutes les 10 minutes et des signaux citoyens vérifiés.",
+  },
+  {
+    q: "D'où viennent les données de kanari ?",
+    a: "Des détections thermiques satellite (NASA FIRMS/VIIRS, NOAA GOES, EUMETSAT Meteosat MTG), des positions ADS-B des moyens aériens, des témoignages publics vérifiés deux fois par IA, et d'OpenStreetMap pour les points d'eau et casernes. Chaque donnée est horodatée par sa source et l'archive est ouverte (CC BY 4.0).",
+  },
+];
+
 export default async function SdisPage({ params }: { params: Promise<{ lang: string }> }) {
   const { lang } = await params;
   if (!isValidLang(lang)) notFound();
   if (lang !== "fr") redirect("/fr/sdis");
 
+  const faqLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: FAQ.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  };
   const breadcrumbLd = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -63,6 +87,7 @@ export default async function SdisPage({ params }: { params: Promise<{ lang: str
   return (
     <div className="k-scroll h-full overflow-y-auto" style={{ background: "var(--paper)" }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
       <div className="mx-auto max-w-2xl px-4 py-10 sm:py-14" style={{ color: "var(--ink-2)" }}>
         <h1 className="mb-3" style={{ fontFamily: "var(--font-display)", fontSize: "var(--text-h2)", color: "var(--ink)" }}>
           kanari pour les SDIS, communes et gestionnaires forestiers
@@ -146,6 +171,20 @@ export default async function SdisPage({ params }: { params: Promise<{ lang: str
             <a href="https://github.com/vria-consulting/vria-fire-detect/issues" style={{ color: "var(--link)" }}>GitHub</a>{" "}
             fonctionnent aussi.
           </p>
+        </section>
+
+        <section className="mb-8">
+          <h2 className="mb-3 text-[19px] font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>
+            Questions fréquentes
+          </h2>
+          <div className="flex flex-col gap-3">
+            {FAQ.map((f) => (
+              <div key={f.q} className="rounded-[16px] px-5 py-4" style={{ background: "var(--white)", boxShadow: "var(--shadow-s)" }}>
+                <h3 className="mb-1 text-[15px] font-semibold" style={{ color: "var(--ink)" }}>{f.q}</h3>
+                <p className="text-[14px] leading-relaxed">{f.a}</p>
+              </div>
+            ))}
+          </div>
         </section>
 
         <SiteFooter lang="fr" />

@@ -11,6 +11,10 @@ export type Guide = {
   intro: string;
   sections: GuideSection[];
   updated: string; // ISO date (affichée + JSON-LD)
+  // Questions fréquentes : affichées en bas de guide ET émises en FAQPage
+  // JSON-LD — le format que les moteurs de réponse IA citent le plus
+  // (mesuré : +40 % ChatGPT, +73 % AI Overviews sur les pages avec FAQ).
+  faq?: { q: string; a: string }[];
 };
 
 export const GUIDES: Guide[] = [
@@ -53,6 +57,20 @@ export const GUIDES: Guide[] = [
         ],
       },
     ],
+    faq: [
+      {
+        q: "Quel numéro appeler quand on voit un feu de forêt ?",
+        a: "Le 18 (pompiers) ou le 112, numéro d'urgence européen gratuit qui fonctionne même sans le réseau de votre opérateur. Donnez la commune, le lieu-dit ou la route la plus proche, décrivez ce que vous voyez, et ne raccrochez que quand l'opérateur vous le dit.",
+      },
+      {
+        q: "Faut-il évacuer sa maison quand un feu de forêt approche ?",
+        a: "Pas de votre propre initiative : une maison en dur, volets et aérations fermés, est souvent l'abri le plus sûr, et la majorité des victimes de feux de forêt sont surprises sur les routes, dans la fumée. On n'évacue que sur ordre des autorités (FR-Alert, mairie, préfecture).",
+      },
+      {
+        q: "Peut-on éteindre soi-même un départ de feu ?",
+        a: "Seulement un foyer naissant de moins d'un mètre, avec de la terre, du sable ou de l'eau, en gardant toujours une voie de repli. Au moindre doute, éloignez-vous : un feu de végétation peut avancer plus vite qu'un homme qui court.",
+      },
+    ],
   },
   {
     slug: "comment-fonctionne-un-canadair",
@@ -92,6 +110,20 @@ export const GUIDES: Guide[] = [
         ],
       },
     ],
+    faq: [
+      {
+        q: "Combien de litres d'eau transporte un Canadair ?",
+        a: "Le Canadair CL-415 écope environ 6 000 litres en 12 secondes en frôlant un plan d'eau, sans se poser. Les Dash 8 « Milan » de la Sécurité Civile larguent jusqu'à 10 000 litres de produit retardant.",
+      },
+      {
+        q: "Où les Canadair écopent-ils ?",
+        a: "Sur un plan d'eau d'au moins 2 kilomètres exploitables sans obstacle (mer, lac, grand fleuve), à environ 130 km/h, écopes ouvertes. Les zones d'écopage sont fermées à la navigation pendant les opérations.",
+      },
+      {
+        q: "Combien de Canadair possède la France ?",
+        a: "La Sécurité Civile opère 12 Canadair CL-415 basés à Nîmes-Garons, indicatif « Pélican », plus 6 Dash 8 « Milan ». L'Italie aligne la plus grande flotte de Canadair d'Europe, devant l'Espagne, la Grèce et la Croatie.",
+      },
+    ],
   },
   {
     slug: "detection-feux-satellite",
@@ -125,6 +157,20 @@ export const GUIDES: Guide[] = [
         ],
       },
     ],
+    faq: [
+      {
+        q: "En combien de temps un satellite détecte-t-il un feu de forêt ?",
+        a: "Les satellites géostationnaires (GOES, Meteosat MTG) re-scannent leur zone toutes les 10 minutes avec des pixels de 2 à 4 km. Les satellites défilants (VIIRS, 375 m de résolution) passent environ deux fois par jour et par satellite. kanari affiche les détections publiées en 2 à 3 minutes.",
+      },
+      {
+        q: "Quelle taille de feu un satellite peut-il repérer ?",
+        a: "Un pixel VIIRS de 375 mètres permet de repérer un feu de quelques centaines de mètres carrés bien établi. Un feu très petit ou naissant peut passer entre deux passages, être masqué par les nuages, la fumée dense ou la canopée.",
+      },
+      {
+        q: "Les détections satellite peuvent-elles être de faux positifs ?",
+        a: "Oui : torchères industrielles, brûlages agricoles ou toits métalliques surchauffés génèrent des pixels chauds sans feu de forêt. Les algorithmes en filtrent une partie, et kanari croise les détections avec des témoignages humains vérifiés par IA pour consolider la confiance.",
+      },
+    ],
   },
   {
     slug: "meteo-des-forets",
@@ -156,6 +202,20 @@ export const GUIDES: Guide[] = [
           "Les jours à risque élevé, les gestes anodins deviennent dangereux : travaux à l'extérieur avec outils à étincelles, barbecue, mégot, stationnement sur herbe sèche (le pot catalytique peut l'enflammer). Les pompiers pré-positionnent leurs moyens et les bombardiers d'eau font des vols de guet aérien armé : attaquer un feu naissant dans les 10 minutes multiplie les chances de l'arrêter avant le premier hectare.",
           "Le bon réflexe citoyen : consulter le risque du jour le matin, éviter tout geste à flamme ou étincelle, et garder un œil sur la carte en temps réel quand le vent se lève.",
         ],
+      },
+    ],
+    faq: [
+      {
+        q: "Qu'est-ce que la règle des trois 30 ?",
+        a: "La combinaison météo la plus dangereuse pour les feux de forêt en Méditerranée : plus de 30 °C, moins de 30 % d'humidité relative et plus de 30 km/h de vent. Réunies, ces trois conditions transforment le moindre départ en incendie rapide.",
+      },
+      {
+        q: "Où consulter le risque incendie du jour ?",
+        a: "Météo-France publie chaque jour en été la « météo des forêts », carte officielle par département du vert au rouge. kanari affiche en complément un risque estimé en continu sur chaque page départementale, calculé à partir des mêmes ingrédients (température, humidité, vent, pluie récente).",
+      },
+      {
+        q: "Qu'est-ce qui est interdit les jours à risque très élevé ?",
+        a: "En risque rouge, l'accès à certains massifs est interdit par arrêté préfectoral. Barbecues, mégots, brûlages et travaux générant des étincelles sont à proscrire, et le simple stationnement sur herbe sèche peut suffire à démarrer un feu (pot catalytique).",
       },
     ],
   },
@@ -196,6 +256,20 @@ export const GUIDES: Guide[] = [
         paras: [
           "Sur la carte kanari, touchez « M'alerter sur cette zone » : vous recevrez une notification si un nouveau foyer significatif est détecté autour de chez vous. C'est gratuit, sans compte, et cela fonctionne sur téléphone comme sur ordinateur — le moyen le plus simple de dormir tranquille les soirs où « ça sent la fumée ».",
         ],
+      },
+    ],
+    faq: [
+      {
+        q: "Pourquoi ça sent la fumée dehors sans feu visible ?",
+        a: "Quatre causes couvrent la plupart des cas : un feu de végétation proche, la fumée d'un incendie lointain transportée par le vent (parfois sur des centaines de kilomètres), un brûlage agricole, ou un feu urbain ponctuel. La nuit, l'inversion de température plaque en plus les fumées au sol, ce qui amplifie l'odeur sans que le feu soit plus proche.",
+      },
+      {
+        q: "Comment vérifier s'il y a un feu près de chez moi en ce moment ?",
+        a: "Ouvrez une carte de détection en temps réel comme kanari.io (satellites rafraîchis toutes les 10 minutes en Europe, témoignages vérifiés par IA) et regardez le sens du vent : une odeur de fumée arrive toujours du côté d'où souffle le vent. Croisez avec les sirènes, les rotations d'avions et l'indice de qualité de l'air.",
+      },
+      {
+        q: "Quand appeler les pompiers pour une odeur de fumée ?",
+        a: "Dès que vous voyez des flammes ou une colonne de fumée qui monte d'un point précis, si des cendres retombent, ou si la fumée gêne la respiration : appelez le 18 ou le 112. Une odeur seule, sans source visible ni foyer proche sur la carte, est très probablement une fumée transportée de loin : fermez les fenêtres si elle est forte.",
       },
     ],
   },

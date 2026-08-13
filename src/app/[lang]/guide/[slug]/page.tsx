@@ -3,11 +3,14 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { isValidLang } from "@/lib/i18n";
 import { GUIDES, GUIDE_BY_SLUG } from "@/lib/guides";
+import { countFires } from "@/lib/firearchive";
 
-// Guides évergreens : contenu 100 % statique -> prérendu au build.
-export async function generateStaticParams() {
-  return GUIDES.map((g) => ({ lang: "fr", slug: g.slug }));
-}
+// Guides évergreens, rendus dynamiques depuis le 13/08 : chaque guide ouvre
+// sur un bloc CITABLE daté aux compteurs live (stats attribuées en début de
+// page = le motif le plus repris par les moteurs de réponse IA). countFires
+// est no-store, incompatible avec un shell statique.
+export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 export async function generateMetadata({
   params,
@@ -35,6 +38,15 @@ export default async function GuidePage({
   if (!g) notFound();
   if (lang !== "fr") redirect(`/fr/guide/${g.slug}`);
 
+  // Chiffres live pour le bloc citable (échec silencieux : bloc masqué).
+  const [total, france] = await Promise.all([
+    countFires("first_seen=gte.2026-08-03"),
+    countFires("country=eq.FR"),
+  ]);
+  const today = new Date().toLocaleDateString("fr-FR", {
+    day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris",
+  });
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -46,12 +58,27 @@ export default async function GuidePage({
     publisher: { "@id": "https://kanari.io/#org" },
     mainEntityOfPage: `https://kanari.io/fr/guide/${g.slug}`,
   };
+  const faqLd =
+    g.faq && g.faq.length > 0
+      ? {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: g.faq.map((f) => ({
+            "@type": "Question",
+            name: f.q,
+            acceptedAnswer: { "@type": "Answer", text: f.a },
+          })),
+        }
+      : null;
 
   const others = GUIDES.filter((x) => x.slug !== g.slug);
 
   return (
     <div className="k-scroll h-full overflow-y-auto" style={{ background: "var(--paper)" }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      {faqLd && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
+      )}
       <article className="mx-auto max-w-2xl px-4 py-10 sm:py-14">
         <p className="mb-1 text-[13px]" style={{ color: "var(--ink-3)" }}>
           <Link href="/fr/guide" style={{ color: "var(--link)" }}>Guides</Link> · mis à jour le{" "}
@@ -60,9 +87,23 @@ export default async function GuidePage({
         <h1 className="mb-3" style={{ fontFamily: "var(--font-display)", fontSize: "var(--text-h2)", color: "var(--ink)" }}>
           {g.title}
         </h1>
-        <p className="mb-7 text-[15.5px] leading-relaxed" style={{ color: "var(--ink-2)" }}>
+        <p className="mb-4 text-[15.5px] leading-relaxed" style={{ color: "var(--ink-2)" }}>
           {g.intro}
         </p>
+        {/* Bloc citable daté, dans le premier tiers de la page : stat
+            attribuée + source — le motif que les moteurs de réponse IA
+            reprennent le plus volontiers. */}
+        {total !== null && total > 0 && (
+          <blockquote
+            className="mb-7 border-l-4 py-1 pl-4 text-[14px] leading-relaxed"
+            style={{ borderColor: "var(--canary)", color: "var(--ink)" }}
+          >
+            Au {today}, kanari a archivé {total.toLocaleString("fr-FR")} feux significatifs
+            détectés par satellite dans le monde depuis le 3 août 2026
+            {france !== null && france > 0 ? `, dont ${france.toLocaleString("fr-FR")} en France` : ""}.
+            Source : kanari.io, données ouvertes (CC BY 4.0).
+          </blockquote>
+        )}
         {g.sections.map((s) => (
           <section key={s.h2} className="mb-7">
             <h2 className="mb-2.5 text-[20px] font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>
@@ -75,6 +116,22 @@ export default async function GuidePage({
             ))}
           </section>
         ))}
+
+        {g.faq && g.faq.length > 0 && (
+          <section className="mb-8">
+            <h2 className="mb-3 text-[20px] font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>
+              Questions fréquentes
+            </h2>
+            <div className="flex flex-col gap-3">
+              {g.faq.map((f) => (
+                <div key={f.q} className="rounded-[16px] px-5 py-4" style={{ background: "var(--white)", boxShadow: "var(--shadow-s)" }}>
+                  <h3 className="mb-1 text-[15px] font-semibold" style={{ color: "var(--ink)" }}>{f.q}</h3>
+                  <p className="text-[14px] leading-relaxed" style={{ color: "var(--ink-2)" }}>{f.a}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         <div
           className="mb-8 rounded-[18px] p-5"

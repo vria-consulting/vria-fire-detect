@@ -98,7 +98,7 @@ export default async function DeptPage({
   const sorted = (fires ?? []).sort((a, b) => Date.parse(b.lastSeen) - Date.parse(a.lastSeen));
   const active = sorted.filter((ev) => hoursAgo(ev.lastSeen) < 24);
   const now = new Date().toLocaleString("fr-FR", {
-    day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris",
+    day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris",
   });
   const mapHref = `/fr?lat=${d.lat}&lon=${d.lon}&z=8.3`;
 

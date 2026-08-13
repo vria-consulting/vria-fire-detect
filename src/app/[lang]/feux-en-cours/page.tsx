@@ -115,7 +115,7 @@ export default async function FeuxEnCours({ params }: { params: Promise<{ lang: 
     ? [...new Map(rows.filter((r) => r.dept).map((r) => [r.dept!.slug, r.dept!])).values()]
     : [];
   const now = new Date().toLocaleString("fr-FR", {
-    day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris",
+    day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris",
   });
   const today = new Date().toISOString().slice(0, 10);
   const yesterday = new Date(Date.now() - 86400_000).toISOString().slice(0, 10);
@@ -127,6 +127,29 @@ export default async function FeuxEnCours({ params }: { params: Promise<{ lang: 
       { "@type": "ListItem", position: 1, name: "kanari", item: "https://kanari.io/fr" },
       { "@type": "ListItem", position: 2, name: "Feux en France", item: "https://kanari.io/fr/feux" },
       { "@type": "ListItem", position: 3, name: "Incendies en cours", item: "https://kanari.io/fr/feux-en-cours" },
+    ],
+  };
+  // FAQ (reflète mot pour mot la section méthodologie visible plus bas).
+  const faqLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        name: "Comment cette liste des incendies en cours est-elle établie ?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Chaque foyer provient d'une détection thermique satellite (VIIRS ~375 m, GOES et Meteosat MTG toutes les 10 minutes) ou d'un témoignage public vérifié deux fois par IA. Les heures affichées sont celles des passages satellites, fournies par la NASA et EUMETSAT. Source : kanari.io.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Un feu « en cours » est-il forcément encore actif ?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: `Un feu « en cours » est un foyer dont le dernier signal satellite date de moins de ${IN_PROGRESS_H} heures : un feu réellement éteint peut donc rester listé quelques heures, et un feu masqué par les nuages peut manquer temporairement. En cas d'urgence, appelez le 18 ou le 112.`,
+        },
+      },
     ],
   };
   const listLd = rows && rows.length > 0
@@ -147,6 +170,7 @@ export default async function FeuxEnCours({ params }: { params: Promise<{ lang: 
   return (
     <div className="k-scroll h-full overflow-y-auto" style={{ background: "var(--paper)" }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
       {listLd && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(listLd) }} />
       )}
