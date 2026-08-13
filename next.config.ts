@@ -3,6 +3,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Retire le bouton de débogage Next.js (rond « N ») en développement.
   devIndicators: false,
+  // h5wasm charge son .wasm depuis node_modules à l'exécution : il doit
+  // rester un require Node natif, pas passer par le bundler.
+  serverExternalPackages: ["h5wasm"],
   // Les visuels publics (og.png, images de partage) sont réutilisables par
   // des sites tiers (annuaires, portails open data) : CORS ouvert en lecture.
   // Idem pour l'API publique documentée sur /fr/api (events, signals, CSV, RSS).

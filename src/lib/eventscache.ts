@@ -11,6 +11,7 @@
 
 import { fetchFires, type FireFeature } from "./firms";
 import { fetchMtgFires } from "./mtg";
+import { fetchGoesDirectFires } from "./goesdirect";
 import { clusterFires, FireEvent, Confidence } from "./cluster";
 import { getSignals } from "./signalcache";
 import { haversineKm, type SocialSignal } from "./socialscan";
@@ -108,13 +109,31 @@ async function getRawFeatures(days: number) {
   if (rawCache && rawCache.days >= days && Date.now() - rawCache.at < CACHE_TTL_MS) {
     return rawCache;
   }
-  // FIRMS (VIIRS + GOES) et Meteosat MTG (Europe/Afrique, 10 min) en parallèle ;
-  // MTG renvoie [] en cas de problème, sans bloquer le reste.
-  const [fires, mtgFires] = await Promise.all([fetchFires(days), fetchMtgFires()]);
+  // FIRMS (VIIRS + GOES), Meteosat MTG (Europe/Afrique, 10 min) et GOES lu en
+  // direct sur S3 (Amériques, ~10 min contre ~40 via FIRMS) en parallèle ;
+  // chaque source annexe renvoie [] en cas de problème, sans bloquer le reste.
+  const [fires, mtgFires, goesDirect] = await Promise.all([
+    fetchFires(days),
+    fetchMtgFires(),
+    fetchGoesDirectFires(),
+  ]);
+  // Anti-doublon : le direct S3 n'apporte QUE la fenêtre plus fraîche que le
+  // dernier point GOES déjà publié par FIRMS (mêmes pixels, ~30 min plus tard).
+  let maxFirmsGoes = 0;
+  for (const f of fires.features) {
+    if (f.properties.src === "goes") {
+      const t = Date.parse(f.properties.acq);
+      if (t > maxFirmsGoes) maxFirmsGoes = t;
+    }
+  }
+  const freshDirect = goesDirect.filter((f) => Date.parse(f.properties.acq) > maxFirmsGoes);
+  if (goesDirect.length > 0) {
+    console.log(`goes-direct: ${freshDirect.length} détections fraîches gardées / ${goesDirect.length} lues`);
+  }
   rawCache = {
     days,
     at: Date.now(),
-    features: [...fires.features, ...mtgFires],
+    features: [...fires.features, ...mtgFires, ...freshDirect],
     fetchedAt: fires.meta.fetchedAt,
   };
   return rawCache;
