@@ -5,6 +5,7 @@ import { isValidLang } from "@/lib/i18n";
 import { getFireBySlug, type ArchivedFire } from "@/lib/firearchive";
 import { DEPT_BY_SLUG } from "@/lib/departements";
 import { fetchStrategicPoints, type StrategicPoint } from "@/lib/strategic";
+import { fetchNifcPerimeter, type NifcPerimeter } from "@/lib/nifc";
 import { SiteFooter } from "@/components/SiteFooter";
 
 // Page événement permanente : chaque feu significatif archivé a son URL à
@@ -74,10 +75,21 @@ export default async function FirePage({
 
   const deptName = f.dept_slug ? DEPT_BY_SLUG.get(f.dept_slug)?.name : null;
   const active = f.status === "active";
-  // Points stratégiques (OSM) : seulement pour les feux en cours — les pages
-  // archivées, massivement crawlées, ne doivent pas solliciter Overpass.
-  const strategic: StrategicPoint[] = active ? await fetchStrategicPoints(f.lat, f.lon) : [];
+  // Points stratégiques (OSM) et périmètre officiel NIFC (feux US) :
+  // seulement pour les feux en cours — les pages archivées, massivement
+  // crawlées, ne doivent solliciter aucun service externe.
+  const [strategic, nifc]: [StrategicPoint[], NifcPerimeter | null] = active
+    ? await Promise.all([
+        fetchStrategicPoints(f.lat, f.lon),
+        f.country === "US" ? fetchNifcPerimeter(f.lat, f.lon) : Promise.resolve(null),
+      ])
+    : [[], null];
+  // Statuts automatiques : ce que les données disent de la situation, sans
+  // rédaction manuelle (nourrit aussi le LiveBlog des gros feux).
+  const today = new Date().toISOString().slice(0, 10);
+  const aircraftToday = f.aircraft.some((a) => a.day === today);
   const lastAgeH = (Date.now() - new Date(f.last_seen).getTime()) / 3_600_000;
+  const fading = active && lastAgeH >= 3 && lastAgeH < 24;
   const title = titleOf(f);
 
   const heroImg = `https://kanari.io/ogfire/${f.slug}`;
@@ -142,6 +154,13 @@ export default async function FirePage({
                 datePublished: f.aircraft[0].day,
               }]
             : []),
+          ...(nifc
+            ? [{
+                "@type": "BlogPosting",
+                headline: `Périmètre officiel NIFC « ${nifc.name} » : ${nifc.hectares.toLocaleString("fr-FR")} ha${nifc.containedPct !== null ? `, contenu à ${nifc.containedPct} %` : ""}`,
+                datePublished: f.updated_at ?? f.last_seen,
+              }]
+            : []),
           {
             "@type": "BlogPosting",
             headline: `Dernier signal satellite (${f.detections} détections cumulées)`,
@@ -193,6 +212,25 @@ export default async function FirePage({
               corroboré par témoins
             </span>
           )}
+          {/* Statuts automatiques dérivés des données (pas de rédaction) */}
+          {aircraftToday && (
+            <span className="flex h-[24px] items-center rounded-full px-3 text-[12px] font-bold" style={{ background: "#E3EEF7", color: "#1E5B8D" }}>
+              🛩️ moyens aériens observés aujourd&apos;hui
+            </span>
+          )}
+          {fading && (
+            <span className="flex h-[24px] items-center rounded-full px-3 text-[12px] font-bold" style={{ background: "#FBF3DC", color: "#8A6D1B" }}>
+              signal en baisse · aucune détection depuis {Math.round(lastAgeH)} h
+            </span>
+          )}
+          {nifc && nifc.containedPct !== null && (
+            <span
+              className="flex h-[24px] items-center rounded-full px-3 text-[12px] font-bold"
+              style={nifc.containedPct >= 50 ? { background: "var(--safe-soft)", color: "#22684A" } : { background: "var(--paper-2)", color: "var(--ink-2)" }}
+            >
+              containment {nifc.containedPct} % (NIFC)
+            </span>
+          )}
         </div>
         <h1 className="mb-2" style={{ fontFamily: "var(--font-display)", fontSize: "var(--text-h2)", color: "var(--ink)" }}>
           {flag(f.country)} {title}
@@ -228,6 +266,16 @@ export default async function FirePage({
             <div className="rounded-[18px] px-5 py-3.5" style={{ background: "var(--white)", boxShadow: "var(--shadow-s)" }}>
               <div style={{ fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 600, color: "var(--ink)" }}>{f.post_count}</div>
               <div className="text-[12.5px]" style={{ color: "var(--ink-2)" }}>témoignages publics</div>
+            </div>
+          )}
+          {nifc && (
+            <div className="rounded-[18px] px-5 py-3.5" style={{ background: "var(--white)", boxShadow: "var(--shadow-s)" }}>
+              <div style={{ fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 600, color: "var(--ink)" }}>
+                {nifc.hectares.toLocaleString("fr-FR")} ha
+              </div>
+              <div className="text-[12.5px]" style={{ color: "var(--ink-2)" }}>
+                périmètre officiel « {nifc.name} » (NIFC)
+              </div>
             </div>
           )}
         </div>

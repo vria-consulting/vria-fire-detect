@@ -32,6 +32,7 @@ const FR: { title: string; items: Item[] }[] = [
     title: "Comprendre",
     items: [
       { href: "/fr/guide", label: "Guides feux de forêt" },
+      { href: "/fr/precocite", label: "Précocité mesurée" },
       { href: "/fr/faq", label: "Questions fréquentes" },
       { href: "/fr/a-propos", label: "À propos de kanari" },
       { href: "/fr/sdis", label: "Pour les SDIS et collectivités" },

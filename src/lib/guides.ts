@@ -159,6 +159,46 @@ export const GUIDES: Guide[] = [
       },
     ],
   },
+  {
+    slug: "odeur-de-fumee-que-faire",
+    title: "Odeur de fumée dehors : comment savoir s'il y a un feu près de chez vous ?",
+    metaTitle: "Odeur de fumée dehors : y a-t-il un feu près de chez moi ? | kanari",
+    metaDesc:
+      "Ça sent la fumée ou le brûlé dehors ? Les causes possibles, comment vérifier en 2 minutes s'il y a un feu autour de vous (carte satellite gratuite), et quand appeler le 18.",
+    intro:
+      "Une odeur de fumée ou de brûlé dehors, sans flamme visible, est l'une des situations les plus déroutantes : le danger peut être à 500 mètres comme à 300 kilomètres. Voici comment identifier la cause en quelques minutes, et quand il faut alerter les secours.",
+    updated: "2026-08-13",
+    sections: [
+      {
+        h2: "D'où peut venir cette odeur de fumée ?",
+        paras: [
+          "Quatre causes couvrent l'immense majorité des cas. Un feu de végétation proche, d'abord : c'est le plus urgent à écarter, surtout l'été par vent soutenu. Un feu lointain ensuite : la fumée d'un grand incendie voyage avec le vent sur des dizaines, parfois des centaines de kilomètres — les panaches des feux canadiens de 2023 ont traversé l'Atlantique jusqu'en Europe. Viennent enfin les brûlages agricoles ou de déchets verts (souvent en matinée, hors période d'interdiction) et les feux urbains ponctuels : bâtiment, véhicule, poubelles.",
+          "La nuit et tôt le matin, un phénomène amplifie tout : l'inversion de température plaque les fumées au sol au lieu de les laisser monter. Une odeur forte au lever du jour ne signifie donc pas forcément que le feu s'est rapproché — mais elle mérite toujours une vérification.",
+        ],
+      },
+      {
+        h2: "Vérifier en deux minutes s'il y a un feu autour de vous",
+        paras: [
+          "Ouvrez la carte kanari (gratuite, sans compte) et centrez-la sur votre position : les départs de feu détectés par satellite (mise à jour toutes les 10 minutes en Europe) et les signalements citoyens vérifiés y apparaissent en continu. La liste nationale des incendies en cours en France est aussi consultable d'un coup d'œil.",
+          "Regardez ensuite le sens du vent, affiché sur la carte : une odeur de fumée arrive TOUJOURS du côté d'où souffle le vent. Si le vent vient du sud-ouest, la source est au sud-ouest — cherchez les foyers dans cette direction, y compris loin : un feu puissant à 100 km sous le vent se sent parfaitement.",
+          "Croisez avec les autres signaux : sirènes, rotations d'avions ou d'hélicoptères (la carte suit les Canadair en direct), publications de la préfecture ou des pompiers sur les réseaux sociaux, et l'indice de qualité de l'air de votre région (ATMO) qui grimpe quand un panache passe.",
+        ],
+      },
+      {
+        h2: "Quand appeler les secours",
+        paras: [
+          "Appelez le 18 ou le 112 sans hésiter si vous voyez des flammes ou une colonne de fumée qui monte d'un point précis, si l'odeur s'accompagne de cendres ou de retombées, ou si la fumée devient dense au point de gêner la respiration. Mieux vaut un appel pour rien qu'un feu qui prend de l'avance : les pompiers préfèrent dix signalements redondants à un signalement manquant.",
+          "Odeur seule, sans source visible et sans foyer proche sur la carte ? C'est très probablement une fumée transportée de loin ou un brûlage. Inutile d'appeler les secours, mais fermez fenêtres et aérations si l'odeur est forte, surtout pour les personnes fragiles (asthme, insuffisance respiratoire, nourrissons).",
+        ],
+      },
+      {
+        h2: "Suivre l'évolution sans y penser",
+        paras: [
+          "Sur la carte kanari, touchez « M'alerter sur cette zone » : vous recevrez une notification si un nouveau foyer significatif est détecté autour de chez vous. C'est gratuit, sans compte, et cela fonctionne sur téléphone comme sur ordinateur — le moyen le plus simple de dormir tranquille les soirs où « ça sent la fumée ».",
+        ],
+      },
+    ],
+  },
 ];
 
 export const GUIDE_BY_SLUG = new Map(GUIDES.map((g) => [g.slug, g]));
