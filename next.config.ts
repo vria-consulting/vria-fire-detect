@@ -8,8 +8,14 @@ const nextConfig: NextConfig = {
   // doit être explicitement embarqué dans les fonctions (le tracing ne suit
   // pas la résolution new URL(import.meta.url) du loader wasm).
   serverExternalPackages: ["h5wasm"],
+  // Trois formes de clé pour couvrir les variantes de matching des routes
+  // selon les versions (route exacte, wildcard simple, glob).
   outputFileTracingIncludes: {
+    "*": ["./node_modules/h5wasm/dist/node/**"],
     "/**": ["./node_modules/h5wasm/dist/node/**"],
+    "/api/events": ["./node_modules/h5wasm/dist/node/**"],
+    "/api/cron/check": ["./node_modules/h5wasm/dist/node/**"],
+    "/api/goes-debug": ["./node_modules/h5wasm/dist/node/**"],
   },
   // Les visuels publics (og.png, images de partage) sont réutilisables par
   // des sites tiers (annuaires, portails open data) : CORS ouvert en lecture.
