@@ -616,6 +616,8 @@ export default function FireMap({ lang }: { lang: Lang }) {
   // UI maquette v2
   const [legendOpen, setLegendOpen] = useState(false);
   const [satellite, setSatellite] = useState(true); // fond satellite par défaut
+  // Miroir pour la boucle rAF (closures figées) : contraste des chevrons.
+  const satelliteRef = useRef(true);
   const [feedOpen, setFeedOpen] = useState(false); // panneau « En direct » : réduit par défaut
   const [detailOpen, setDetailOpen] = useState(false); // fiche foyer étendue
   const [shareMsg, setShareMsg] = useState<string | null>(null);
@@ -876,7 +878,12 @@ export default function FireMap({ lang }: { lang: Lang }) {
     // dézoom, mercator classique en zoomant — aucune régression de rendu.
     map.on("style.load", () => {
       try {
-        (map as unknown as { setProjection: (p: { type: string }) => void }).setProjection({ type: "globe" });
+        // Deep-link déjà zoomé (relief actif) : mercator D'EMBLÉE — poser le
+        // globe puis re-basculer pendant l'init corrompt le pipeline WebGL
+        // (carte entièrement blanche, sans erreur — constaté le 13/08).
+        (map as unknown as { setProjection: (p: { type: string }) => void }).setProjection({
+          type: map.getZoom() >= 8.2 ? "mercator" : "globe",
+        });
       } catch {
         /* runtime sans globe : mercator, comme avant */
       }
@@ -1006,8 +1013,19 @@ export default function FireMap({ lang }: { lang: Lang }) {
           try {
             const on = map.getZoom() >= 8.2;
             const cur = map.getTerrain();
-            if (on && !cur) map.setTerrain({ source: "dem", exaggeration: 1.15 });
-            else if (!on && cur) map.setTerrain(null);
+            // Le terrain ne cohabite pas avec la phase globe/vertical
+            // perspective de l'ACP (warns en boucle et couches vectorielles
+            // qui peuvent cesser de rendre — constaté le 13/08) : on bascule
+            // franchement en mercator avec le relief, et on rend le globe en
+            // dessous. À z 8,2 la différence visuelle est nulle.
+            const projType = (map.getProjection() as { type?: string } | undefined)?.type;
+            if (on && !cur) {
+              if (projType !== "mercator") map.setProjection({ type: "mercator" });
+              map.setTerrain({ source: "dem", exaggeration: 1.15 });
+            } else if (!on && cur) {
+              map.setTerrain(null);
+              if (projType !== "globe") map.setProjection({ type: "globe" });
+            }
           } catch {
             /* terrain indisponible : la carte reste plate */
           }
@@ -2183,6 +2201,7 @@ export default function FireMap({ lang }: { lang: Lang }) {
     if (!map) return;
     const next = !satellite;
     setSatellite(next);
+    satelliteRef.current = next;
     const vis = (id: string, on: boolean) => {
       if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
     };
@@ -2380,9 +2399,11 @@ export default function FireMap({ lang }: { lang: Lang }) {
                 if (p.x < -110 || p.y < -110 || p.x > cw + 110 || p.y > ch + 110) continue;
                 // Taille fortement PROPORTIONNELLE à la puissance du feu :
                 // petit départ = flamme discrète, brasier = flamme dominante.
-                const hh = (31 + 23 * Math.log(f.frp + 1)) * zs2;
+                // Réduites le 13/08 (retour Vincent) : -30 % en hauteur,
+                // -20 % en largeur par rapport au réglage d'origine.
+                const hh = (31 + 23 * Math.log(f.frp + 1)) * zs2 * 0.7;
                 if (hh < 4) continue;
-                const ww = hh * (sw / vh) * 1.25; // aspect naturel, élargi de 25 %
+                const ww = (hh / 0.7) * 0.8 * (sw / vh) * 1.25;
                 const sxo = f.sx * vw * 0.04;
                 ctx.save();
                 ctx.translate(p.x, p.y);
@@ -2408,18 +2429,25 @@ export default function FireMap({ lang }: { lang: Lang }) {
             const tSec = nowMs / 1000;
             ctx.lineCap = "round";
             ctx.lineJoin = "round";
+            const lightBasemap = !satelliteRef.current; // fond « plan » clair
             for (const s of smokeSourcesRef.current) {
               const p = map.project([s.lon, s.lat]);
-              const rad = (s.rot * Math.PI) / 180;
-              const size = Math.min(4.5, Math.max(1.8, 2.2 * zs3));
+              // MÊME champ de vent que l'advection de la fumée (grille
+              // interpolée quand elle existe, sinon vent ponctuel du foyer) :
+              // flèches et panache ne peuvent plus diverger (retour Vincent :
+              // sens parfois opposés).
+              const g = sampleWind(s.lon, s.lat);
+              const dirDeg = g && g.kmh >= 2 ? (Math.atan2(g.u, -g.v) * 180) / Math.PI : s.rot;
+              const rad = (dirDeg * Math.PI) / 180;
+              const size = Math.min(6, Math.max(2.4, 2.9 * zs3));
               const d0 = 18 * zs3;
-              const gap = 9 * zs3;
+              const gap = 10 * zs3;
               for (let i2 = 0; i2 < 3; i2++) {
                 const d = d0 + i2 * gap;
                 const ax = p.x + Math.sin(rad) * d;
                 const ay = p.y - Math.cos(rad) * d;
-                const wave = 0.5 + 0.5 * Math.sin(tSec * 2.6 - i2 * 1.1 + s.rot * 0.01);
-                const a = 0.2 + 0.6 * wave * wave;
+                const wave = 0.5 + 0.5 * Math.sin(tSec * 2.6 - i2 * 1.1 + dirDeg * 0.01);
+                const a = 0.35 + 0.55 * wave * wave;
                 ctx.save();
                 ctx.translate(ax, ay);
                 ctx.rotate(rad);
@@ -2427,12 +2455,17 @@ export default function FireMap({ lang }: { lang: Lang }) {
                 ctx.moveTo(-size, size * 0.7);
                 ctx.lineTo(0, -size * 0.5);
                 ctx.lineTo(size, size * 0.7);
-                // Liseré sombre (lisible même hors fumée), puis trait clair.
-                ctx.strokeStyle = `rgba(40,30,24,${(a * 0.45).toFixed(3)})`;
-                ctx.lineWidth = 2.2;
+                // Contraste selon le fond : trait sombre liseré clair sur le
+                // plan, trait clair liseré sombre sur le satellite.
+                ctx.strokeStyle = lightBasemap
+                  ? `rgba(255,255,255,${(a * 0.8).toFixed(3)})`
+                  : `rgba(40,30,24,${(a * 0.5).toFixed(3)})`;
+                ctx.lineWidth = 3.4;
                 ctx.stroke();
-                ctx.strokeStyle = `rgba(255,248,238,${a.toFixed(3)})`;
-                ctx.lineWidth = 1.2;
+                ctx.strokeStyle = lightBasemap
+                  ? `rgba(45,40,34,${a.toFixed(3)})`
+                  : `rgba(255,248,238,${a.toFixed(3)})`;
+                ctx.lineWidth = 1.8;
                 ctx.stroke();
                 ctx.restore();
               }
