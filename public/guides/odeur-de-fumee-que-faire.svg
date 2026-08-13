@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" font-family="Verdana, DejaVu Sans, sans-serif">
+  <rect width="1200" height="630" fill="#FBF9F4"/>
+  <text x="600" y="70" text-anchor="middle" font-size="36" font-weight="bold" fill="#1B1C1E">L'odeur vient du côté d'où souffle le vent</text>
+
+  <!-- sol -->
+  <rect x="0" y="480" width="1200" height="8" fill="#D8D3C8"/>
+
+  <!-- feu source à gauche -->
+  <path d="M170 470 q-30 -40 -8 -76 q6 26 26 32 q-12 -46 22 -74 q-2 34 18 48 q10 -20 6 -38 q34 32 24 78 q-8 38 -44 50 q-32 10 -44 -20 z" fill="#E8622C"/>
+  <path d="M178 456 q-14 -22 0 -42 q7 18 18 20 q-5 -27 14 -40 q0 24 13 33 q11 -9 9 -25 q16 25 7 50 q-9 25 -34 27 q-20 2 -27 -23 z" fill="#FFC72E"/>
+  <text x="190" y="530" text-anchor="middle" font-size="24" font-weight="bold" fill="#1B1C1E">la source</text>
+  <text x="190" y="560" text-anchor="middle" font-size="21" fill="#4A4A46">parfois à 100 km</text>
+
+  <!-- panache -->
+  <path d="M210 380 Q 380 300 560 320 T 900 300" fill="none" stroke="#8A8880" stroke-width="46" stroke-linecap="round" opacity="0.35"/>
+  <path d="M240 360 Q 420 290 620 310 T 930 296" fill="none" stroke="#8A8880" stroke-width="26" stroke-linecap="round" opacity="0.3"/>
+
+  <!-- flèches de vent -->
+  <g stroke="#4A90C2" stroke-width="7" fill="none" stroke-linecap="round">
+    <path d="M300 210 h130 m0 0 l-18 -13 m18 13 l-18 13"/>
+    <path d="M520 190 h130 m0 0 l-18 -13 m18 13 l-18 13"/>
+    <path d="M740 210 h130 m0 0 l-18 -13 m18 13 l-18 13"/>
+  </g>
+  <text x="585" y="160" text-anchor="middle" font-size="26" font-weight="bold" fill="#4A90C2">VENT</text>
+
+  <!-- maison à droite -->
+  <path d="M950 420 L1020 366 L1090 420 Z" fill="#1B1C1E"/>
+  <rect x="966" y="420" width="108" height="60" fill="#1B1C1E"/>
+  <rect x="1000" y="438" width="30" height="42" fill="#FFC72E"/>
+  <text x="1020" y="530" text-anchor="middle" font-size="24" font-weight="bold" fill="#1B1C1E">chez vous</text>
+  <text x="1020" y="560" text-anchor="middle" font-size="21" fill="#4A4A46">l'odeur arrive ici</text>
+
+  <text x="600" y="608" text-anchor="middle" font-size="21" fill="#4A4A46">Réflexe : chercher les foyers AU VENT sur la carte, puis croiser sirènes et aéronefs</text>
+  <text x="1140" y="100" text-anchor="end" font-size="22" font-weight="bold" fill="#8A8880">kanari.io</text>
+</svg>

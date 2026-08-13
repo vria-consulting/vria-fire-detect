@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" font-family="Verdana, DejaVu Sans, sans-serif">
+  <rect width="1200" height="630" fill="#FBF9F4"/>
+  <text x="600" y="70" text-anchor="middle" font-size="40" font-weight="bold" fill="#1B1C1E">Le cycle du Canadair : écopage, largage, noria</text>
+
+  <!-- plan d'eau -->
+  <path d="M60 500 q60 -16 120 0 t120 0 t120 0 t60 0 v70 h-420 z" fill="#4A90C2" opacity="0.85"/>
+  <text x="270" y="596" text-anchor="middle" font-size="22" fill="#1B1C1E">plan d'eau ≥ 2 km</text>
+
+  <!-- feu -->
+  <path d="M980 470 q-26 -34 -6 -66 q4 22 22 28 q-10 -40 18 -64 q-2 30 16 42 q8 -18 4 -34 q30 28 22 68 q-6 34 -38 44 q-28 8 -38 -18 z" fill="#E8622C"/>
+  <path d="M986 458 q-12 -20 0 -38 q6 16 16 18 q-4 -24 12 -36 q0 22 12 30 q10 -8 8 -22 q14 22 6 44 q-8 22 -30 24 q-18 2 -24 -20 z" fill="#FFC72E"/>
+  <rect x="900" y="500" width="240" height="8" fill="#8A8880"/>
+  <text x="1020" y="560" text-anchor="middle" font-size="22" fill="#1B1C1E">feu</text>
+
+  <!-- trajectoire -->
+  <path d="M120 200 Q 200 420 320 470 L 520 470 Q 700 470 800 300 L 880 210" fill="none" stroke="#8A8880" stroke-width="4" stroke-dasharray="10 8"/>
+  <path d="M905 235 q60 90 30 150" fill="none" stroke="#E8622C" stroke-width="4" stroke-dasharray="4 8"/>
+  <!-- retour noria -->
+  <path d="M950 170 Q 640 96 220 160" fill="none" stroke="#4A90C2" stroke-width="4" stroke-dasharray="10 8"/>
+  <path d="M244 152 l-26 10 l24 14" fill="none" stroke="#4A90C2" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- avion à l'écopage -->
+  <g transform="translate(410,452)">
+    <ellipse cx="0" cy="0" rx="52" ry="13" fill="#D64545"/>
+    <path d="M-10 -4 l36 -26 l14 6 l-30 24 z" fill="#FFC72E"/>
+    <rect x="30" y="-24" width="10" height="20" rx="3" fill="#D64545"/>
+  </g>
+  <text x="430" y="430" text-anchor="middle" font-size="24" font-weight="bold" fill="#1B1C1E">écopage : 6 000 L en 12 s</text>
+
+  <!-- avion au largage -->
+  <g transform="translate(860,240)">
+    <ellipse cx="0" cy="0" rx="52" ry="13" fill="#D64545"/>
+    <path d="M-10 -4 l36 -26 l14 6 l-30 24 z" fill="#FFC72E"/>
+    <rect x="30" y="-24" width="10" height="20" rx="3" fill="#D64545"/>
+  </g>
+  <text x="820" y="200" text-anchor="middle" font-size="24" font-weight="bold" fill="#1B1C1E">largage à 30-50 m du sol</text>
+
+  <text x="560" y="176" text-anchor="middle" font-size="24" fill="#1B1C1E">noria : un largage possible toutes les ~10 min</text>
+  <text x="600" y="622" text-anchor="middle" font-size="20" fill="#4A4A46">L'eau ralentit le feu, les équipes au sol l'éteignent · CL-415 : 12 « Pélican » en France</text>
+  <text x="1140" y="90" text-anchor="end" font-size="22" font-weight="bold" fill="#8A8880">kanari.io</text>
+</svg>

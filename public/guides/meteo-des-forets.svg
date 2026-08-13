@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" font-family="Verdana, DejaVu Sans, sans-serif">
+  <rect width="1200" height="630" fill="#FBF9F4"/>
+  <text x="600" y="76" text-anchor="middle" font-size="40" font-weight="bold" fill="#1B1C1E">La règle des trois 30 : le cocktail du danger</text>
+
+  <!-- Carte température -->
+  <rect x="70" y="140" width="320" height="300" rx="26" fill="#FFFFFF" stroke="#E8E4DC" stroke-width="2"/>
+  <!-- thermomètre -->
+  <rect x="212" y="180" width="16" height="120" rx="8" fill="#E8E4DC"/>
+  <rect x="212" y="210" width="16" height="90" rx="8" fill="#D64545"/>
+  <circle cx="220" cy="316" r="24" fill="#D64545"/>
+  <text x="230" y="392" text-anchor="middle" font-size="42" font-weight="bold" fill="#1B1C1E">+ de 30 °C</text>
+  <text x="230" y="424" text-anchor="middle" font-size="22" fill="#4A4A46">chaleur qui sèche tout</text>
+
+  <!-- Carte humidité -->
+  <rect x="440" y="140" width="320" height="300" rx="26" fill="#FFFFFF" stroke="#E8E4DC" stroke-width="2"/>
+  <!-- goutte barrée -->
+  <path d="M600 180 q46 52 46 88 q0 46 -46 46 q-46 0 -46 -46 q0 -36 46 -88 z" fill="#4A90C2" opacity="0.9"/>
+  <line x1="548" y1="330" x2="652" y2="196" stroke="#D64545" stroke-width="10" stroke-linecap="round"/>
+  <text x="600" y="392" text-anchor="middle" font-size="42" font-weight="bold" fill="#1B1C1E">- de 30 %</text>
+  <text x="600" y="424" text-anchor="middle" font-size="22" fill="#4A4A46">d'humidité dans l'air</text>
+
+  <!-- Carte vent -->
+  <rect x="810" y="140" width="320" height="300" rx="26" fill="#FFFFFF" stroke="#E8E4DC" stroke-width="2"/>
+  <g stroke="#4A90C2" stroke-width="10" fill="none" stroke-linecap="round">
+    <path d="M860 220 h150 q30 0 30 -24"/>
+    <path d="M860 262 h190 q34 0 34 26"/>
+    <path d="M860 304 h130"/>
+  </g>
+  <text x="970" y="392" text-anchor="middle" font-size="42" font-weight="bold" fill="#1B1C1E">+ de 30 km/h</text>
+  <text x="970" y="424" text-anchor="middle" font-size="22" fill="#4A4A46">de vent qui pousse et projette</text>
+
+  <!-- = flamme -->
+  <text x="600" y="500" text-anchor="middle" font-size="34" font-weight="bold" fill="#1B1C1E">réunis le même jour :</text>
+  <text x="600" y="566" text-anchor="middle" font-size="34" font-weight="bold" fill="#D64545">danger maximal, le moindre départ devient incendie</text>
+  <text x="1140" y="608" text-anchor="end" font-size="22" font-weight="bold" fill="#8A8880">kanari.io</text>
+</svg>

@@ -15,6 +15,8 @@ export type Guide = {
   // JSON-LD — le format que les moteurs de réponse IA citent le plus
   // (mesuré : +40 % ChatGPT, +73 % AI Overviews sur les pages avec FAQ).
   faq?: { q: string; a: string }[];
+  // Alt du schéma illustratif (public/guides/[slug].svg + .png pour l'OG).
+  imageAlt?: string;
 };
 
 export const GUIDES: Guide[] = [
@@ -24,6 +26,8 @@ export const GUIDES: Guide[] = [
     metaTitle: "Que faire en cas de feu de forêt ? Les bons réflexes | kanari",
     metaDesc:
       "Témoin d'un départ de feu, habitation menacée, fumée au loin : les bons réflexes validés par les consignes de la Sécurité Civile, étape par étape.",
+    imageAlt:
+      "Schéma des trois réflexes en cas de feu de forêt : alerter le 18 ou le 112, s'abriter dans une maison fermée, suivre les consignes et la carte en temps réel",
     intro:
       "Face à un feu de forêt, les premières minutes comptent double : un feu attrapé à 10 minutes est une clairière noircie, le même feu deux heures plus tard peut dépasser 1 000 hectares. Voici les réflexes qui sauvent, dans l'ordre.",
     updated: "2026-08-03",
@@ -78,6 +82,8 @@ export const GUIDES: Guide[] = [
     metaTitle: "Comment fonctionne un Canadair ? Écopage, largage, flotte française | kanari",
     metaDesc:
       "6 000 litres écopés en 12 secondes, largage à 30 mètres du sol : comment le Canadair CL-415 combat les feux, et comment suivre les Pélican français en direct.",
+    imageAlt:
+      "Schéma du cycle d'un Canadair : écopage de 6 000 litres sur un plan d'eau, largage à 30-50 mètres au-dessus du feu, rotation en noria toutes les 10 minutes",
     intro:
       "Le Canadair est devenu le symbole de la lutte aérienne contre les feux de forêt. Derrière l'avion jaune et rouge, une mécanique de précision : écopage, noria, largage en appui des pompiers au sol.",
     updated: "2026-08-03",
@@ -131,6 +137,8 @@ export const GUIDES: Guide[] = [
     metaTitle: "Détection des feux de forêt par satellite : VIIRS, GOES, Meteosat expliqués | kanari",
     metaDesc:
       "Anomalies thermiques, résolution 375 m, rafraîchissement 10 minutes : comment les satellites VIIRS, GOES et Meteosat MTG repèrent les départs de feu, et leurs limites.",
+    imageAlt:
+      "Schéma des deux familles de satellites de détection des feux : défilant VIIRS à 830 km (pixel 375 m, 2 passages par jour) et géostationnaire GOES/Meteosat à 36 000 km (re-scan toutes les 10 minutes)",
     intro:
       "Un feu émet un rayonnement infrarouge très différent de son environnement. Depuis l'orbite, des capteurs spécialisés repèrent ces « anomalies thermiques » — c'est la colonne vertébrale de toute carte de feux en temps réel, kanari compris.",
     updated: "2026-08-03",
@@ -178,6 +186,8 @@ export const GUIDES: Guide[] = [
     metaTitle: "Météo des forêts : comprendre le risque incendie du jour | kanari",
     metaDesc:
       "Sécheresse, vent, humidité de l'air : comment se calcule le risque de feu de forêt, ce que signifient les niveaux vert à rouge, et où consulter le risque en temps réel.",
+    imageAlt:
+      "Schéma de la règle des trois 30 : plus de 30 °C, moins de 30 % d'humidité et plus de 30 km/h de vent réunis créent un danger d'incendie maximal",
     intro:
       "Le « triangle du feu » a trois côtés : un combustible sec, de l'oxygène, une source de chaleur. La météo pilote les deux premiers — c'est pourquoi quelques indicateurs météo suffisent à estimer remarquablement bien le danger du jour.",
     updated: "2026-08-03",
@@ -225,6 +235,8 @@ export const GUIDES: Guide[] = [
     metaTitle: "Odeur de fumée dehors : y a-t-il un feu près de chez moi ? | kanari",
     metaDesc:
       "Ça sent la fumée ou le brûlé dehors ? Les causes possibles, comment vérifier en 2 minutes s'il y a un feu autour de vous (carte satellite gratuite), et quand appeler le 18.",
+    imageAlt:
+      "Schéma montrant que l'odeur de fumée arrive du côté d'où souffle le vent : la source, parfois à 100 km, se cherche au vent sur la carte",
     intro:
       "Une odeur de fumée ou de brûlé dehors, sans flamme visible, est l'une des situations les plus déroutantes : le danger peut être à 500 mètres comme à 300 kilomètres. Voici comment identifier la cause en quelques minutes, et quand il faut alerter les secours.",
     updated: "2026-08-13",

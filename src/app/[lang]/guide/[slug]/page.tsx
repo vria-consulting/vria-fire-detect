@@ -20,10 +20,17 @@ export async function generateMetadata({
   const { slug } = await params;
   const g = GUIDE_BY_SLUG.get(slug);
   if (!g) return {};
+  const ogImg = `https://kanari.io/guides/${g.slug}.png`;
   return {
     title: g.metaTitle,
     description: g.metaDesc,
     alternates: { canonical: `/fr/guide/${g.slug}` },
+    openGraph: {
+      type: "article",
+      title: g.metaTitle,
+      images: [{ url: ogImg, width: 1200, height: 630, alt: g.imageAlt ?? g.title }],
+    },
+    twitter: { card: "summary_large_image", images: [ogImg] },
   };
 }
 
@@ -52,6 +59,7 @@ export default async function GuidePage({
     "@type": "Article",
     headline: g.title,
     description: g.metaDesc,
+    image: [`https://kanari.io/guides/${g.slug}.png`],
     dateModified: g.updated,
     inLanguage: "fr",
     author: { "@type": "Organization", name: "kanari", url: "https://kanari.io" },
@@ -90,6 +98,18 @@ export default async function GuidePage({
         <p className="mb-4 text-[15.5px] leading-relaxed" style={{ color: "var(--ink-2)" }}>
           {g.intro}
         </p>
+        {/* Schéma illustratif (SVG net à l'écran, PNG pour l'OG/JSON-LD) :
+            le multimédia en page pèse lourd dans les réponses IA (+156 %
+            mesurés côté AI Overviews vs texte seul). */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={`/guides/${g.slug}.svg`}
+          alt={g.imageAlt ?? g.title}
+          width={1200}
+          height={630}
+          className="mb-5 w-full rounded-[18px]"
+          style={{ boxShadow: "var(--shadow-s)", background: "var(--white)" }}
+        />
         {/* Bloc citable daté, dans le premier tiers de la page : stat
             attribuée + source — le motif que les moteurs de réponse IA
             reprennent le plus volontiers. */}

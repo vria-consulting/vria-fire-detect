@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" font-family="Verdana, DejaVu Sans, sans-serif">
+  <rect width="1200" height="630" fill="#FBF9F4"/>
+  <text x="600" y="78" text-anchor="middle" font-size="40" font-weight="bold" fill="#1B1C1E">Feu de forêt : les 3 réflexes qui sauvent</text>
+
+  <!-- Carte 1 : alerter -->
+  <rect x="60" y="130" width="330" height="360" rx="26" fill="#FFFFFF" stroke="#E8E4DC" stroke-width="2"/>
+  <circle cx="225" cy="196" r="34" fill="#D64545"/>
+  <text x="225" y="209" text-anchor="middle" font-size="36" font-weight="bold" fill="#FFFFFF">1</text>
+  <!-- combiné téléphone -->
+  <path d="M175 300 q-14 -44 24 -58 l12 22 q-16 10 -10 28 q10 30 40 44 q18 8 30 -6 l22 14 q-16 36 -60 20 q-44 -18 -58 -64 z" fill="#1B1C1E"/>
+  <text x="225" y="400" text-anchor="middle" font-size="30" font-weight="bold" fill="#1B1C1E">ALERTER</text>
+  <text x="225" y="438" text-anchor="middle" font-size="23" fill="#4A4A46">18 ou 112, localisation</text>
+  <text x="225" y="466" text-anchor="middle" font-size="23" fill="#4A4A46">précise, on ne raccroche pas</text>
+
+  <!-- Carte 2 : s'abriter -->
+  <rect x="435" y="130" width="330" height="360" rx="26" fill="#FFFFFF" stroke="#E8E4DC" stroke-width="2"/>
+  <circle cx="600" cy="196" r="34" fill="#E8622C"/>
+  <text x="600" y="209" text-anchor="middle" font-size="36" font-weight="bold" fill="#FFFFFF">2</text>
+  <!-- maison volets fermés -->
+  <path d="M530 300 L600 246 L670 300 Z" fill="#1B1C1E"/>
+  <rect x="546" y="300" width="108" height="66" fill="#1B1C1E"/>
+  <rect x="562" y="316" width="26" height="34" fill="#FFC72E"/>
+  <rect x="612" y="316" width="26" height="34" fill="#FFC72E"/>
+  <line x1="575" y1="316" x2="575" y2="350" stroke="#1B1C1E" stroke-width="4"/>
+  <line x1="625" y1="316" x2="625" y2="350" stroke="#1B1C1E" stroke-width="4"/>
+  <text x="600" y="400" text-anchor="middle" font-size="30" font-weight="bold" fill="#1B1C1E">S'ABRITER</text>
+  <text x="600" y="438" text-anchor="middle" font-size="23" fill="#4A4A46">maison fermée = refuge,</text>
+  <text x="600" y="466" text-anchor="middle" font-size="23" fill="#4A4A46">pas de fuite en voiture</text>
+
+  <!-- Carte 3 : suivre -->
+  <rect x="810" y="130" width="330" height="360" rx="26" fill="#FFFFFF" stroke="#E8E4DC" stroke-width="2"/>
+  <circle cx="975" cy="196" r="34" fill="#3A9D5B"/>
+  <text x="975" y="209" text-anchor="middle" font-size="36" font-weight="bold" fill="#FFFFFF">3</text>
+  <!-- épingle carte -->
+  <path d="M975 250 q42 0 42 44 q0 30 -42 74 q-42 -44 -42 -74 q0 -44 42 -44 z" fill="#4A90C2"/>
+  <circle cx="975" cy="296" r="16" fill="#FFFFFF"/>
+  <text x="975" y="400" text-anchor="middle" font-size="30" font-weight="bold" fill="#1B1C1E">SUIVRE</text>
+  <text x="975" y="438" text-anchor="middle" font-size="23" fill="#4A4A46">consignes officielles,</text>
+  <text x="975" y="466" text-anchor="middle" font-size="23" fill="#4A4A46">carte en temps réel</text>
+
+  <!-- flèches -->
+  <path d="M395 310 h28 m0 0 l-12 -10 m12 10 l-12 10" stroke="#8A8880" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <path d="M770 310 h28 m0 0 l-12 -10 m12 10 l-12 10" stroke="#8A8880" stroke-width="5" fill="none" stroke-linecap="round"/>
+
+  <text x="600" y="560" text-anchor="middle" font-size="24" fill="#4A4A46">Les premières minutes comptent double : un feu attrapé à 10 minutes reste une clairière.</text>
+  <text x="1140" y="606" text-anchor="end" font-size="22" font-weight="bold" fill="#8A8880">kanari.io</text>
+</svg>
