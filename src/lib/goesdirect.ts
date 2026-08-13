@@ -34,8 +34,14 @@ const FILE_CACHE_MAX = 24;
 let h5mod: any | null = null;
 async function h5(): Promise<any> {
   if (!h5mod) {
-    h5mod = await import("h5wasm/node");
-    await h5mod.ready;
+    try {
+      h5mod = await import("h5wasm/node");
+      await h5mod.ready;
+    } catch (e) {
+      // Diagnostic prod : un wasm non embarqué échouerait ici en silence.
+      console.error("goes-direct: h5wasm indisponible:", e instanceof Error ? e.message : e);
+      throw e;
+    }
   }
   return h5mod;
 }
@@ -200,13 +206,15 @@ export async function fetchGoesDirectFires(): Promise<FireFeature[]> {
             }
           }
           return out;
-        } catch {
+        } catch (e) {
+          console.error(`goes-direct ${sat}: échec`, e instanceof Error ? e.message : e);
           return [];
         }
       })
     );
     return perSat.flat();
-  } catch {
+  } catch (e) {
+    console.error("goes-direct: échec global", e instanceof Error ? e.message : e);
     return [];
   }
 }
