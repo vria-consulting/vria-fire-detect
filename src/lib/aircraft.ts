@@ -19,8 +19,15 @@
 //     captée de façon garantie même si son type n'est pas renseigné dans le
 //     flux live. Liste de flotte : contribution d'Henri (canadair-tracker),
 //     scan du bloc hex 3B7Bxx.
-const BASE = "https://api.airplanes.live/v2";
-const TYPE_URL = `${BASE}/type/CL2T,CL4T,CL21,AT8T,S2T,DC10,CVLT,S64,MD87,RJ85,B461,B462,B463,OV10,K126,DH8D,L382,H47,H60`;
+// Fournisseurs ADS-B communautaires, même API v2, essayés en cascade :
+// airplanes.live s'est mis à répondre 403 le 13/08/2026 (constaté carte
+// vide) — adsb.lol et adsb.fi servent les mêmes réseaux de récepteurs.
+const PROVIDERS = [
+  "https://api.airplanes.live/v2",
+  "https://api.adsb.lol/v2",
+  "https://opendata.adsb.fi/api/v2",
+];
+const TYPE_PATH = `/type/CL2T,CL4T,CL21,AT8T,S2T,DC10,CVLT,S64,MD87,RJ85,B461,B462,B463,OV10,K126,DH8D,L382,H47,H60`;
 const UA = "kanari.io wildfire map (+https://kanari.io)";
 const CACHE_MS = 15_000; // un appel amont toutes les 15 s au maximum
 
@@ -47,7 +54,7 @@ export const FRENCH_FLEET: Record<string, { reg: string; model: string }> = {
   "3b7b85": { reg: "F-ZBMD", model: "Dash 8 « Milan »" },
   "3b7b86": { reg: "F-ZBMC", model: "Dash 8 « Milan »" },
 };
-const HEX_URL = `${BASE}/hex/${Object.keys(FRENCH_FLEET).join(",")}`;
+const HEX_PATH = `/hex/${Object.keys(FRENCH_FLEET).join(",")}`;
 
 export type Plane = {
   id: string; // hex ICAO 24 bits
@@ -114,6 +121,8 @@ type Upstream = {
 
 let cache: { at: number; planes: Plane[] } | null = null;
 let inflight: Promise<Plane[]> | null = null;
+// Index du dernier fournisseur ADS-B qui a répondu (cascade PROVIDERS).
+let providerIdx = 0;
 
 // Filtre anti-faux-positifs des types « mixtes ». Un type absent de cette
 // table est considéré pur lutte incendie et passe toujours.
@@ -222,27 +231,43 @@ export async function getWaterBombers(): Promise<Plane[]> {
   if (inflight) return inflight;
   inflight = (async () => {
     try {
-      const pull = async (url: string): Promise<Upstream[]> => {
+      // null = échec (réseau/HTTP) ; [] = réponse valide sans appareil.
+      const pullFrom = async (base: string, path: string): Promise<Upstream[] | null> => {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 6000);
         try {
-          const res = await fetch(url, {
+          const res = await fetch(base + path, {
             headers: { "User-Agent": UA, accept: "application/json" },
             signal: ctrl.signal,
             cache: "no-store",
           });
-          if (!res.ok) return [];
+          if (!res.ok) return null;
           return ((await res.json()) as { ac?: Upstream[] }).ac ?? [];
         } catch {
-          return [];
+          return null;
         } finally {
           clearTimeout(timer);
         }
       };
+      // Cascade de fournisseurs, en commençant par le dernier qui marchait.
+      const pull = async (path: string): Promise<Upstream[] | null> => {
+        for (let k = 0; k < PROVIDERS.length; k++) {
+          const idx = (providerIdx + k) % PROVIDERS.length;
+          const got = await pullFrom(PROVIDERS[idx], path);
+          if (got !== null) {
+            if (idx !== providerIdx) {
+              console.warn(`aircraft: bascule fournisseur ADS-B -> ${PROVIDERS[idx]}`);
+              providerIdx = idx;
+            }
+            return got;
+          }
+        }
+        return null;
+      };
       // L'API amont limite à 1 req/s : on sérialise les deux requêtes.
-      const byType = await pull(TYPE_URL);
+      const byType = (await pull(TYPE_PATH)) ?? [];
       await new Promise((r) => setTimeout(r, 1100));
-      const byHex = await pull(HEX_URL);
+      const byHex = (await pull(HEX_PATH)) ?? [];
       // Fusion dédoublonnée par hex (un Pélican peut sortir des deux listes).
       const seen = new Set<string>();
       const merged: Upstream[] = [];
