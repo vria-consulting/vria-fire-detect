@@ -336,7 +336,7 @@ export default async function FirePage({
             </div>
             <p className="mt-2 text-[12.5px]" style={{ color: "var(--ink-3)" }}>
               Appareils détectés en ADS-B à moins de 40 km du foyer pendant son activité —
-              voir <Link href="/fr/canadair" style={{ color: "var(--link)" }}>les Canadair en direct</Link>.
+              voir <Link href="/fr/canadair" style={{ color: "var(--link)" }}>le suivi des Canadair en direct</Link>.
             </p>
           </section>
         )}

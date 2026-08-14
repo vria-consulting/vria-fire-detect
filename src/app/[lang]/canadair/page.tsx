@@ -17,10 +17,12 @@ function flag(cc: string): string {
 
 const T = {
   fr: {
-    title: "Canadair en direct : suivre les bombardiers d'eau en temps réel",
-    metaTitle: "Canadair en direct — suivre les bombardiers d'eau en temps réel | kanari",
+    // « suivi canadair direct » est la requête GSC qui monte le plus vite
+    // (août 2026) : le mot « suivi » doit ouvrir le title et l'intro.
+    title: "Suivi des Canadair en direct : où sont les bombardiers d'eau ?",
+    metaTitle: "Suivi Canadair en direct — carte temps réel des bombardiers d'eau | kanari",
     metaDesc:
-      "Où sont les Canadair en ce moment ? Position en temps réel des bombardiers d'eau et hélicoptères anti-incendie du monde entier : CL-415, Pélican de la Sécurité Civile, Dash 8 Milan, Fire Boss, Air Crane. Gratuit.",
+      "Suivi en direct des Canadair : position temps réel des bombardiers d'eau et hélicoptères anti-incendie du monde entier. CL-415, Pélican de la Sécurité Civile, Dash 8 Milan, Fire Boss, Air Crane. Gratuit, sans inscription.",
     updated: "Situation mise à jour en continu",
     inFlight: (n: number) =>
       n === 0
@@ -32,9 +34,9 @@ const T = {
     listTitle: "En vol en ce moment",
     kn: "kn",
     ft: "ft",
-    how: "Comment kanari suit-il les Canadair ?",
+    how: "Comment fonctionne le suivi des Canadair ?",
     howText:
-      "Chaque appareil diffuse sa position par ADS-B (le même signal que les avions de ligne). kanari agrège ces signaux via le réseau communautaire airplanes.live et filtre les moyens de lutte anti-incendie : Canadair CL-415 et CL-215, Air Tractor AT-802 Fire Boss, S-2T Turbo Tracker, DC-10 et BAe 146 Air Tankers, hélicoptères bombardiers d'eau (S-64 Air Crane, Chinook, Firehawk). Position rafraîchie environ toutes les 15 secondes, mouvement interpolé entre deux signaux.",
+      "Chaque appareil diffuse sa position par ADS-B (le même signal que les avions de ligne). kanari agrège ces signaux via un réseau communautaire mondial et filtre les moyens de lutte anti-incendie : Canadair CL-415 et CL-215, Air Tractor AT-802 Fire Boss, S-2T Turbo Tracker, DC-10 et BAe 146 Air Tankers, hélicoptères bombardiers d'eau (S-64 Air Crane, Chinook, Firehawk). Le suivi est rafraîchi environ toutes les 15 secondes, avec un mouvement interpolé entre deux signaux.",
     fleet: "La flotte française : Pélican, Milan, Dragon",
     fleetText:
       "La Sécurité Civile française aligne 12 Canadair CL-415 (indicatif « Pélican »), 6 Dash 8-402MR (« Milan », gros porteurs polyvalents) et des hélicoptères EC145 (« Dragon », secours). Basés à Nîmes-Garons, ils sont suivis individuellement par kanari dès qu'ils décollent, grâce à leur identifiant unique — même quand leur type n'est pas diffusé. Un grand merci à Henri (canadair-tracker) pour la cartographie de la flotte.",
@@ -43,8 +45,16 @@ const T = {
       "Trois explications possibles : il fait nuit (pas de largage de nuit), les moyens engagés sont des hélicoptères locaux ou militaires qui ne diffusent pas leur position publiquement, ou l'appareil a coupé son transpondeur. kanari affiche tout ce qui émet publiquement — c'est déjà l'essentiel des Canadair européens et des tankers nord-américains.",
     faq: [
       {
+        q: "Comment suivre les Canadair en direct ?",
+        a: "Ouvrez la carte kanari.io : les bombardiers d'eau en vol y apparaissent en temps réel, avec leur vitesse et leur altitude, aux côtés des feux détectés par satellite. Le suivi est gratuit, sans inscription, sur mobile comme sur ordinateur.",
+      },
+      {
         q: "Où sont les Canadair en ce moment ?",
         a: "La carte kanari.io affiche en temps réel la position de tous les Canadair et bombardiers d'eau qui émettent en ADS-B dans le monde : Italie, France, Croatie, Grèce, Espagne, Amérique du Nord, Australie. Cliquez sur un appareil pour voir son modèle, sa nationalité, sa vitesse et son altitude.",
+      },
+      {
+        q: "Les Canadair sont-ils visibles sur Flightradar24 ?",
+        a: "En partie : les trackers généralistes noient les Canadair parmi des milliers d'avions de ligne. kanari ne montre que les moyens anti-incendie, sur la même carte que les départs de feu, le vent et les points d'eau : on comprend la mission, pas seulement la position.",
       },
       {
         q: "Peut-on suivre les Canadair français (Pélican) en vol ?",
@@ -74,7 +84,7 @@ const T = {
     ft: "ft",
     how: "How does kanari track water bombers?",
     howText:
-      "Every aircraft broadcasts its position via ADS-B (the same signal as airliners). kanari aggregates these signals through the airplanes.live community network and filters firefighting assets: Canadair CL-415/CL-215, Air Tractor Fire Boss, S-2T Turbo Tracker, DC-10 and BAe 146 air tankers, and firefighting helicopters (S-64 Air Crane, Chinook, Firehawk). Positions refresh about every 15 seconds, with interpolated movement in between.",
+      "Every aircraft broadcasts its position via ADS-B (the same signal as airliners). kanari aggregates these signals through community ADS-B networks and filters firefighting assets: Canadair CL-415/CL-215, Air Tractor Fire Boss, S-2T Turbo Tracker, DC-10 and BAe 146 air tankers, and firefighting helicopters (S-64 Air Crane, Chinook, Firehawk). Positions refresh about every 15 seconds, with interpolated movement in between.",
     fleet: "The French fleet: Pélican, Milan, Dragon",
     fleetText:
       "France's Sécurité Civile operates 12 Canadair CL-415s (callsign “Pélican”), 6 Dash 8-402MRs (“Milan”) and EC145 rescue helicopters (“Dragon”), based at Nîmes-Garons. kanari tracks each airframe individually as soon as it takes off, thanks to its unique transponder ID. Credits to Henri (canadair-tracker) for mapping the fleet.",
@@ -83,8 +93,16 @@ const T = {
       "Three possible reasons: it's night (no night drops), the assets engaged are local or military helicopters that don't broadcast publicly, or the transponder is off. kanari shows everything publicly broadcasting — which covers most European Canadairs and North American tankers.",
     faq: [
       {
+        q: "How can I track water bombers live?",
+        a: "Open the kanari.io map: airborne water bombers appear in real time with their speed and altitude, next to satellite-detected fires. Tracking is free, no signup, on mobile and desktop.",
+      },
+      {
         q: "Where are the Canadairs right now?",
         a: "The kanari.io map shows the real-time position of every Canadair and water bomber broadcasting ADS-B worldwide: Italy, France, Croatia, Greece, Spain, North America, Australia. Click an aircraft for its model, nationality, speed and altitude.",
+      },
+      {
+        q: "Are Canadairs visible on Flightradar24?",
+        a: "Partially: generic flight trackers bury them among thousands of airliners. kanari shows only firefighting assets, on the same map as fire detections, wind and water points, so you understand the mission, not just the position.",
       },
       {
         q: "Can I track the French Pélican Canadairs in flight?",
@@ -228,9 +246,9 @@ export default async function CanadairPage({ params }: { params: Promise<{ lang:
 
         <p className="mt-8 border-t pt-4 text-[12.5px]" style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}>
           {lang === "fr" ? (
-            <>Voir aussi : <Link href="/fr/feux" style={{ color: "var(--link)" }}>Feux en France par département</Link> · <Link href="/fr/faq" style={{ color: "var(--link)" }}>FAQ</Link>. Données : ADS-B airplanes.live. En cas d'urgence : 18 ou 112.</>
+            <>Voir aussi : <Link href="/fr/feux-en-cours" style={{ color: "var(--link)" }}>Incendies en cours en France</Link> · <Link href="/fr/feux" style={{ color: "var(--link)" }}>Feux par département</Link> · <Link href="/fr/faq" style={{ color: "var(--link)" }}>FAQ</Link>. Données : réseaux ADS-B communautaires. En cas d'urgence : 18 ou 112.</>
           ) : (
-            <>See also: <Link href="/en/faq" style={{ color: "var(--link)" }}>FAQ</Link>. Data: ADS-B via airplanes.live. In an emergency call 112 / 911.</>
+            <>See also: <Link href="/en/faq" style={{ color: "var(--link)" }}>FAQ</Link>. Data: community ADS-B networks. In an emergency call 112 / 911.</>
           )}
         </p>
         <SiteFooter lang={lang} />

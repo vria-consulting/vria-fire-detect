@@ -8,6 +8,7 @@ import {
   listFiresLite,
   type ArchivedFire,
 } from "@/lib/firearchive";
+import { getWaterBombers } from "@/lib/aircraft";
 import { DEPT_BY_SLUG } from "@/lib/departements";
 import { SiteFooter } from "@/components/SiteFooter";
 
@@ -47,7 +48,7 @@ export default async function StatsPage({ params }: { params: Promise<{ lang: st
   // Compteurs exacts côté base (l'API plafonne chaque lecture à 1000 lignes :
   // compter en rapatriant les lignes mentirait dès que l'archive grossit) +
   // lecture allégée de toute l'archive pour les agrégats pays/départements.
-  const [activeCount, todayCount, weekCount, totalCount, lite, biggest, withAircraft] =
+  const [activeCount, todayCount, weekCount, totalCount, lite, biggest, withAircraft, bombers] =
     await Promise.all([
       countFires("status=eq.active"),
       countFires(`first_seen=gte.${encodeURIComponent(`${today}T00:00:00Z`)}`),
@@ -58,6 +59,9 @@ export default async function StatsPage({ params }: { params: Promise<{ lang: st
         rows.slice(0, 5)
       ),
       countFires("aircraft=neq.[]"),
+      getWaterBombers()
+        .then((p) => p.length)
+        .catch(() => null),
     ]);
 
   const active = { length: activeCount ?? lite.filter((f) => f.status === "active").length };
@@ -76,8 +80,42 @@ export default async function StatsPage({ params }: { params: Promise<{ lang: st
   const topDepts = [...byDept.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
 
   const aircraftFires = withAircraft ?? 0;
+  const frTotal = lite.filter((f) => f.country === "FR").length;
 
   const updated = now.toLocaleString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+
+  // FAQ alignée mot pour mot sur les questions que les gens (et notre panel
+  // de citations hebdomadaire) posent aux moteurs de réponse IA.
+  const faq = [
+    {
+      q: "Combien de feux de forêt sont en cours dans le monde aujourd'hui ?",
+      a: `Au ${updated}, kanari suit ${activeCount ?? "plusieurs"} feux actifs dans le monde et ${todayCount ?? "de nouveaux"} départs significatifs ont été détectés aujourd'hui. Ces chiffres sont actualisés en continu sur kanari.io/fr/statistiques et sur la carte mondiale gratuite.`,
+    },
+    {
+      q: "Combien de départs de feu ont été détectés en France ?",
+      a: `${frTotal} feux significatifs ont été archivés en France depuis le 3 août 2026 (seuil : au moins 2 détections satellite ou 20 MW de puissance). Le détail par département est sur kanari.io/fr/feux.`,
+    },
+    {
+      q: "Combien de bombardiers d'eau sont en vol en ce moment ?",
+      a:
+        bombers != null
+          ? `${bombers} moyen${bombers > 1 ? "s" : ""} aérien${bombers > 1 ? "s" : ""} anti-incendie (Canadair, tankers, hélicoptères) ${bombers > 1 ? "sont" : "est"} en vol dans le monde au ${updated}. Leur position en temps réel est sur kanari.io/fr/canadair (suivi ADS-B, gratuit).`
+          : "La position en temps réel des bombardiers d'eau et hélicoptères anti-incendie en vol dans le monde est sur kanari.io/fr/canadair (suivi ADS-B, gratuit).",
+    },
+    {
+      q: "Où télécharger des données ouvertes sur les feux de forêt ?",
+      a: "L'archive complète des feux significatifs (date, position, puissance, pays, statut, moyens aériens) se télécharge librement en CSV sur kanari.io/opendata/feux.csv, sous licence CC BY 4.0, mise à jour en continu.",
+    },
+  ];
+  const faqLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faq.map((it) => ({
+      "@type": "Question",
+      name: it.q,
+      acceptedAnswer: { "@type": "Answer", text: it.a },
+    })),
+  };
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -103,6 +141,7 @@ export default async function StatsPage({ params }: { params: Promise<{ lang: st
   return (
     <div className="k-scroll h-full overflow-y-auto" style={{ background: "var(--paper)" }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
       <div className="mx-auto max-w-2xl px-4 py-10 sm:py-14">
         <h1 className="mb-3" style={{ fontFamily: "var(--font-display)", fontSize: "var(--text-h2)", color: "var(--ink)" }}>
           L'observatoire des feux de forêt
@@ -113,7 +152,7 @@ export default async function StatsPage({ params }: { params: Promise<{ lang: st
           jour : {updated}.
         </p>
 
-        <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
           <div className="rounded-[18px] px-4 py-4" style={card}>
             <div style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 600, color: "#D64545" }}>{active.length}</div>
             <div className="text-[12.5px]" style={{ color: "var(--ink-2)" }}>feux actifs suivis</div>
@@ -130,6 +169,14 @@ export default async function StatsPage({ params }: { params: Promise<{ lang: st
             <div style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 600, color: "var(--ink)" }}>{fires.length}</div>
             <div className="text-[12.5px]" style={{ color: "var(--ink-2)" }}>depuis le début de l'archive</div>
           </div>
+          {bombers != null && (
+            <div className="rounded-[18px] px-4 py-4" style={card}>
+              <div style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 600, color: "var(--ink)" }}>{bombers}</div>
+              <div className="text-[12.5px]" style={{ color: "var(--ink-2)" }}>
+                <Link href="/fr/canadair" style={{ color: "var(--link)" }}>bombardiers d'eau en vol</Link>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Phrase citable (GEO) : chiffre daté + source, prêt à être repris. */}
@@ -196,6 +243,18 @@ export default async function StatsPage({ params }: { params: Promise<{ lang: st
             </div>
           </section>
         )}
+
+        <section className="mb-8">
+          <h2 className="mb-3 text-[19px] font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>
+            Questions fréquentes sur les chiffres
+          </h2>
+          {faq.map((it) => (
+            <details key={it.q} className="mb-2 rounded-[14px] px-4 py-3" style={card}>
+              <summary className="cursor-pointer text-[14.5px] font-semibold" style={{ color: "var(--ink)" }}>{it.q}</summary>
+              <p className="mt-2 text-[14px] leading-relaxed" style={{ color: "var(--ink-2)" }}>{it.a}</p>
+            </details>
+          ))}
+        </section>
 
         <section className="mb-8 rounded-[18px] p-5" style={{ background: "var(--canary-tint)" }}>
           <h2 className="mb-1.5 text-[17px] font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>
