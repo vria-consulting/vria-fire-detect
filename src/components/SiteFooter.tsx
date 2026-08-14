@@ -53,7 +53,7 @@ const EN: { title: string; items: Item[] }[] = [
   {
     title: "Data",
     items: [
-      { href: "/fr/statistiques", label: "Observatory (FR)" },
+      { href: "/en/statistiques", label: "Wildfire statistics (live)" },
       { href: "/opendata/feux.csv", label: "Open data (CSV, CC BY 4.0)" },
       { href: "/en/api", label: "Public API (JSON)" },
       { href: "/feed.xml", label: "RSS feed" },

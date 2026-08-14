@@ -58,6 +58,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.8,
+      alternates: { languages: { fr: `${base}/fr/statistiques`, en: `${base}/en/statistiques` } },
+    },
+    {
+      url: `${base}/en/statistiques`,
+      lastModified: new Date(),
+      changeFrequency: "hourly",
+      priority: 0.7,
+      alternates: { languages: { fr: `${base}/fr/statistiques`, en: `${base}/en/statistiques` } },
     },
     {
       url: `${base}/fr/guide`,
