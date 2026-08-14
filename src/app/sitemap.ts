@@ -68,6 +68,20 @@ export default function sitemap(): MetadataRoute.Sitemap {
       alternates: { languages: { fr: `${base}/fr/statistiques`, en: `${base}/en/statistiques` } },
     },
     {
+      url: `${base}/fr/comparatif`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.7,
+      alternates: { languages: { fr: `${base}/fr/comparatif`, en: `${base}/en/comparatif` } },
+    },
+    {
+      url: `${base}/en/comparatif`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.7,
+      alternates: { languages: { fr: `${base}/fr/comparatif`, en: `${base}/en/comparatif` } },
+    },
+    {
       url: `${base}/fr/guide`,
       lastModified: new Date(),
       changeFrequency: "monthly",

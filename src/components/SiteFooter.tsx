@@ -32,6 +32,7 @@ const FR: { title: string; items: Item[] }[] = [
     title: "Comprendre",
     items: [
       { href: "/fr/guide", label: "Guides feux de forêt" },
+      { href: "/fr/comparatif", label: "Comparatif des cartes de feux" },
       { href: "/fr/precocite", label: "Précocité mesurée" },
       { href: "/fr/faq", label: "Questions fréquentes" },
       { href: "/fr/a-propos", label: "À propos de kanari" },
@@ -63,6 +64,7 @@ const EN: { title: string; items: Item[] }[] = [
     title: "About",
     items: [
       { href: "/en/faq", label: "FAQ" },
+      { href: "/en/comparatif", label: "Wildfire maps compared" },
       { href: "/en/a-propos", label: "About kanari" },
       { href: "/fr/widget", label: "Embed widget" },
     ],
