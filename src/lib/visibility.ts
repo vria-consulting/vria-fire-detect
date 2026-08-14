@@ -36,6 +36,50 @@ export async function fetchVisibilityRpc(): Promise<unknown | null> {
   }
 }
 
+// ---- Séries d'évolution (onglet Tendances) --------------------------------
+export async function fetchTrendsRpc(): Promise<unknown | null> {
+  const sb = supabaseCreds();
+  if (!sb) return null;
+  try {
+    const res = await fetch(`${sb.url}/rest/v1/rpc/veille_trends`, {
+      method: "POST",
+      headers: {
+        apikey: sb.key,
+        Authorization: `Bearer ${sb.key}`,
+        "content-type": "application/json",
+      },
+      body: "{}",
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+// Détail d'une journée cliquée dans un graphique (drill-down).
+export async function fetchDayRpc(d: string): Promise<unknown | null> {
+  const sb = supabaseCreds();
+  if (!sb) return null;
+  try {
+    const res = await fetch(`${sb.url}/rest/v1/rpc/veille_day`, {
+      method: "POST",
+      headers: {
+        apikey: sb.key,
+        Authorization: `Bearer ${sb.key}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ d }),
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 // ---- Google Search Console ------------------------------------------------
 // GSC_SERVICE_ACCOUNT = JSON du service account ({client_email, private_key}),
 // ajouté comme utilisateur « accès complet » de la propriété https://kanari.io/.
@@ -158,6 +202,71 @@ export async function fetchGsc(): Promise<{ connected: boolean; data?: GscData }
         top_pages: pages,
       },
     };
+  } catch {
+    return { connected: false };
+  }
+}
+
+// Séries GSC pour l'onglet Tendances : clics/impressions/position par jour
+// (28 j) + mots-clés en progression (14 j vs 14 j précédents). La Search
+// Console publie avec ~2 j de latence, d'où les fenêtres décalées.
+export type GscDailyRow = { date: string; clicks: number; impressions: number; position: number };
+export type GscRisingRow = {
+  query: string;
+  clicks: number;
+  impressions: number;
+  prev_clicks: number;
+  prev_impressions: number;
+};
+
+export async function fetchGscSeries(): Promise<{
+  connected: boolean;
+  daily?: GscDailyRow[];
+  rising?: GscRisingRow[];
+}> {
+  const raw = process.env.GSC_SERVICE_ACCOUNT;
+  if (!raw) return { connected: false };
+  try {
+    const sa = JSON.parse(raw) as { client_email: string; private_key: string };
+    const token = await gscAccessToken(sa.client_email, sa.private_key);
+    if (!token) return { connected: false };
+
+    const [dailyR, curQ, prevQ] = await Promise.all([
+      gscQuery(token, { startDate: day(30), endDate: day(2), type: "web", dimensions: ["date"], rowLimit: 40 }),
+      gscQuery(token, { startDate: day(15), endDate: day(2), type: "web", dimensions: ["query"], rowLimit: 250 }),
+      gscQuery(token, { startDate: day(29), endDate: day(16), type: "web", dimensions: ["query"], rowLimit: 250 }),
+    ]);
+
+    const daily = (dailyR?.rows ?? [])
+      .map((r) => ({
+        date: r.keys?.[0] ?? "",
+        clicks: r.clicks,
+        impressions: r.impressions,
+        position: Math.round(r.position * 10) / 10,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    const prevByQuery = new Map((prevQ?.rows ?? []).map((r) => [r.keys?.[0] ?? "", r]));
+    const rising = (curQ?.rows ?? [])
+      .map((r) => {
+        const p = prevByQuery.get(r.keys?.[0] ?? "");
+        return {
+          query: r.keys?.[0] ?? "",
+          clicks: r.clicks,
+          impressions: r.impressions,
+          prev_clicks: p?.clicks ?? 0,
+          prev_impressions: p?.impressions ?? 0,
+        };
+      })
+      .filter((q) => q.impressions >= 3 && q.impressions > q.prev_impressions)
+      .sort(
+        (a, b) =>
+          b.impressions - b.prev_impressions - (a.impressions - a.prev_impressions) ||
+          b.clicks - a.clicks
+      )
+      .slice(0, 14);
+
+    return { connected: true, daily, rising };
   } catch {
     return { connected: false };
   }

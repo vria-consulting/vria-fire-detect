@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { VeilleLogin } from "@/components/VeilleLogin";
 import { VeilleVisibility } from "@/components/VeilleVisibility";
 import { VeilleBacklinks } from "@/components/VeilleBacklinks";
+import { VeilleTrends } from "@/components/VeilleTrends";
+import { VeilleDay } from "@/components/VeilleDay";
 import { Delta, HoverChart, PeriodChips, ShareList, type ChartPoint } from "@/components/VeilleCharts";
 
 // ---- Types (miroir de public.veille_stats) --------------------------------
@@ -152,7 +154,14 @@ export function BarList({
 
 // Courbe des visites : barres (métrique choisie) + trait visiteurs +
 // pointillés période précédente + tooltip au survol (voir VeilleCharts).
-function VisitsChart({ daily }: { daily: { day: string; views: number; uniques: number }[] }) {
+// Un clic sur une barre ouvre le détail du jour.
+function VisitsChart({
+  daily,
+  onSelectDay,
+}: {
+  daily: { day: string; views: number; uniques: number }[];
+  onSelectDay?: (d: string) => void;
+}) {
   const [period, setPeriod] = useState<7 | 14 | 30>(14);
   const [metric, setMetric] = useState<"views" | "uniques">("views");
 
@@ -208,6 +217,7 @@ function VisitsChart({ daily }: { daily: { day: string; views: number; uniques: 
             mainLabel={metric === "views" ? "vues" : "visiteurs"}
             secondaryLabel={metric === "views" ? "visiteurs" : undefined}
             compareLabel="période précéd."
+            onSelect={onSelectDay ? (i) => win[i] && onSelectDay(win[i].day) : undefined}
           />
         </div>
       )}
@@ -235,9 +245,11 @@ export function VeilleDashboard() {
   const [expired, setExpired] = useState(false);
   const [loading, setLoading] = useState(true);
   const [updatedAt, setUpdatedAt] = useState<number>(0);
-  const [tab, setTab] = useState<"audience" | "visibilite" | "referencement">("audience");
-  // Incrémenté par ↻ : l'onglet Visibilité recharge quand il change.
+  const [tab, setTab] = useState<"audience" | "tendances" | "visibilite" | "referencement">("audience");
+  // Incrémenté par ↻ : les onglets enfants rechargent quand il change.
   const [reloadKey, setReloadKey] = useState(0);
+  // Jour sélectionné en cliquant sur un graphique : ouvre la vue détail.
+  const [day, setDay] = useState<string | null>(null);
 
   // Chargement à l'ouverture uniquement (pas de rafraîchissement automatique) —
   // le bouton « Rafraîchir » relance à la demande.
@@ -324,19 +336,22 @@ export function VeilleDashboard() {
       </header>
 
       {/* Onglets */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        {([["audience", "Audience"], ["visibilite", "Visibilité"], ["referencement", "Référencement"]] as const).map(([key, label]) => (
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+        {([["audience", "Audience"], ["tendances", "Tendances"], ["visibilite", "Visibilité"], ["referencement", "Référencement"]] as const).map(([key, label]) => (
           <button
             key={key}
-            onClick={() => setTab(key)}
+            onClick={() => {
+              setTab(key);
+              setDay(null);
+            }}
             style={{
-              background: tab === key ? "var(--canary)" : "var(--surface-card)",
+              background: tab === key && !day ? "var(--canary)" : "var(--surface-card)",
               border: "1px solid var(--line)",
               borderRadius: "var(--radius-pill)",
               padding: "7px 16px",
               fontSize: 13.5,
               fontWeight: 700,
-              color: tab === key ? "var(--charcoal, #1B1C1E)" : "var(--ink-2)",
+              color: tab === key && !day ? "var(--charcoal, #1B1C1E)" : "var(--ink-2)",
               cursor: "pointer",
               fontFamily: "var(--font-body)",
             }}
@@ -346,10 +361,13 @@ export function VeilleDashboard() {
         ))}
       </div>
 
-      {tab === "visibilite" && <VeilleVisibility reloadKey={reloadKey} />}
-      {tab === "referencement" && <VeilleBacklinks reloadKey={reloadKey} />}
+      {day && <VeilleDay day={day} onBack={() => setDay(null)} onNav={setDay} />}
 
-      {tab === "audience" && (
+      {!day && tab === "tendances" && <VeilleTrends reloadKey={reloadKey} onDay={setDay} />}
+      {!day && tab === "visibilite" && <VeilleVisibility reloadKey={reloadKey} />}
+      {!day && tab === "referencement" && <VeilleBacklinks reloadKey={reloadKey} />}
+
+      {!day && tab === "audience" && (
       <>
       {/* KPIs */}
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginBottom: 14 }}>
@@ -370,9 +388,9 @@ export function VeilleDashboard() {
         <Kpi label="Contributions" value={fmt(c?.total)} sub={`${fmt(c?.new)} à traiter`} />
       </section>
 
-      {/* Courbe interactive */}
+      {/* Courbe interactive (clic sur un jour = détail) */}
       <section style={{ marginBottom: 14 }}>
-        <VisitsChart daily={daily} />
+        <VisitsChart daily={daily} onSelectDay={setDay} />
       </section>
 
       {/* Pages + Référents */}

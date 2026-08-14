@@ -76,6 +76,7 @@ export function HoverChart({
   height = 190,
   color = "var(--canary-soft)",
   lineColor = "var(--ember)",
+  onSelect,
 }: {
   data: ChartPoint[];
   mainLabel: string;
@@ -84,6 +85,8 @@ export function HoverChart({
   height?: number;
   color?: string;
   lineColor?: string;
+  // Clic sur une barre : drill-down (l'index renvoyé est celui de `data`).
+  onSelect?: (index: number) => void;
 }) {
   const W = 720;
   const H = height;
@@ -120,7 +123,16 @@ export function HoverChart({
   const tooltipLeft = hover !== null ? Math.min(78, Math.max(0, ((x(hover) + bw / 2) / W) * 100)) : 0;
 
   return (
-    <div ref={ref} style={{ position: "relative" }} onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
+    <div
+      ref={ref}
+      style={{ position: "relative", cursor: onSelect ? "pointer" : "default" }}
+      onMouseMove={onMove}
+      onMouseLeave={() => setHover(null)}
+      onClick={() => {
+        if (onSelect && hover !== null) onSelect(hover);
+      }}
+      title={onSelect ? "Cliquer pour voir le détail du jour" : undefined}
+    >
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }} preserveAspectRatio="none">
         {/* Lignes de niveau discrètes */}
         {[0.25, 0.5, 0.75].map((f) => (
@@ -177,6 +189,204 @@ export function HoverChart({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ---- Sparkline ------------------------------------------------------------
+// Mini-courbe d'évolution (aire + trait) pour les cartes KPI de l'onglet
+// Tendances : lecture immédiate de la dynamique, pas d'axes ni de tooltip.
+export function Sparkline({
+  values,
+  color = "var(--ember)",
+  height = 36,
+}: {
+  values: number[];
+  color?: string;
+  height?: number;
+}) {
+  const W = 200;
+  const H = height;
+  const P = 3;
+  const n = values.length;
+  if (n < 2) return <div style={{ height: H }} />;
+  const max = Math.max(1, ...values);
+  const x = (i: number) => P + (i / (n - 1)) * (W - P * 2);
+  const y = (v: number) => H - P - (v / max) * (H - P * 2);
+  const pts = values.map((v, i) => `${x(i)},${y(v)}`).join(" ");
+  const area = `${x(0)},${H - P} ${pts} ${x(n - 1)},${H - P}`;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: H, display: "block" }} preserveAspectRatio="none">
+      <polygon points={area} fill={color} opacity={0.12} />
+      <polyline points={pts} fill="none" stroke={color} strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={x(n - 1)} cy={y(values[n - 1])} r={2.6} fill={color} />
+    </svg>
+  );
+}
+
+// ---- Carte KPI de tendance ------------------------------------------------
+// Valeur + delta vs période précédente + sparkline 30 j : le « coup d'œil »
+// demandé pour chaque indicateur.
+export function TrendCard({
+  label,
+  value,
+  sub,
+  cur,
+  prev,
+  invert = false,
+  series,
+  color = "var(--ember)",
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  cur?: number;
+  prev?: number;
+  invert?: boolean;
+  series: number[];
+  color?: string;
+}) {
+  return (
+    <div
+      style={{
+        background: "var(--surface-card)",
+        border: "1px solid var(--line)",
+        borderRadius: "var(--radius-l)",
+        padding: "16px 16px 10px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+      }}
+    >
+      <div style={{ color: "var(--ink-3)", fontSize: 11.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".4px" }}>
+        {label}
+      </div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+        <span style={{ fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 600, color: "var(--ink)", lineHeight: 1.1 }}>
+          {value}
+        </span>
+        {cur !== undefined && prev !== undefined && <Delta cur={cur} prev={prev} invert={invert} />}
+      </div>
+      {sub && <div style={{ color: "var(--ink-3)", fontSize: 12 }}>{sub}</div>}
+      <div style={{ marginTop: 6 }}>
+        <Sparkline values={series} color={color} />
+      </div>
+    </div>
+  );
+}
+
+// ---- Courbes multi-séries -------------------------------------------------
+// Plusieurs traits sur le même graphe (canaux d'acquisition, bots IA vs
+// moteurs…), avec légende, crosshair et tooltip trié par valeur.
+export function MultiLine({
+  labels,
+  series,
+  height = 220,
+  onSelect,
+}: {
+  labels: string[];
+  series: { name: string; color: string; values: number[]; dash?: boolean }[];
+  height?: number;
+  onSelect?: (index: number) => void;
+}) {
+  const W = 720;
+  const H = height;
+  const P = 12;
+  const ref = useRef<HTMLDivElement>(null);
+  const [hover, setHover] = useState<number | null>(null);
+
+  const n = labels.length;
+  const max = Math.max(1, ...series.flatMap((s) => s.values));
+  const x = useCallback((i: number) => (n > 1 ? P + (i / (n - 1)) * (W - P * 2) : W / 2), [n]);
+  const y = useCallback((v: number) => H - P - (v / max) * (H - P * 2), [H, max]);
+
+  function onMove(e: React.MouseEvent) {
+    const rect = ref.current?.getBoundingClientRect();
+    if (!rect || n === 0) return;
+    const px = ((e.clientX - rect.left) / rect.width) * W;
+    const i = Math.min(n - 1, Math.max(0, Math.round(((px - P) / (W - P * 2)) * (n - 1))));
+    setHover(i);
+  }
+
+  const tooltipLeft = hover !== null ? Math.min(72, Math.max(0, (x(hover) / W) * 100)) : 0;
+  const hovered = hover !== null
+    ? series
+        .map((s) => ({ name: s.name, color: s.color, v: s.values[hover] ?? 0 }))
+        .sort((a, b) => b.v - a.v)
+    : [];
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 6 }}>
+        {series.map((s) => (
+          <span key={s.name} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--ink-2)" }}>
+            <span style={{ width: 14, height: 3, borderRadius: 2, background: s.color, display: "inline-block" }} />
+            {s.name}
+          </span>
+        ))}
+      </div>
+      <div
+        ref={ref}
+        style={{ position: "relative", cursor: onSelect ? "pointer" : "default" }}
+        onMouseMove={onMove}
+        onMouseLeave={() => setHover(null)}
+        onClick={() => {
+          if (onSelect && hover !== null) onSelect(hover);
+        }}
+        title={onSelect ? "Cliquer pour voir le détail du jour" : undefined}
+      >
+        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }} preserveAspectRatio="none">
+          {[0.25, 0.5, 0.75].map((f) => (
+            <line key={f} x1={P} x2={W - P} y1={y(max * f)} y2={y(max * f)} stroke="var(--line)" strokeWidth={1} strokeDasharray="2 5" />
+          ))}
+          {series.map((s) => (
+            <polyline
+              key={s.name}
+              points={s.values.map((v, i) => `${x(i)},${y(v)}`).join(" ")}
+              fill="none"
+              stroke={s.color}
+              strokeWidth={2}
+              strokeDasharray={s.dash ? "5 4" : undefined}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+          ))}
+          {hover !== null && (
+            <>
+              <line x1={x(hover)} x2={x(hover)} y1={P} y2={H - P} stroke="var(--ink-3)" strokeWidth={1} strokeDasharray="3 3" />
+              {series.map((s) => (
+                <circle key={s.name} cx={x(hover)} cy={y(s.values[hover] ?? 0)} r={3.2} fill={s.color} />
+              ))}
+            </>
+          )}
+        </svg>
+        {hover !== null && (
+          <div
+            style={{
+              position: "absolute",
+              top: 4,
+              left: `${tooltipLeft}%`,
+              background: "var(--charcoal, #1B1C1E)",
+              color: "#FBF9F4",
+              borderRadius: 10,
+              padding: "7px 11px",
+              fontSize: 12,
+              lineHeight: 1.5,
+              pointerEvents: "none",
+              whiteSpace: "nowrap",
+              boxShadow: "var(--shadow-m)",
+              zIndex: 5,
+            }}
+          >
+            <div style={{ fontWeight: 700 }}>{labels[hover]}</div>
+            {hovered.map((s) => (
+              <div key={s.name}>
+                <span style={{ color: s.color }}>—</span> {s.name} : <strong>{fmtN(s.v)}</strong>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
