@@ -101,7 +101,10 @@ async function parseFile(bucket: string, sat: string, key: string): Promise<Fire
   const buf = new Uint8Array(await res.arrayBuffer());
 
   const H5 = await h5();
-  const fname = `goes-${sat}.nc`;
+  // La build node de h5wasm écrit sur le VRAI système de fichiers (NODERAWFS) :
+  // en lambda le répertoire courant est en lecture seule (« Read-only file
+  // system », diagnostiqué le 14/08/2026) — seul /tmp est inscriptible.
+  const fname = `/tmp/goes-${sat}.nc`;
   H5.FS.writeFile(fname, buf);
   const f = new H5.File(fname, "r");
   try {

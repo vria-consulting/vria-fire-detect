@@ -63,8 +63,8 @@ export async function GET(req: NextRequest) {
           /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
           const H5: any = await import("h5wasm/node");
           await H5.ready;
-          H5.FS.writeFile("diag.nc", buf);
-          const f = new H5.File("diag.nc", "r");
+          H5.FS.writeFile("/tmp/diag.nc", buf);
+          const f = new H5.File("/tmp/diag.nc", "r");
           try {
             const mask = f.get("Mask").value as Int16Array;
             out.maskLen = mask.length;
@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
           } finally {
             try {
               f.close();
-              H5.FS.unlink("diag.nc");
+              H5.FS.unlink("/tmp/diag.nc");
             } catch {
               /* best-effort */
             }
