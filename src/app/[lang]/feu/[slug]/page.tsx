@@ -93,6 +93,15 @@ export default async function FirePage({
   const title = titleOf(f);
 
   const heroImg = `https://kanari.io/ogfire/${f.slug}`;
+  // Lieu géolocalisé du feu : utilisé en contentLocation (NewsArticle) et en
+  // about (LiveBlog). Surtout PAS de @type Event ici : la Search Console le
+  // traiterait comme un événement public (concert…) et réclamerait location/
+  // offers/performer (8 problèmes remontés le 9 août 2026).
+  const placeLd = {
+    "@type": "Place",
+    name: deptName ? `${title}, ${deptName}` : title,
+    geo: { "@type": "GeoCoordinates", latitude: f.lat, longitude: f.lon },
+  };
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
@@ -101,6 +110,7 @@ export default async function FirePage({
     datePublished: f.first_seen,
     dateModified: f.updated_at ?? f.last_seen,
     inLanguage: "fr",
+    contentLocation: placeLd,
     author: { "@type": "Organization", name: "kanari", url: "https://kanari.io" },
     publisher: { "@id": "https://kanari.io/#org" },
     mainEntityOfPage: `https://kanari.io/fr/feu/${f.slug}`,
@@ -135,7 +145,7 @@ export default async function FirePage({
         coverageStartTime: f.first_seen,
         dateModified: f.updated_at ?? f.last_seen,
         inLanguage: "fr",
-        about: { "@type": "Event", name: title, startDate: f.first_seen },
+        about: placeLd,
         publisher: { "@id": "https://kanari.io/#org" },
         mainEntityOfPage: `https://kanari.io/fr/feu/${f.slug}`,
         liveBlogUpdate: [
