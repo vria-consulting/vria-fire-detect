@@ -14,12 +14,27 @@ export default function sitemap(): MetadataRoute.Sitemap {
     changeFrequency: "hourly" as const,
     priority: 0.7,
   }));
-  const guidePages: MetadataRoute.Sitemap = GUIDES.map((g) => ({
-    url: `${base}/fr/guide/${g.slug}`,
-    lastModified: new Date(g.updated),
-    changeFrequency: "monthly" as const,
-    priority: 0.7,
-  }));
+  const guidePages: MetadataRoute.Sitemap = GUIDES.flatMap((g) => {
+    const alternates = {
+      languages: { fr: `${base}/fr/guide/${g.slug}`, en: `${base}/en/guide/${g.slug}` },
+    };
+    return [
+      {
+        url: `${base}/fr/guide/${g.slug}`,
+        lastModified: new Date(g.updated),
+        changeFrequency: "monthly" as const,
+        priority: 0.7,
+        alternates,
+      },
+      {
+        url: `${base}/en/guide/${g.slug}`,
+        lastModified: new Date(),
+        changeFrequency: "monthly" as const,
+        priority: 0.6,
+        alternates,
+      },
+    ];
+  });
   const countryPages: MetadataRoute.Sitemap = COUNTRIES.map((c) => ({
     url: `${base}/en/fires/${c.slug}`,
     lastModified: new Date(),
@@ -86,6 +101,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.7,
+      alternates: { languages: { fr: `${base}/fr/guide`, en: `${base}/en/guide` } },
+    },
+    {
+      url: `${base}/en/guide`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.6,
+      alternates: { languages: { fr: `${base}/fr/guide`, en: `${base}/en/guide` } },
     },
     ...guidePages,
     {

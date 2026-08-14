@@ -1,30 +1,76 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
-import { isValidLang } from "@/lib/i18n";
-import { GUIDES, GUIDE_BY_SLUG } from "@/lib/guides";
+import { notFound } from "next/navigation";
+import { isValidLang, type Lang } from "@/lib/i18n";
+import { GUIDES, GUIDE_BY_SLUG, type Guide } from "@/lib/guides";
+import { GUIDES_EN, GUIDE_EN_BY_SLUG } from "@/lib/guides-en";
 import { countFires } from "@/lib/firearchive";
 
 // Guides évergreens, rendus dynamiques depuis le 13/08 : chaque guide ouvre
 // sur un bloc CITABLE daté aux compteurs live (stats attribuées en début de
 // page = le motif le plus repris par les moteurs de réponse IA). countFires
 // est no-store, incompatible avec un shell statique.
+// Servis en FR et en EN sur les mêmes slugs (hreflang), contenu EN adapté
+// à l'international dans guides-en.ts.
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
+
+function guideFor(lang: Lang, slug: string): Guide | undefined {
+  return lang === "fr" ? GUIDE_BY_SLUG.get(slug) : GUIDE_EN_BY_SLUG.get(slug);
+}
+
+const UI = {
+  fr: {
+    guides: "Guides",
+    updatedOn: "mis à jour le",
+    faqTitle: "Questions fréquentes",
+    liveTitle: "Voir la situation en direct :",
+    liveLinks: [
+      { href: "/fr", label: "carte mondiale des feux" },
+      { href: "/fr/feux", label: "feux par département" },
+      { href: "/fr/canadair", label: "Canadair en direct" },
+    ],
+    also: "À lire aussi",
+    disclaimer:
+      "kanari est un service d'information indépendant et gratuit, pas un canal d'alerte officiel. En cas d'urgence : 18 ou 112.",
+    citable: (today: string, total: number, france: number | null) =>
+      `Au ${today}, kanari a archivé ${total.toLocaleString("fr-FR")} feux significatifs détectés par satellite dans le monde depuis le 3 août 2026${france !== null && france > 0 ? `, dont ${france.toLocaleString("fr-FR")} en France` : ""}. Source : kanari.io, données ouvertes (CC BY 4.0).`,
+  },
+  en: {
+    guides: "Guides",
+    updatedOn: "updated",
+    faqTitle: "Frequently asked questions",
+    liveTitle: "See the live situation:",
+    liveLinks: [
+      { href: "/en", label: "world wildfire map" },
+      { href: "/en/canadair", label: "water bombers live" },
+      { href: "/en/statistiques", label: "live statistics" },
+    ],
+    also: "Also worth reading",
+    disclaimer:
+      "kanari is an independent, free information service, not an official alert channel. In an emergency call 112 (EU), 911 (North America) or your local emergency number.",
+    citable: (today: string, total: number, france: number | null) =>
+      `As of ${today}, kanari has archived ${total.toLocaleString("en-US")} significant satellite-detected fires worldwide since August 3, 2026${france !== null && france > 0 ? `, including ${france.toLocaleString("en-US")} in France` : ""}. Source: kanari.io, open data (CC BY 4.0).`,
+  },
+} as const;
 
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ lang: string; slug: string }>;
 }): Promise<Metadata> {
-  const { slug } = await params;
-  const g = GUIDE_BY_SLUG.get(slug);
+  const { lang, slug } = await params;
+  const l: Lang = isValidLang(lang) ? lang : "fr";
+  const g = guideFor(l, slug);
   if (!g) return {};
   const ogImg = `https://kanari.io/guides/${g.slug}.png`;
   return {
     title: g.metaTitle,
     description: g.metaDesc,
-    alternates: { canonical: `/fr/guide/${g.slug}` },
+    alternates: {
+      canonical: `/${l}/guide/${g.slug}`,
+      languages: { fr: `/fr/guide/${g.slug}`, en: `/en/guide/${g.slug}` },
+    },
     openGraph: {
       type: "article",
       title: g.metaTitle,
@@ -41,16 +87,17 @@ export default async function GuidePage({
 }) {
   const { lang, slug } = await params;
   if (!isValidLang(lang)) notFound();
-  const g = GUIDE_BY_SLUG.get(slug);
+  const g = guideFor(lang, slug);
   if (!g) notFound();
-  if (lang !== "fr") redirect(`/fr/guide/${g.slug}`);
+  const ui = UI[lang];
+  const locale = lang === "fr" ? "fr-FR" : "en-GB";
 
   // Chiffres live pour le bloc citable (échec silencieux : bloc masqué).
   const [total, france] = await Promise.all([
     countFires("first_seen=gte.2026-08-03"),
     countFires("country=eq.FR"),
   ]);
-  const today = new Date().toLocaleDateString("fr-FR", {
+  const today = new Date().toLocaleDateString(locale, {
     day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris",
   });
 
@@ -61,10 +108,10 @@ export default async function GuidePage({
     description: g.metaDesc,
     image: [`https://kanari.io/guides/${g.slug}.png`],
     dateModified: g.updated,
-    inLanguage: "fr",
+    inLanguage: lang,
     author: { "@type": "Organization", name: "kanari", url: "https://kanari.io" },
     publisher: { "@id": "https://kanari.io/#org" },
-    mainEntityOfPage: `https://kanari.io/fr/guide/${g.slug}`,
+    mainEntityOfPage: `https://kanari.io/${lang}/guide/${g.slug}`,
   };
   const faqLd =
     g.faq && g.faq.length > 0
@@ -79,7 +126,7 @@ export default async function GuidePage({
         }
       : null;
 
-  const others = GUIDES.filter((x) => x.slug !== g.slug);
+  const others = (lang === "fr" ? GUIDES : GUIDES_EN).filter((x) => x.slug !== g.slug);
 
   return (
     <div className="k-scroll h-full overflow-y-auto" style={{ background: "var(--paper)" }}>
@@ -89,8 +136,8 @@ export default async function GuidePage({
       )}
       <article className="mx-auto max-w-2xl px-4 py-10 sm:py-14">
         <p className="mb-1 text-[13px]" style={{ color: "var(--ink-3)" }}>
-          <Link href="/fr/guide" style={{ color: "var(--link)" }}>Guides</Link> · mis à jour le{" "}
-          {new Date(g.updated).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+          <Link href={`/${lang}/guide`} style={{ color: "var(--link)" }}>{ui.guides}</Link> · {ui.updatedOn}{" "}
+          {new Date(g.updated).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}
         </p>
         <h1 className="mb-3" style={{ fontFamily: "var(--font-display)", fontSize: "var(--text-h2)", color: "var(--ink)" }}>
           {g.title}
@@ -118,10 +165,7 @@ export default async function GuidePage({
             className="mb-7 border-l-4 py-1 pl-4 text-[14px] leading-relaxed"
             style={{ borderColor: "var(--canary)", color: "var(--ink)" }}
           >
-            Au {today}, kanari a archivé {total.toLocaleString("fr-FR")} feux significatifs
-            détectés par satellite dans le monde depuis le 3 août 2026
-            {france !== null && france > 0 ? `, dont ${france.toLocaleString("fr-FR")} en France` : ""}.
-            Source : kanari.io, données ouvertes (CC BY 4.0).
+            {ui.citable(today, total, france)}
           </blockquote>
         )}
         {g.sections.map((s) => (
@@ -140,7 +184,7 @@ export default async function GuidePage({
         {g.faq && g.faq.length > 0 && (
           <section className="mb-8">
             <h2 className="mb-3 text-[20px] font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>
-              Questions fréquentes
+              {ui.faqTitle}
             </h2>
             <div className="flex flex-col gap-3">
               {g.faq.map((f) => (
@@ -158,18 +202,21 @@ export default async function GuidePage({
           style={{ background: "var(--canary-tint)" }}
         >
           <p className="text-[14.5px] leading-relaxed" style={{ color: "var(--ink)" }}>
-            <strong>Voir la situation en direct :</strong>{" "}
-            <Link href="/fr" style={{ color: "var(--link)" }}>carte mondiale des feux</Link> ·{" "}
-            <Link href="/fr/feux" style={{ color: "var(--link)" }}>feux par département</Link> ·{" "}
-            <Link href="/fr/canadair" style={{ color: "var(--link)" }}>Canadair en direct</Link>
+            <strong>{ui.liveTitle}</strong>{" "}
+            {ui.liveLinks.map((l, i) => (
+              <span key={l.href}>
+                {i > 0 && " · "}
+                <Link href={l.href} style={{ color: "var(--link)" }}>{l.label}</Link>
+              </span>
+            ))}
           </p>
         </div>
 
         <section className="mb-4">
-          <h2 className="mb-2 text-[15px] font-semibold" style={{ color: "var(--ink)" }}>À lire aussi</h2>
+          <h2 className="mb-2 text-[15px] font-semibold" style={{ color: "var(--ink)" }}>{ui.also}</h2>
           <p className="flex flex-col gap-1 text-[14px]">
             {others.map((o) => (
-              <Link key={o.slug} href={`/fr/guide/${o.slug}`} style={{ color: "var(--link)" }}>
+              <Link key={o.slug} href={`/${lang}/guide/${o.slug}`} style={{ color: "var(--link)" }}>
                 {o.title}
               </Link>
             ))}
@@ -177,8 +224,7 @@ export default async function GuidePage({
         </section>
 
         <p className="mt-8 border-t pt-4 text-[12.5px]" style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}>
-          kanari est un service d'information indépendant et gratuit, pas un canal d'alerte
-          officiel. En cas d'urgence : 18 ou 112.
+          {ui.disclaimer}
         </p>
       </article>
     </div>
