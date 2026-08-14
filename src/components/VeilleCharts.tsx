@@ -111,12 +111,16 @@ export function HoverChart({
   const hasSecondary = data.some((d) => d.secondary !== undefined);
   const hasCompare = data.some((d) => d.compare !== undefined);
 
-  function onMove(e: React.MouseEvent) {
+  // Index calculé depuis l'événement (pas depuis l'état hover) : un clic
+  // direct sans survol préalable doit fonctionner du premier coup.
+  function idxFromEvent(e: React.MouseEvent): number | null {
     const rect = ref.current?.getBoundingClientRect();
-    if (!rect || n === 0) return;
+    if (!rect || n === 0) return null;
     const px = ((e.clientX - rect.left) / rect.width) * W;
-    const i = Math.min(n - 1, Math.max(0, Math.floor((px - P) / bw)));
-    setHover(i);
+    return Math.min(n - 1, Math.max(0, Math.floor((px - P) / bw)));
+  }
+  function onMove(e: React.MouseEvent) {
+    setHover(idxFromEvent(e));
   }
 
   const h = hover !== null ? data[hover] : null;
@@ -128,8 +132,9 @@ export function HoverChart({
       style={{ position: "relative", cursor: onSelect ? "pointer" : "default" }}
       onMouseMove={onMove}
       onMouseLeave={() => setHover(null)}
-      onClick={() => {
-        if (onSelect && hover !== null) onSelect(hover);
+      onClick={(e) => {
+        const i = idxFromEvent(e);
+        if (onSelect && i !== null) onSelect(i);
       }}
       title={onSelect ? "Cliquer pour voir le détail du jour" : undefined}
     >
@@ -300,12 +305,16 @@ export function MultiLine({
   const x = useCallback((i: number) => (n > 1 ? P + (i / (n - 1)) * (W - P * 2) : W / 2), [n]);
   const y = useCallback((v: number) => H - P - (v / max) * (H - P * 2), [H, max]);
 
-  function onMove(e: React.MouseEvent) {
+  // Même logique que HoverChart : l'index vient de l'événement pour que le
+  // clic fonctionne sans survol préalable.
+  function idxFromEvent(e: React.MouseEvent): number | null {
     const rect = ref.current?.getBoundingClientRect();
-    if (!rect || n === 0) return;
+    if (!rect || n === 0) return null;
     const px = ((e.clientX - rect.left) / rect.width) * W;
-    const i = Math.min(n - 1, Math.max(0, Math.round(((px - P) / (W - P * 2)) * (n - 1))));
-    setHover(i);
+    return Math.min(n - 1, Math.max(0, Math.round(((px - P) / (W - P * 2)) * (n - 1))));
+  }
+  function onMove(e: React.MouseEvent) {
+    setHover(idxFromEvent(e));
   }
 
   const tooltipLeft = hover !== null ? Math.min(72, Math.max(0, (x(hover) / W) * 100)) : 0;
@@ -330,8 +339,9 @@ export function MultiLine({
         style={{ position: "relative", cursor: onSelect ? "pointer" : "default" }}
         onMouseMove={onMove}
         onMouseLeave={() => setHover(null)}
-        onClick={() => {
-          if (onSelect && hover !== null) onSelect(hover);
+        onClick={(e) => {
+          const i = idxFromEvent(e);
+          if (onSelect && i !== null) onSelect(i);
         }}
         title={onSelect ? "Cliquer pour voir le détail du jour" : undefined}
       >
