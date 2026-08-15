@@ -5,7 +5,7 @@ import { isValidLang } from "@/lib/i18n";
 import { getFireBySlug, type ArchivedFire } from "@/lib/firearchive";
 import { DEPT_BY_SLUG } from "@/lib/departements";
 import { fetchStrategicPoints, type StrategicPoint } from "@/lib/strategic";
-import { fetchNifcPerimeter, type NifcPerimeter } from "@/lib/nifc";
+import { fetchOfficialPerimeter, type OfficialPerimeter } from "@/lib/perimeters";
 import { SiteFooter } from "@/components/SiteFooter";
 
 // Page événement permanente : chaque feu significatif archivé a son URL à
@@ -75,15 +75,25 @@ export default async function FirePage({
 
   const deptName = f.dept_slug ? DEPT_BY_SLUG.get(f.dept_slug)?.name : null;
   const active = f.status === "active";
-  // Points stratégiques (OSM) et périmètre officiel NIFC (feux US) :
-  // seulement pour les feux en cours — les pages archivées, massivement
-  // crawlées, ne doivent solliciter aucun service externe.
-  const [strategic, nifc]: [StrategicPoint[], NifcPerimeter | null] = active
+  // Points stratégiques (OSM) et périmètre officiel (NIFC US, CWFIS Canada,
+  // EFFIS Europe — dispatch par pays dans lib/perimeters) : seulement pour
+  // les feux en cours — les pages archivées, massivement crawlées, ne
+  // doivent solliciter aucun service externe.
+  const [strategic, nifc]: [StrategicPoint[], OfficialPerimeter | null] = active
     ? await Promise.all([
         fetchStrategicPoints(f.lat, f.lon),
-        f.country === "US" ? fetchNifcPerimeter(f.lat, f.lon) : Promise.resolve(null),
+        fetchOfficialPerimeter(f.lat, f.lon, f.country, f.first_seen),
       ])
     : [[], null];
+  // Libellés selon la source du périmètre (le nom de variable historique
+  // « nifc » couvre désormais les trois agences).
+  const perimLabel = nifc
+    ? nifc.source === "NIFC"
+      ? `périmètre officiel${nifc.name ? ` « ${nifc.name} »` : ""} (NIFC)`
+      : nifc.source === "CWFIS"
+        ? "périmètre estimé (CWFIS, Canada)"
+        : `surface brûlée cartographiée (EFFIS${nifc.name ? ` · ${nifc.name}` : ""})`
+    : null;
   // Statuts automatiques : ce que les données disent de la situation, sans
   // rédaction manuelle (nourrit aussi le LiveBlog des gros feux).
   const today = new Date().toISOString().slice(0, 10);
@@ -167,7 +177,7 @@ export default async function FirePage({
           ...(nifc
             ? [{
                 "@type": "BlogPosting",
-                headline: `Périmètre officiel NIFC « ${nifc.name} » : ${nifc.hectares.toLocaleString("fr-FR")} ha${nifc.containedPct !== null ? `, contenu à ${nifc.containedPct} %` : ""}`,
+                headline: `${nifc.source === "EFFIS" ? "Surface brûlée cartographiée par EFFIS" : nifc.source === "CWFIS" ? "Périmètre estimé CWFIS" : `Périmètre officiel NIFC${nifc.name ? ` « ${nifc.name} »` : ""}`} : ${nifc.hectares.toLocaleString("fr-FR")} ha${nifc.containedPct !== null ? `, contenu à ${nifc.containedPct} %` : ""}`,
                 datePublished: f.updated_at ?? f.last_seen,
               }]
             : []),
@@ -278,13 +288,13 @@ export default async function FirePage({
               <div className="text-[12.5px]" style={{ color: "var(--ink-2)" }}>témoignages publics</div>
             </div>
           )}
-          {nifc && (
+          {nifc && perimLabel && (
             <div className="rounded-[18px] px-5 py-3.5" style={{ background: "var(--white)", boxShadow: "var(--shadow-s)" }}>
               <div style={{ fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 600, color: "var(--ink)" }}>
                 {nifc.hectares.toLocaleString("fr-FR")} ha
               </div>
               <div className="text-[12.5px]" style={{ color: "var(--ink-2)" }}>
-                périmètre officiel « {nifc.name} » (NIFC)
+                {perimLabel}
               </div>
             </div>
           )}
