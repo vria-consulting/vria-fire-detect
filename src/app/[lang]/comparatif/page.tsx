@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isValidLang, type Lang } from "@/lib/i18n";
 import { SiteFooter } from "@/components/SiteFooter";
+import { Adsense } from "@/components/Adsense";
 
 // Comparatif honnête des cartes de feux : la page cible des requêtes
 // « meilleure carte des feux » / « best wildfire map » (posées telles quelles
@@ -213,6 +214,7 @@ export default async function ComparatifPage({ params }: { params: Promise<{ lan
 
   return (
     <div className="k-scroll h-full overflow-y-auto" style={{ background: "var(--paper)" }}>
+      <Adsense />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
       <div className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
         <h1 className="mb-3" style={{ fontFamily: "var(--font-display)", fontSize: "var(--text-h2)", color: "var(--ink)" }}>

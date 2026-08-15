@@ -38,6 +38,7 @@ const FR: { title: string; items: Item[] }[] = [
       { href: "/fr/a-propos", label: "À propos de kanari" },
       { href: "/fr/sdis", label: "Pour les SDIS et collectivités" },
       { href: "/fr/widget", label: "Widget pour votre site" },
+      { href: "/fr/confidentialite", label: "Confidentialité et cookies" },
     ],
   },
 ];
@@ -68,6 +69,7 @@ const EN: { title: string; items: Item[] }[] = [
       { href: "/en/comparatif", label: "Wildfire maps compared" },
       { href: "/en/a-propos", label: "About kanari" },
       { href: "/fr/widget", label: "Embed widget" },
+      { href: "/en/confidentialite", label: "Privacy and cookies" },
     ],
   },
 ];
@@ -94,7 +96,20 @@ export function SiteFooter({ lang }: { lang: Lang }) {
           </nav>
         ))}
       </div>
-      <p className="mt-6 text-[12px]" style={{ color: "var(--ink-3)" }}>
+      {/* Soutien : kanari est gratuit et le restera ; les dons financent
+          l'hébergement et les données. Lien simple, aucun script tiers. */}
+      <p className="mt-6">
+        <a
+          href="https://buymeacoffee.com/kanari"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-[13.5px] font-semibold"
+          style={{ background: "var(--canary)", color: "var(--charcoal, #1B1C1E)", boxShadow: "var(--shadow-s)" }}
+        >
+          ☕ {lang === "fr" ? "Soutenir kanari (gratuit pour toujours, grâce à vous)" : "Support kanari (free forever, thanks to you)"}
+        </a>
+      </p>
+      <p className="mt-4 text-[12px]" style={{ color: "var(--ink-3)" }}>
         {lang === "fr"
           ? "kanari — le canari chante avant la sirène. Service d'information indépendant et gratuit ; en cas d'urgence : 18 ou 112."
           : "kanari — the canary sings before the siren. Free, independent information service; in an emergency call 112 or 911."}

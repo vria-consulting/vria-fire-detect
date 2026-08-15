@@ -5,6 +5,29 @@ import { isValidLang, type Lang } from "@/lib/i18n";
 import { GUIDES, GUIDE_BY_SLUG, type Guide } from "@/lib/guides";
 import { GUIDES_EN, GUIDE_EN_BY_SLUG } from "@/lib/guides-en";
 import { countFires } from "@/lib/firearchive";
+import { Adsense } from "@/components/Adsense";
+
+// Équipement pertinent par guide (liens partenaires Amazon, FR uniquement) :
+// uniquement là où la recommandation est légitime pour le lecteur, avec la
+// mention légale du Club Partenaires. Jamais sur les guides sans produit
+// naturellement utile.
+const AFFILIATE_TAG = "kanari-21";
+const AFFILIATE: Record<string, { q: string; label: string }[]> = {
+  "que-faire-feu-de-foret": [
+    { q: "detecteur de fumee NF", label: "Détecteur de fumée (obligatoire dans chaque logement)" },
+    { q: "radio portable piles urgence", label: "Radio à piles (suivre les consignes si le réseau tombe)" },
+    { q: "lampe frontale rechargeable", label: "Lampe frontale" },
+  ],
+  "meteo-des-forets": [
+    { q: "station meteo exterieure vent", label: "Station météo avec anémomètre" },
+    { q: "hygrometre thermometre exterieur", label: "Thermomètre-hygromètre extérieur" },
+  ],
+  "odeur-de-fumee-que-faire": [
+    { q: "purificateur air filtre HEPA", label: "Purificateur d'air à filtre HEPA (fumées et particules)" },
+    { q: "masque FFP2", label: "Masques FFP2 (personnes sensibles)" },
+    { q: "detecteur de fumee NF", label: "Détecteur de fumée" },
+  ],
+};
 
 // Guides évergreens, rendus dynamiques depuis le 13/08 : chaque guide ouvre
 // sur un bloc CITABLE daté aux compteurs live (stats attribuées en début de
@@ -127,9 +150,11 @@ export default async function GuidePage({
       : null;
 
   const others = (lang === "fr" ? GUIDES : GUIDES_EN).filter((x) => x.slug !== g.slug);
+  const affiliate = lang === "fr" ? AFFILIATE[g.slug] : undefined;
 
   return (
     <div className="k-scroll h-full overflow-y-auto" style={{ background: "var(--paper)" }}>
+      <Adsense />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       {faqLd && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
@@ -194,6 +219,32 @@ export default async function GuidePage({
                 </div>
               ))}
             </div>
+          </section>
+        )}
+
+        {affiliate && (
+          <section className="mb-8">
+            <h2 className="mb-2 text-[17px] font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>
+              S&apos;équiper
+            </h2>
+            <ul className="mb-2 flex flex-col gap-1.5 text-[14px]" style={{ color: "var(--ink-2)", paddingLeft: 18, listStyle: "disc" }}>
+              {affiliate.map((a) => (
+                <li key={a.q}>
+                  <a
+                    href={`https://www.amazon.fr/s?k=${encodeURIComponent(a.q)}&tag=${AFFILIATE_TAG}`}
+                    target="_blank"
+                    rel="noopener noreferrer sponsored"
+                    style={{ color: "var(--link)" }}
+                  >
+                    {a.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+            <p className="text-[11.5px]" style={{ color: "var(--ink-3)" }}>
+              Liens partenaires : en tant que Partenaire Amazon, kanari réalise un bénéfice sur les
+              achats remplissant les conditions requises. Cela finance le service, qui reste gratuit.
+            </p>
           </section>
         )}
 

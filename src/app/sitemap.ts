@@ -90,6 +90,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
       alternates: { languages: { fr: `${base}/fr/comparatif`, en: `${base}/en/comparatif` } },
     },
     {
+      url: `${base}/fr/confidentialite`,
+      lastModified: new Date(),
+      changeFrequency: "yearly",
+      priority: 0.2,
+      alternates: { languages: { fr: `${base}/fr/confidentialite`, en: `${base}/en/confidentialite` } },
+    },
+    {
       url: `${base}/en/comparatif`,
       lastModified: new Date(),
       changeFrequency: "monthly",
