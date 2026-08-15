@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { isValidLang, type Lang } from "@/lib/i18n";
+import { isValidLang, type Lang, localize } from "@/lib/i18n";
 import { GUIDES, GUIDE_BY_SLUG, type Guide } from "@/lib/guides";
 import { GUIDES_EN, GUIDE_EN_BY_SLUG } from "@/lib/guides-en";
 import { countFires } from "@/lib/firearchive";
@@ -92,7 +92,7 @@ export async function generateMetadata({
     title: g.metaTitle,
     description: g.metaDesc,
     alternates: {
-      canonical: `/${l}/guide/${g.slug}`,
+      canonical: `/${l === "fr" ? "fr" : "en"}/guide/${g.slug}`,
       languages: { fr: `/fr/guide/${g.slug}`, en: `/en/guide/${g.slug}` },
     },
     openGraph: {
@@ -113,7 +113,7 @@ export default async function GuidePage({
   if (!isValidLang(lang)) notFound();
   const g = guideFor(lang, slug);
   if (!g) notFound();
-  const ui = UI[lang];
+  const ui = localize(UI, lang);
   const locale = lang === "fr" ? "fr-FR" : "en-GB";
 
   // Chiffres live pour le bloc citable (échec silencieux : bloc masqué).

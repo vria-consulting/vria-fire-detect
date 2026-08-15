@@ -18,6 +18,14 @@ const PAGES = [
     noindexForbidden: true,
   },
   {
+    path: "/es",
+    title: /Mapa de incendios forestales/i,
+  },
+  {
+    path: "/pt",
+    title: /incêndios florestais/i,
+  },
+  {
     path: "/fr/statistiques",
     title: /Statistiques des feux/i,
     canonical: "/fr/statistiques",

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { isValidLang, type Lang } from "@/lib/i18n";
+import { isValidLang, type Lang, localize } from "@/lib/i18n";
 
 // FAQ SEO/AEO : répond mot pour mot aux questions réellement tapées dans
 // Google et posées aux assistants IA. Balisage schema.org FAQPage : éligible
@@ -9,7 +9,7 @@ import { isValidLang, type Lang } from "@/lib/i18n";
 
 type QA = { q: string; a: string };
 
-const FAQ: Record<Lang, { title: string; intro: string; items: QA[] }> = {
+const FAQ: Record<"fr" | "en", { title: string; intro: string; items: QA[] }> = {
   fr: {
     title: "Questions fréquentes",
     intro:
@@ -122,7 +122,7 @@ export async function generateMetadata({
         ? "Comment savoir s'il y a un feu près de chez vous, suivre les Canadair en direct, comprendre les données satellites : les réponses aux questions les plus fréquentes sur kanari."
         : "How to know if there is a fire near you, track water bombers live, understand satellite data: answers to the most asked questions about kanari.",
     alternates: {
-      canonical: `/${l}/faq`,
+      canonical: `/${l === "fr" ? "fr" : "en"}/faq`,
       languages: { fr: "/fr/faq", en: "/en/faq" },
     },
   };
@@ -131,7 +131,7 @@ export async function generateMetadata({
 export default async function FaqPage({ params }: { params: Promise<{ lang: string }> }) {
   const { lang } = await params;
   if (!isValidLang(lang)) notFound();
-  const t = FAQ[lang];
+  const t = localize(FAQ, lang);
 
   const jsonLd = {
     "@context": "https://schema.org",

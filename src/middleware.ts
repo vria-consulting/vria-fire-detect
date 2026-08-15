@@ -1,5 +1,5 @@
 import { NextFetchEvent, NextRequest, NextResponse } from "next/server";
-import { FRANCOPHONE, isValidLang, type Lang } from "@/lib/i18n";
+import { FRANCOPHONE, HISPANOPHONE, LUSOPHONE, isValidLang, type Lang } from "@/lib/i18n";
 
 // Crawlers SEO + IA qu'on veut compter (onglet Visibilité de /veille).
 // ChatGPT-User / Perplexity-User / Claude-User = fetchs déclenchés par une
@@ -51,8 +51,8 @@ function logBotHit(req: NextRequest, event: NextFetchEvent): void {
 }
 
 // Choix de langue : 1) préférence explicite (cookie posé par le sélecteur),
-// 2) pays du visiteur (géo Vercel) — français en France/pays francophones et
-// au Québec, anglais ailleurs, 3) Accept-Language, 4) anglais.
+// 2) pays du visiteur (géo Vercel) — français, espagnol ou portugais selon la
+// zone linguistique, anglais ailleurs, 3) Accept-Language, 4) anglais.
 function detectLang(req: NextRequest): Lang {
   const cookie = req.cookies.get("kanari-lang")?.value;
   if (isValidLang(cookie)) return cookie;
@@ -60,10 +60,15 @@ function detectLang(req: NextRequest): Lang {
   const region = req.headers.get("x-vercel-ip-country-region")?.toUpperCase();
   if (country) {
     if (FRANCOPHONE.has(country) || (country === "CA" && region === "QC")) return "fr";
+    if (HISPANOPHONE.has(country)) return "es";
+    if (LUSOPHONE.has(country)) return "pt";
     return "en";
   }
   const accept = req.headers.get("accept-language") ?? "";
-  return /(^|[,;])\s*fr/i.test(accept) ? "fr" : "en";
+  if (/(^|[,;])\s*fr/i.test(accept)) return "fr";
+  if (/(^|[,;])\s*es/i.test(accept)) return "es";
+  if (/(^|[,;])\s*pt/i.test(accept)) return "pt";
+  return "en";
 }
 
 export function middleware(req: NextRequest, event: NextFetchEvent) {

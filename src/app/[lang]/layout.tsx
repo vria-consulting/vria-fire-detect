@@ -93,7 +93,7 @@ function jsonLd(l: Lang) {
         applicationCategory: "UtilityApplication",
         operatingSystem: "Web",
         offers: { "@type": "Offer", price: "0", priceCurrency: "EUR" },
-        inLanguage: ["fr", "en"],
+        inLanguage: ["fr", "en", "es", "pt"],
         creator: { "@id": "https://kanari.io/#org" },
       },
       {

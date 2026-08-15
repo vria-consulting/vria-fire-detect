@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { isValidLang, type Lang } from "@/lib/i18n";
+import { isValidLang, type Lang, localize } from "@/lib/i18n";
 import {
   countFires,
   listFiresBetween,
@@ -148,12 +148,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { lang } = await params;
   const l: Lang = isValidLang(lang) ? lang : "fr";
-  const t = T[l];
+  const t = localize(T, l);
   return {
     title: t.metaTitle,
     description: t.metaDesc,
     alternates: {
-      canonical: `/${l}/statistiques`,
+      canonical: `/${l === "fr" ? "fr" : "en"}/statistiques`,
       languages: { fr: "/fr/statistiques", en: "/en/statistiques" },
     },
   };
@@ -167,7 +167,7 @@ function flag(cc: string | null): string {
 export default async function StatsPage({ params }: { params: Promise<{ lang: string }> }) {
   const { lang } = await params;
   if (!isValidLang(lang)) notFound();
-  const t = T[lang];
+  const t = localize(T, lang);
 
   const now = new Date();
   const today = now.toISOString().slice(0, 10);

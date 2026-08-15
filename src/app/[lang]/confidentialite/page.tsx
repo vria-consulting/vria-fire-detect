@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { isValidLang, type Lang } from "@/lib/i18n";
+import { isValidLang, type Lang, localize } from "@/lib/i18n";
 import { SiteFooter } from "@/components/SiteFooter";
 
 // Politique de confidentialité : obligatoire pour AdSense (cookies tiers) et
@@ -84,12 +84,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { lang } = await params;
   const l: Lang = isValidLang(lang) ? lang : "fr";
-  const t = T[l];
+  const t = localize(T, l);
   return {
     title: t.metaTitle,
     description: t.metaDesc,
     alternates: {
-      canonical: `/${l}/confidentialite`,
+      canonical: `/${l === "fr" ? "fr" : "en"}/confidentialite`,
       languages: { fr: "/fr/confidentialite", en: "/en/confidentialite" },
     },
   };
@@ -98,7 +98,7 @@ export async function generateMetadata({
 export default async function PrivacyPage({ params }: { params: Promise<{ lang: string }> }) {
   const { lang } = await params;
   if (!isValidLang(lang)) notFound();
-  const t = T[lang];
+  const t = localize(T, lang);
 
   return (
     <div className="k-scroll h-full overflow-y-auto" style={{ background: "var(--paper)" }}>

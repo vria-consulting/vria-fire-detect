@@ -1,8 +1,10 @@
-// Internationalisation Kanari — FR (défaut pays francophones) / EN (reste du
-// monde). La langue est portée par l'URL (/fr, /en) : indispensable au SEO
-// (hreflang, indexation des deux versions) et au référencement dans les LLM.
+// Internationalisation Kanari — FR (pays francophones), EN (défaut monde),
+// ES (Espagne + Amérique hispanophone), PT (Brésil + Portugal). La langue est
+// portée par l'URL (/fr, /en, /es, /pt) : indispensable au SEO (hreflang) et
+// au référencement dans les LLM. L'Amérique latine est le plus gros gisement
+// de requêtes feux au monde (Amazonie, Chili, Bolivie) sans acteur gratuit.
 
-export const LANGS = ["fr", "en"] as const;
+export const LANGS = ["fr", "en", "es", "pt"] as const;
 export type Lang = (typeof LANGS)[number];
 
 // Pays dont la langue par défaut est le français (détection géo Vercel).
@@ -12,8 +14,23 @@ export const FRANCOPHONE = new Set([
   "TD", "CF", "DJ", "KM", "GQ", "VU", "NC", "PF", "GP", "MQ", "GF", "RE", "YT",
 ]);
 
+// Pays hispanophones et lusophones (même mécanique de détection géo).
+export const HISPANOPHONE = new Set([
+  "ES", "MX", "AR", "CL", "CO", "PE", "VE", "EC", "BO", "PY", "UY", "GT",
+  "HN", "SV", "NI", "CR", "PA", "DO", "CU", "PR",
+]);
+export const LUSOPHONE = new Set(["BR", "PT", "AO", "MZ", "CV", "GW", "ST", "TL"]);
+
 export function isValidLang(x: string | undefined): x is Lang {
-  return x === "fr" || x === "en";
+  return x === "fr" || x === "en" || x === "es" || x === "pt";
+}
+
+// Dictionnaires locaux de pages : beaucoup n'existent qu'en fr/en — les
+// langues sans traduction retombent sur l'anglais sans casser le typage.
+export function localize<
+  D extends { readonly fr: unknown; readonly en: unknown } & Partial<Readonly<Record<Lang, unknown>>>,
+>(dict: D, lang: Lang): D["fr"] | D["en"] {
+  return (dict[lang] ?? dict.en) as D["fr"] | D["en"];
 }
 
 // Numéro d'urgence selon le pays du visiteur (cookie kanari-geo posé par le
@@ -29,7 +46,8 @@ const EMERGENCY_BY_COUNTRY: Record<string, string> = {
   GB: "999", IE: "999",
   AU: "000",
   NZ: "111",
-  IN: "112", BR: "190", JP: "119", CN: "119", KR: "119",
+  // Brésil : 193 = Corpo de Bombeiros — LE réflexe feu (le 190 est la police).
+  IN: "112", BR: "193", JP: "119", CN: "119", KR: "119",
 };
 
 export function emergencyNumber(country: string | null, lang: Lang): string {
@@ -361,5 +379,313 @@ const en: typeof fr = {
   compass: ["N", "NE", "E", "SE", "S", "SW", "W", "NW"],
 };
 
-export const DICT: Record<Lang, typeof fr> = { fr, en };
+const es: typeof fr = {
+  tagline: "la alerta de incendios forestales, antes que nadie",
+  navHow: "Cómo funciona",
+  navAbout: "Acerca de",
+  navFaq: "FAQ",
+  navContribute: "Contribuir",
+  emergency: (n: string) => `¿Emergencia? ${n}`,
+  emergencyWord: "¿Emergencia?",
+  planesShort: "medios aéreos en vuelo · mundo",
+  legendPlane: "Medios aéreos (hidroaviones, tanqueros, helicópteros…)",
+  minimize: "Minimizar",
+  viewSatellite: "Satélite",
+  viewPlan: "Mapa",
+  metaTitle: "Mapa de incendios forestales en tiempo real — kanari",
+  metaDescription:
+    "Mapa mundial casi en tiempo real de los focos de incendio forestal: detección satelital (NASA FIRMS, Meteosat, GOES), reportes ciudadanos verificados por IA, alertas gratuitas por zona. El canario canta antes que la sirena.",
+
+  searchPlaceholder: "Buscar una ciudad o zona",
+  myPosition: "Mi ubicación",
+  legend: "Leyenda",
+  smoke: "Humo",
+  smokeTitle: "Columnas de humo y partículas observadas por la NASA (día anterior)",
+  legendSmoke: "Velo marrón: humo / partículas (aerosoles NASA, día anterior)",
+  legendActive: "Fuego activo · menos de 3 h",
+  legendRecent: "Reciente · 3 – 12 h",
+  legendWatched: "Vigilado · 12 – 24 h",
+  legendOld: "Antiguo · más de 24 h",
+  legendCitizen: "Reporte ciudadano · satélite cercano",
+  legendUnverified: "Reporte por verificar · aún sin satélite",
+  legendSize: "Tamaño de la llama = número de detecciones",
+  analyzing: "kanari está analizando las señales…",
+  errFirmsKey: "Clave NASA FIRMS ausente o inválida (variable FIRMS_MAP_KEY).",
+  errData: "Datos satelitales momentáneamente no disponibles — reintento en 2 min.",
+
+  live: "En vivo",
+  listening: "kanari está escuchando",
+  tabAll: "Todo",
+  tabUrgent: "Urgentes",
+  bucketNow: "Ahora mismo",
+  bucketHour: "Última hora",
+  bucketEarlier: "Antes",
+  loadingFeed: "Consultando satélites y analizando señales con IA…",
+  emptyAll:
+    "Nada que señalar en la vista actual. kanari está escuchando — mueve el mapa o amplía el período.",
+  emptyUrgent:
+    "Ningún foco nuevo (primera señal < 2 h) en la vista actual. Amplía el mapa: la cobertura más rápida viene de GOES (Américas), Meteosat (Europa/África) y los reportes ciudadanos.",
+  urgentBanner: (n: number) => `${n} foco${n > 1 ? "s" : ""} señalado${n > 1 ? "s" : ""} hace menos de 20 min`,
+  satDetection: "Detección satelital",
+  detectionsSat: (n: number) => `${n} detección${n > 1 ? "es" : ""} satelital${n > 1 ? "es" : ""}`,
+  mwMax: "MW máx",
+  corroboratedTag: "corroborado",
+  probablePrefix: "Foco probable — ",
+  postsOn: (n: number, src: string) => `${n} publicación${n > 1 ? "es" : ""} en ${src}`,
+  lastMentionAgo: "última mención",
+  verifying: "en verificación",
+  satShort: "Satélite",
+  footerStats: (ev: string, sig: number) => `${ev} focos · ${sig} reportes`,
+  updatedNow: "actualizado ahora",
+  updatedAgo: (s: number) => `actualizado hace ${s} s`,
+  refreshNow: "Actualizar ahora",
+
+  ctaOff: "Alertarme en esta zona",
+  ctaOn: "Zona bajo vigilancia — kanari está atento ✓",
+  ctaBusy: "Activando…",
+  alertNotSupported: "Este navegador no soporta notificaciones.",
+  alertAllow: "Permite las notificaciones para activar las alertas.",
+  alertOn: "Zona bajo vigilancia: te avisaremos de nuevos focos probables aquí.",
+  alertOff: "Alertas desactivadas.",
+  alertFailed: "No se pudo activar — inténtalo de nuevo.",
+  geoUnsupported: "Este navegador no soporta la geolocalización.",
+  geoUnavailable: "Ubicación no disponible — revisa el permiso de ubicación.",
+  yourPosition: "Tu ubicación",
+
+  reportBtn: "Reportar un incendio",
+  reportConfirm:
+    "¿Enviar un reporte de incendio en tu posición actual?\n\nUsa este botón solo si realmente ves un fuego comenzando. En una emergencia, llama primero a los servicios de emergencia.",
+  reportSent: "¡Gracias! Reporte enviado — aparece en el mapa como « por verificar ».",
+  reportFailed: "No se pudo enviar — inténtalo de nuevo.",
+  reportRateLimited: "Máximo un reporte cada 5 minutos.",
+  reportPopup: (age: string) => `Testigo directo · ${age}`,
+  reportPhotoAsk: "Reporte enviado. ¿Agregar una foto del fuego para verificación por IA? (opcional)",
+  reportPhotoAdd: "📸 Agregar una foto",
+  reportPhotoSkip: "No, gracias",
+  reportPhotoChecking: "La IA está revisando la foto…",
+  reportPhotoVerified: "Foto verificada ✓ Tu reporte queda marcado como autenticado.",
+  reportPhotoRejected: "Foto no concluyente: el reporte sigue visible, sin insignia de verificación.",
+  reportPhotoFailed: "No se pudo subir la foto. Tu reporte sigue contando.",
+  reportPhotoBadge: "📸 Foto verificada por IA",
+
+  badgeNewFire: "FUEGO NUEVO",
+  badgeReport: "REPORTE",
+  badgeActive: "ACTIVO",
+  badgeRecent: "RECIENTE",
+  badgeWatched: "VIGILADO",
+  badgeOld: "ANTIGUO",
+  confPossible: "posible",
+  confProbable: "probable",
+  confCorroborated: "corroborado",
+  close: "Cerrar",
+  firstMention: "Primera mención",
+  postsWindow: (n: number, src: string) => `${n} publicación${n > 1 ? "es" : ""} en ${src} (12 h)`,
+  lastLabel: "última",
+  positionNote: "Posición = centro del municipio citado, no del fuego",
+  share: "Compartir",
+  linkCopied: "Enlace copiado ✓",
+  shareSignal: (place: string) => `kanari — reporte cerca de ${place}`,
+  shareEvent: (place: string) => `kanari — foco ${place}`,
+  signalFootnote:
+    "Testimonio aún no confirmado por satélite: o el fuego es demasiado pequeño o reciente para ser visto (¡precocidad!), o no es un incendio forestal.",
+  beforePress: (d: string) => `detectado ${d} antes que la prensa`,
+  citizenMention: "Primera mención ciudadana",
+  satFirst: "Primera señal satelital",
+  lastSignal: "Última señal",
+  wind: (speed: number, dir: string) => `Viento ${speed} km/h del ${dir}`,
+  spreadLine: (km: number, dir: string) =>
+    `Propagación estimada 3 h: ~${km} km hacia el ${dir} (solo viento, indicativo)`,
+  legendSpread: "Cono naranja: propagación estimada (viento + relieve, indicativo)",
+  gusts: (g: number) => ` · ráfagas ${g}`,
+  riskLabel: "Riesgo meteorológico estimado",
+  riskLevels: ["bajo", "moderado", "alto", "muy alto"],
+  riskNote:
+    "Riesgo estimado a partir de temperatura, humedad, viento y lluvia reciente (Open-Meteo). Estimación indicativa, no oficial.",
+  viewDetail: "Ver detalle",
+  hideDetail: "Ocultar detalle",
+  dlFirstUTC: "Primera señal (UTC)",
+  dlDetections: "Detecciones",
+  dlPower: "Potencia máx",
+  dlPosition: "Posición",
+  dlDfci: "Cuadrícula DFCI",
+  worldviewLink: "Imagen satelital (NASA Worldview)",
+  statusFading: (h: number) =>
+    `Sin señal desde hace ${h} h — posible extinción, o fuego oculto (nubes, dosel)`,
+  corrobBy: (n: number, place: string, km?: number) =>
+    `Corroborado por ${n} testimonio${n > 1 ? "s" : ""} cerca de ${place}${
+      km !== undefined && km >= 5 ? ` (a ~${km} km)` : ""
+    }`,
+  nearLabel: (place: string) => `cerca de ${place}`,
+  badgeUnverified: "POR VERIFICAR",
+  searchWitnesses: (more: boolean) => `Buscar ${more ? "más " : ""}testigos`,
+  searchingWitnesses: "Buscando testigos…",
+  searchUnavailable: "Búsqueda no disponible por el momento.",
+  zoneLabel: "Zona",
+  witnessesFound: (n: number) => `${n} testimonio${n !== 1 ? "s" : ""} encontrado${n !== 1 ? "s" : ""} (48 h)`,
+  bskyUnreachable:
+    "La búsqueda en Bluesky está momentáneamente inaccesible desde nuestros servidores — inténtalo más tarde.",
+  noWitnesses:
+    "Ninguna mención en Bluesky para esta zona. No significa que no haya fuego — solo que no hay testigos conectados.",
+  eventFootnote:
+    "La « primera señal » es la hora del primer paso satelital que vio este foco — la ignición real puede ser anterior.",
+
+  ago: (txt: string) => `hace ${txt}`,
+  compass: ["N", "NE", "E", "SE", "S", "SO", "O", "NO"],
+};
+
+const pt: typeof fr = {
+  tagline: "o alerta de incêndio florestal, antes de todo mundo",
+  navHow: "Como funciona",
+  navAbout: "Sobre",
+  navFaq: "FAQ",
+  navContribute: "Contribuir",
+  emergency: (n: string) => `Emergência? ${n}`,
+  emergencyWord: "Emergência?",
+  planesShort: "meios aéreos em voo · mundo",
+  legendPlane: "Meios aéreos (aviões-tanque, helicópteros…)",
+  minimize: "Minimizar",
+  viewSatellite: "Satélite",
+  viewPlan: "Mapa",
+  metaTitle: "Mapa de incêndios florestais e queimadas em tempo real — kanari",
+  metaDescription:
+    "Mapa mundial quase em tempo real dos focos de incêndio florestal e queimadas: detecção por satélite (NASA FIRMS, GOES, Meteosat), relatos cidadãos verificados por IA, alertas gratuitos por zona. O canário canta antes da sirene.",
+
+  searchPlaceholder: "Buscar uma cidade ou área",
+  myPosition: "Minha localização",
+  legend: "Legenda",
+  smoke: "Fumaça",
+  smokeTitle: "Plumas de fumaça e partículas observadas pela NASA (dia anterior)",
+  legendSmoke: "Véu marrom: fumaça / partículas (aerossóis NASA, dia anterior)",
+  legendActive: "Fogo ativo · menos de 3 h",
+  legendRecent: "Recente · 3 – 12 h",
+  legendWatched: "Monitorado · 12 – 24 h",
+  legendOld: "Antigo · mais de 24 h",
+  legendCitizen: "Relato cidadão · satélite próximo",
+  legendUnverified: "Relato em verificação · ainda sem satélite",
+  legendSize: "Tamanho da chama = número de detecções",
+  analyzing: "kanari está analisando os sinais…",
+  errFirmsKey: "Chave NASA FIRMS ausente ou inválida (variável FIRMS_MAP_KEY).",
+  errData: "Dados de satélite momentaneamente indisponíveis — nova tentativa em 2 min.",
+
+  live: "Ao vivo",
+  listening: "kanari está escutando",
+  tabAll: "Tudo",
+  tabUrgent: "Urgentes",
+  bucketNow: "Agora mesmo",
+  bucketHour: "Última hora",
+  bucketEarlier: "Antes",
+  loadingFeed: "Consultando satélites e analisando sinais com IA…",
+  emptyAll:
+    "Nada a relatar na vista atual. kanari está escutando — mova o mapa ou amplie o período.",
+  emptyUrgent:
+    "Nenhum foco novo (primeiro sinal < 2 h) na vista atual. Amplie o mapa: a cobertura mais rápida vem do GOES (Américas), Meteosat (Europa/África) e dos relatos cidadãos.",
+  urgentBanner: (n: number) => `${n} foco${n > 1 ? "s" : ""} relatado${n > 1 ? "s" : ""} há menos de 20 min`,
+  satDetection: "Detecção por satélite",
+  detectionsSat: (n: number) => `${n} detecção${n > 1 ? "ões" : ""} por satélite`,
+  mwMax: "MW máx",
+  corroboratedTag: "corroborado",
+  probablePrefix: "Foco provável — ",
+  postsOn: (n: number, src: string) => `${n} publicação${n > 1 ? "ões" : ""} no ${src}`,
+  lastMentionAgo: "última menção",
+  verifying: "em verificação",
+  satShort: "Satélite",
+  footerStats: (ev: string, sig: number) => `${ev} focos · ${sig} relatos`,
+  updatedNow: "atualizado agora",
+  updatedAgo: (s: number) => `atualizado há ${s} s`,
+  refreshNow: "Atualizar agora",
+
+  ctaOff: "Alertar-me nesta área",
+  ctaOn: "Área sob vigilância — kanari está de olho ✓",
+  ctaBusy: "Ativando…",
+  alertNotSupported: "Este navegador não suporta notificações.",
+  alertAllow: "Permita as notificações para ativar os alertas.",
+  alertOn: "Área sob vigilância: você será avisado de novos focos prováveis aqui.",
+  alertOff: "Alertas desativados.",
+  alertFailed: "Falha na ativação — tente de novo.",
+  geoUnsupported: "Este navegador não suporta geolocalização.",
+  geoUnavailable: "Localização indisponível — verifique a permissão de localização.",
+  yourPosition: "Sua localização",
+
+  reportBtn: "Relatar um incêndio",
+  reportConfirm:
+    "Enviar um relato de incêndio na sua posição atual?\n\nUse este botão apenas se você realmente vê um fogo começando. Em uma emergência, ligue primeiro para os serviços de emergência.",
+  reportSent: "Obrigado! Relato enviado — ele aparece no mapa como « a verificar ».",
+  reportFailed: "Não foi possível enviar — tente de novo.",
+  reportRateLimited: "No máximo um relato a cada 5 minutos.",
+  reportPopup: (age: string) => `Testemunha direta · ${age}`,
+  reportPhotoAsk: "Relato enviado. Adicionar uma foto do fogo para verificação por IA? (opcional)",
+  reportPhotoAdd: "📸 Adicionar uma foto",
+  reportPhotoSkip: "Não, obrigado",
+  reportPhotoChecking: "A IA está verificando a foto…",
+  reportPhotoVerified: "Foto verificada ✓ Seu relato está marcado como autenticado.",
+  reportPhotoRejected: "Foto inconclusiva: o relato continua visível, sem selo de verificação.",
+  reportPhotoFailed: "Não foi possível enviar a foto. Seu relato continua valendo.",
+  reportPhotoBadge: "📸 Foto verificada por IA",
+
+  badgeNewFire: "FOGO NOVO",
+  badgeReport: "RELATO",
+  badgeActive: "ATIVO",
+  badgeRecent: "RECENTE",
+  badgeWatched: "MONITORADO",
+  badgeOld: "ANTIGO",
+  confPossible: "possível",
+  confProbable: "provável",
+  confCorroborated: "corroborado",
+  close: "Fechar",
+  firstMention: "Primeira menção",
+  postsWindow: (n: number, src: string) => `${n} publicação${n > 1 ? "ões" : ""} no ${src} (12 h)`,
+  lastLabel: "última",
+  positionNote: "Posição = centro do município citado, não do fogo",
+  share: "Compartilhar",
+  linkCopied: "Link copiado ✓",
+  shareSignal: (place: string) => `kanari — relato perto de ${place}`,
+  shareEvent: (place: string) => `kanari — foco ${place}`,
+  signalFootnote:
+    "Relato ainda não confirmado por satélite: ou o fogo é pequeno ou recente demais para ser visto (precocidade!), ou não é um incêndio florestal.",
+  beforePress: (d: string) => `detectado ${d} antes da imprensa`,
+  citizenMention: "Primeira menção cidadã",
+  satFirst: "Primeiro sinal de satélite",
+  lastSignal: "Último sinal",
+  wind: (speed: number, dir: string) => `Vento ${speed} km/h de ${dir}`,
+  spreadLine: (km: number, dir: string) =>
+    `Propagação estimada 3 h: ~${km} km para ${dir} (só vento, indicativo)`,
+  legendSpread: "Cone laranja: propagação estimada (vento + relevo, indicativo)",
+  gusts: (g: number) => ` · rajadas ${g}`,
+  riskLabel: "Risco meteorológico estimado",
+  riskLevels: ["baixo", "moderado", "alto", "muito alto"],
+  riskNote:
+    "Risco estimado a partir de temperatura, umidade, vento e chuva recente (Open-Meteo). Estimativa indicativa, não oficial.",
+  viewDetail: "Ver detalhes",
+  hideDetail: "Ocultar detalhes",
+  dlFirstUTC: "Primeiro sinal (UTC)",
+  dlDetections: "Detecções",
+  dlPower: "Potência máx",
+  dlPosition: "Posição",
+  dlDfci: "Grade DFCI",
+  worldviewLink: "Imagem de satélite (NASA Worldview)",
+  statusFading: (h: number) =>
+    `Sem sinal há ${h} h — possível extinção, ou fogo encoberto (nuvens, copa das árvores)`,
+  corrobBy: (n: number, place: string, km?: number) =>
+    `Corroborado por ${n} relato${n > 1 ? "s" : ""} perto de ${place}${
+      km !== undefined && km >= 5 ? ` (a ~${km} km)` : ""
+    }`,
+  nearLabel: (place: string) => `perto de ${place}`,
+  badgeUnverified: "A VERIFICAR",
+  searchWitnesses: (more: boolean) => `Buscar ${more ? "mais " : ""}testemunhas`,
+  searchingWitnesses: "Buscando testemunhas…",
+  searchUnavailable: "Busca indisponível no momento.",
+  zoneLabel: "Área",
+  witnessesFound: (n: number) => `${n} relato${n !== 1 ? "s" : ""} encontrado${n !== 1 ? "s" : ""} (48 h)`,
+  bskyUnreachable:
+    "A busca no Bluesky está momentaneamente inacessível dos nossos servidores — tente mais tarde.",
+  noWitnesses:
+    "Nenhuma menção no Bluesky para esta área. Não significa que não há fogo — só que não há testemunhas conectadas.",
+  eventFootnote:
+    "O « primeiro sinal » é a hora da primeira passagem de satélite que viu este foco — a ignição real pode ser anterior.",
+
+  ago: (txt: string) => `há ${txt}`,
+  compass: ["N", "NE", "L", "SE", "S", "SO", "O", "NO"],
+};
+
+export const DICT: Record<Lang, typeof fr> = { fr, en, es, pt };
 export type Dict = typeof fr;

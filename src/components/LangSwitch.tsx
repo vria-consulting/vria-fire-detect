@@ -2,9 +2,9 @@
 
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { Suspense } from "react";
-import type { Lang } from "@/lib/i18n";
+import { LANGS, type Lang } from "@/lib/i18n";
 
-// Sélecteur FR/EN : pose un cookie de préférence (respecté par le middleware
+// Sélecteur de langue (FR/EN/ES/PT) : pose un cookie de préférence (respecté par le middleware
 // pour toutes les visites suivantes) et bascule l'URL en conservant page et
 // query.
 function Switch({ current }: { current: Lang }) {
@@ -15,7 +15,7 @@ function Switch({ current }: { current: Lang }) {
   const go = (lang: Lang) => {
     if (lang === current) return;
     document.cookie = `kanari-lang=${lang};path=/;max-age=31536000;samesite=lax`;
-    const rest = pathname.replace(/^\/(fr|en)/, "");
+    const rest = pathname.replace(/^\/(fr|en|es|pt)/, "");
     const qs = search.toString();
     router.push(`/${lang}${rest}${qs ? `?${qs}` : ""}`);
   };
@@ -27,7 +27,7 @@ function Switch({ current }: { current: Lang }) {
       role="group"
       aria-label="Language"
     >
-      {(["fr", "en"] as const).map((lang) => (
+      {LANGS.map((lang) => (
         <button
           key={lang}
           onClick={() => go(lang)}

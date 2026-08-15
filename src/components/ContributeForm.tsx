@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
-import type { Lang } from "@/lib/i18n";
+import { localize, type Lang } from "@/lib/i18n";
 
 // Garde-fous (miroir client des limites serveur).
 const MAX_FILES = 5;
@@ -92,7 +92,7 @@ function fmtSize(b: number): string {
 }
 
 export function ContributeForm({ lang }: { lang: Lang }) {
-  const t = T[lang];
+  const t = localize(T, lang);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");

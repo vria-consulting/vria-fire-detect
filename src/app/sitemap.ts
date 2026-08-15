@@ -6,7 +6,7 @@ import { FRENCH_FLEET } from "@/lib/aircraft";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = "https://kanari.io";
-  const langs = { fr: `${base}/fr`, en: `${base}/en` };
+  const langs = { fr: `${base}/fr`, en: `${base}/en`, es: `${base}/es`, pt: `${base}/pt` };
   // Pages locales « feux par département » (contenu FR, URL canonique unique).
   const deptPages: MetadataRoute.Sitemap = DEPARTEMENTS.map((d) => ({
     url: `${base}/fr/feux/${d.slug}`,
@@ -170,6 +170,20 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 1,
+      alternates: { languages: langs },
+    },
+    {
+      url: `${base}/es`,
+      lastModified: new Date(),
+      changeFrequency: "hourly",
+      priority: 0.9,
+      alternates: { languages: langs },
+    },
+    {
+      url: `${base}/pt`,
+      lastModified: new Date(),
+      changeFrequency: "hourly",
+      priority: 0.9,
       alternates: { languages: langs },
     },
     {

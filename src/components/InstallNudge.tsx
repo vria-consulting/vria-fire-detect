@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { localize, type Lang } from "@/lib/i18n";
 
 // Invitation discrète à installer kanari sur l'écran d'accueil : le visiteur
 // d'un soir de feu devient un utilisateur permanent (le carburant de la
@@ -28,8 +29,8 @@ const T = {
   },
 } as const;
 
-export function InstallNudge({ lang }: { lang: "fr" | "en" }) {
-  const t = T[lang];
+export function InstallNudge({ lang }: { lang: Lang }) {
+  const t = localize(T, lang);
   const [bip, setBip] = useState<BipEvent | null>(null);
   const [ios, setIos] = useState(false);
   const [iosOpen, setIosOpen] = useState(false);

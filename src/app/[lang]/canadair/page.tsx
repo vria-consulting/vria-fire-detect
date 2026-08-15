@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { isValidLang, type Lang } from "@/lib/i18n";
+import { isValidLang, type Lang, localize } from "@/lib/i18n";
 import { getWaterBombers, FRENCH_FLEET, type Plane } from "@/lib/aircraft";
 import { SiteFooter } from "@/components/SiteFooter";
 
@@ -123,12 +123,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { lang } = await params;
   const l: Lang = isValidLang(lang) ? lang : "en";
-  const t = T[l];
+  const t = localize(T, l);
   return {
     title: t.metaTitle,
     description: t.metaDesc,
     alternates: {
-      canonical: `/${l}/canadair`,
+      canonical: `/${l === "fr" ? "fr" : "en"}/canadair`,
       languages: { fr: "/fr/canadair", en: "/en/canadair" },
     },
   };
@@ -137,7 +137,7 @@ export async function generateMetadata({
 export default async function CanadairPage({ params }: { params: Promise<{ lang: string }> }) {
   const { lang } = await params;
   if (!isValidLang(lang)) notFound();
-  const t = T[lang];
+  const t = localize(T, lang);
 
   let planes: Plane[] = [];
   try {
