@@ -157,8 +157,10 @@ export async function fetchOfficialPerimeter(
   }
   if (country === "CA") return fetchCwfisPerimeter(lat, lon);
   if (country && EFFIS_COUNTRIES.has(country)) {
-    // Fenêtre : depuis 14 jours avant la première détection du feu.
-    const since = new Date(new Date(firstSeenIso).getTime() - 14 * 86400_000).toISOString();
+    // Fenêtre : 30 jours avant la première détection — un grand feu européen
+    // brûle des semaines et sa surface EFFIS porte la date du départ initial
+    // (vérifié : Fermoselle, BA du 29/07 pour un foyer re-détecté le 14/08).
+    const since = new Date(new Date(firstSeenIso).getTime() - 30 * 86400_000).toISOString();
     return fetchEffisPerimeter(lat, lon, since);
   }
   return null;
