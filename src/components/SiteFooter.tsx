@@ -68,7 +68,7 @@ const EN: { title: string; items: Item[] }[] = [
       { href: "/en/faq", label: "FAQ" },
       { href: "/en/comparatif", label: "Wildfire maps compared" },
       { href: "/en/a-propos", label: "About kanari" },
-      { href: "/fr/widget", label: "Embed widget" },
+      { href: "/en/widget", label: "Embed widget" },
       { href: "/en/confidentialite", label: "Privacy and cookies" },
     ],
   },

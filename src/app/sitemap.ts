@@ -61,6 +61,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.6,
+      alternates: { languages: { fr: `${base}/fr/widget`, en: `${base}/en/widget` } },
+    },
+    {
+      url: `${base}/en/widget`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.6,
+      alternates: { languages: { fr: `${base}/fr/widget`, en: `${base}/en/widget` } },
     },
     {
       url: `${base}/fr/bilan`,
