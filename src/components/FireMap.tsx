@@ -741,11 +741,11 @@ export default function FireMap({ lang }: { lang: Lang }) {
   const loadData = useCallback(async (map: maplibregl.Map, nHours: number, silent = false) => {
     if (!silent) setStatus({ kind: "loading" });
     try {
-      const [evRes, sigRes, repRes] = await Promise.all([
-        fetch(`/api/events?hours=${nHours}`),
-        fetch(`/api/signals`).catch(() => null),
-        fetch(`/api/report`).catch(() => null),
-      ]);
+      // Les foyers d'abord, seuls : ils sont LA donnée critique et ne doivent
+      // pas attendre le plus lent des flux secondaires (signaux sociaux,
+      // signalements citoyens) — ceux-ci arrivent juste derrière, sans
+      // bloquer ni le premier rendu ni le statut « prêt ».
+      const evRes = await fetch(`/api/events?hours=${nHours}`);
       if (!evRes.ok) {
         const body = await evRes.json().catch(() => ({ error: "UNKNOWN" }));
         setStatus({ kind: "error", code: body.error ?? `HTTP_${evRes.status}` });
@@ -762,14 +762,6 @@ export default function FireMap({ lang }: { lang: Lang }) {
         pendingSelectRef.current = null;
         if (ev) setSelected(ev);
       }
-
-      let signals: SocialSignal[] = [];
-      if (sigRes?.ok) {
-        const sigData: { signals: SocialSignal[] } = await sigRes.json();
-        signals = sigData.signals;
-      }
-      signalsRef.current = signals;
-      setSignals(signals);
 
       const evSrc = map.getSource("events") as maplibregl.GeoJSONSource | undefined;
       if (evSrc)
@@ -792,56 +784,75 @@ export default function FireMap({ lang }: { lang: Lang }) {
             },
           })),
         });
-      // Signalements citoyens directs (« Je vois un feu ») : affichés en
-      // signaux « à vérifier », jamais en foyers confirmés.
-      let reports: {
-        id: string; lat: number; lon: number; note?: string; at: string;
-        photoUrl?: string; photoVerified?: boolean;
-      }[] = [];
-      if (repRes?.ok) {
-        const repData = await repRes.json().catch(() => null);
-        if (repData?.reports) reports = repData.reports;
-      }
-      reportsRef.current = reports;
-      const repSrc = map.getSource("reports") as maplibregl.GeoJSONSource | undefined;
-      if (repSrc)
-        repSrc.setData({
-          type: "FeatureCollection",
-          features: reports.map((r) => ({
-            type: "Feature" as const,
-            geometry: { type: "Point" as const, coordinates: [r.lon, r.lat] },
-            properties: { repId: r.id, verified: r.photoVerified ? 1 : 0 },
-          })),
-        });
-
-      const sigSrc = map.getSource("signals") as maplibregl.GeoJSONSource | undefined;
-      if (sigSrc)
-        sigSrc.setData({
-          type: "FeatureCollection",
-          features: signals.map((s) => ({
-            type: "Feature" as const,
-            geometry: { type: "Point" as const, coordinates: [s.lon, s.lat] },
-            properties: {
-              // Identité stable du signal : les tuiles se reconstruisent en
-              // asynchrone après setData, un simple index peut donc pointer
-              // vers le mauvais élément du tableau rafraîchi entre-temps.
-              sigKey: `${s.place}|${s.countryCode}|${s.lat}|${s.lon}`,
-              postCount: s.postCount,
-              ageMin: Math.round(hoursAgo(s.lastPost) * 60),
-              firstAgeMin: Math.round(hoursAgo(s.firstPost) * 60),
-              newFire: s.newFire ? 1 : 0,
-              verified: signalVerified(s, data.events) ? 1 : 0,
-            },
-          })),
-        });
-
       setStatus({
         kind: "ready",
         events: data.events.length,
         detections: data.meta.totalDetections,
-        signals: signals.length,
+        signals: signalsRef.current.length,
       });
       setLastUpdate(Date.now());
+
+      // Flux secondaires en arrière-plan : signaux sociaux et signalements
+      // citoyens (« Je vois un feu ») complètent la carte quelques instants
+      // après les foyers, sans jamais les retarder.
+      void (async () => {
+        const [sigRes, repRes] = await Promise.all([
+          fetch(`/api/signals`).catch(() => null),
+          fetch(`/api/report`).catch(() => null),
+        ]);
+        let signals: SocialSignal[] = [];
+        if (sigRes?.ok) {
+          const sigData = (await sigRes.json().catch(() => null)) as { signals?: SocialSignal[] } | null;
+          if (sigData?.signals) signals = sigData.signals;
+        }
+        signalsRef.current = signals;
+        setSignals(signals);
+
+        let reports: {
+          id: string; lat: number; lon: number; note?: string; at: string;
+          photoUrl?: string; photoVerified?: boolean;
+        }[] = [];
+        if (repRes?.ok) {
+          const repData = await repRes.json().catch(() => null);
+          if (repData?.reports) reports = repData.reports;
+        }
+        reportsRef.current = reports;
+        const repSrc = map.getSource("reports") as maplibregl.GeoJSONSource | undefined;
+        if (repSrc)
+          repSrc.setData({
+            type: "FeatureCollection",
+            features: reports.map((r) => ({
+              type: "Feature" as const,
+              geometry: { type: "Point" as const, coordinates: [r.lon, r.lat] },
+              properties: { repId: r.id, verified: r.photoVerified ? 1 : 0 },
+            })),
+          });
+
+        const sigSrc = map.getSource("signals") as maplibregl.GeoJSONSource | undefined;
+        if (sigSrc)
+          sigSrc.setData({
+            type: "FeatureCollection",
+            features: signals.map((s) => ({
+              type: "Feature" as const,
+              geometry: { type: "Point" as const, coordinates: [s.lon, s.lat] },
+              properties: {
+                // Identité stable du signal : les tuiles se reconstruisent en
+                // asynchrone après setData, un simple index peut donc pointer
+                // vers le mauvais élément du tableau rafraîchi entre-temps.
+                sigKey: `${s.place}|${s.countryCode}|${s.lat}|${s.lon}`,
+                postCount: s.postCount,
+                ageMin: Math.round(hoursAgo(s.lastPost) * 60),
+                firstAgeMin: Math.round(hoursAgo(s.firstPost) * 60),
+                newFire: s.newFire ? 1 : 0,
+                verified: signalVerified(s, data.events) ? 1 : 0,
+              },
+            })),
+          });
+
+        setStatus((prev) =>
+          prev.kind === "ready" ? { ...prev, signals: signals.length } : prev
+        );
+      })();
     } catch {
       if (!silent) setStatus({ kind: "error", code: "NETWORK" });
     }
@@ -870,9 +881,13 @@ export default function FireMap({ lang }: { lang: Lang }) {
     const reducedMotion =
       typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // Mobile : jamais d'intro — le TBT mesuré par Google (et vécu par un
+    // visiteur en situation d'urgence) explosait à cause des 4 s de rendu
+    // globe continu ; sur petit écran on va droit à la carte locale.
+    const smallScreen = window.innerWidth < 768;
     let intro = false;
     try {
-      intro = !hasDeepLink && !reducedMotion && sessionStorage.getItem("kanari-intro") !== "1";
+      intro = !hasDeepLink && !reducedMotion && !smallScreen && sessionStorage.getItem("kanari-intro") !== "1";
       if (intro) sessionStorage.setItem("kanari-intro", "1");
     } catch {
       /* sessionStorage indisponible : pas d'intro */
