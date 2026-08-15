@@ -1,0 +1,56 @@
+# CI anti-régression : types + build bloquants, puis garde SEO contre un
+# serveur local (les pages doivent se dégrader proprement sans secrets — la
+# CI ne reçoit AUCUN env). Un title, canonical, hreflang, JSON-LD ou ads.txt
+# qui disparaît fait échouer le push. Lighthouse en surveillance (non
+# bloquant : les runners partagés font varier les scores).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Dépendances
+        run: npm ci
+
+      - name: Types (tsc)
+        run: npx tsc --noEmit
+
+      - name: Build de production
+        run: npm run build
+
+      - name: Démarrer le serveur
+        run: |
+          npx next start -p 3111 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3111/fr/confidentialite > /dev/null && break
+            sleep 2
+          done
+
+      - name: Garde SEO (bloquante)
+        run: node scripts/seo-guard.mjs http://localhost:3111
+
+      - name: Lighthouse pages contenu (surveillance, non bloquant)
+        continue-on-error: true
+        run: |
+          npx -y lighthouse http://localhost:3111/fr/statistiques \
+            --only-categories=performance --chrome-flags="--headless=new --no-sandbox" \
+            --output=json --output-path=./lh.json --quiet
+          node -e "
+            const j = require('./lh.json');
+            const score = Math.round((j.categories.performance.score || 0) * 100);
+            console.log('Score perf /fr/statistiques :', score);
+            if (score < 80) { console.log('⚠️ sous 80 — à surveiller'); }
+          "
