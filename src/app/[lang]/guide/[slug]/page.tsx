@@ -6,6 +6,7 @@ import { GUIDES, GUIDE_BY_SLUG, type Guide } from "@/lib/guides";
 import { GUIDES_EN, GUIDE_EN_BY_SLUG } from "@/lib/guides-en";
 import { countFires } from "@/lib/firearchive";
 import { Adsense } from "@/components/Adsense";
+import { SiteFooter } from "@/components/SiteFooter";
 
 // Équipement pertinent par guide (liens partenaires Amazon, FR uniquement) :
 // uniquement là où la recommandation est légitime pour le lecteur, avec la
@@ -277,6 +278,7 @@ export default async function GuidePage({
         <p className="mt-8 border-t pt-4 text-[12.5px]" style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}>
           {ui.disclaimer}
         </p>
+        <SiteFooter lang={lang} />
       </article>
     </div>
   );
