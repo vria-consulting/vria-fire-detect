@@ -615,6 +615,11 @@ export default function FireMap({ lang }: { lang: Lang }) {
   );
   // UI maquette v2
   const [legendOpen, setLegendOpen] = useState(false);
+  // Couche fumée/particules (AOD MAIAC NASA, J-1) : off par défaut, la
+  // visibilité est portée par une ref car la couche s'ajoute en asynchrone
+  // (résolution de la date de tuiles la plus récente).
+  const [smokeOn, setSmokeOn] = useState(false);
+  const smokeOnRef = useRef(false);
   const [satellite, setSatellite] = useState(true); // fond satellite par défaut
   // Miroir pour la boucle rAF (closures figées) : contraste des chevrons.
   const satelliteRef = useRef(true);
@@ -1067,6 +1072,45 @@ export default function FireMap({ lang }: { lang: Lang }) {
 
       // Voile de NUIT solaire : l'hémisphère nuit assombri, recalculé chaque
       // minute — sur le globe, les feux brillent côté nuit.
+      // Fumée / particules : AOD MAIAC 1 km (NASA GIBS, tuiles publiques,
+      // publiées à J-1/J-3). On sonde une tuile z0 pour trouver la date la
+      // plus récente, puis la couche s'insère SOUS le voile de nuit.
+      (async () => {
+        const day = (n: number) => new Date(Date.now() - n * 86400_000).toISOString().slice(0, 10);
+        const url = (d: string) =>
+          `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Combined_MAIAC_L2G_AerosolOpticalDepth/default/${d}/GoogleMapsCompatible_Level7`;
+        let date: string | null = null;
+        for (const d of [day(1), day(2), day(3)]) {
+          try {
+            const r = await fetch(`${url(d)}/0/0/0.png`, { method: "HEAD" });
+            if (r.ok) {
+              date = d;
+              break;
+            }
+          } catch {
+            /* date suivante */
+          }
+        }
+        if (!date || map.getSource("aod")) return;
+        map.addSource("aod", {
+          type: "raster",
+          tiles: [`${url(date)}/{z}/{y}/{x}.png`],
+          tileSize: 256,
+          maxzoom: 7,
+          attribution: "Aérosols : NASA GIBS",
+        });
+        map.addLayer(
+          {
+            id: "aod",
+            type: "raster",
+            source: "aod",
+            layout: { visibility: smokeOnRef.current ? "visible" : "none" },
+            paint: { "raster-opacity": 0.55, "raster-resampling": "linear" },
+          },
+          map.getLayer("night") ? "night" : undefined
+        );
+      })();
+
       map.addSource("night", { type: "geojson", data: nightPolygon() });
       map.addLayer({
         id: "night",
@@ -2210,6 +2254,16 @@ export default function FireMap({ lang }: { lang: Lang }) {
     vis("sat-labels", next);
   };
 
+  // Bascule de la couche fumée/particules (la couche s'ajoute en asynchrone :
+  // si elle n'existe pas encore, la ref portera la visibilité à l'ajout).
+  const toggleSmoke = () => {
+    const next = !smokeOnRef.current;
+    smokeOnRef.current = next;
+    setSmokeOn(next);
+    const map = mapRef.current;
+    if (map?.getLayer("aod")) map.setLayoutProperty("aod", "visibility", next ? "visible" : "none");
+  };
+
   // Animation sobre des feux : le halo des foyers actifs (< 3 h) « respire »
   // doucement (opacité seulement — léger et discret).
   useEffect(() => {
@@ -2713,6 +2767,18 @@ export default function FireMap({ lang }: { lang: Lang }) {
           >
             {t.legend}
           </button>
+          <button
+            onClick={toggleSmoke}
+            className={chip}
+            title={t.smokeTitle}
+            style={
+              smokeOn
+                ? { background: "var(--charcoal)", color: "var(--paper)", boxShadow: "var(--shadow-s)" }
+                : { background: "var(--white)", color: "var(--ink-2)", boxShadow: "var(--shadow-s)" }
+            }
+          >
+            {t.smoke}
+          </button>
           {REPLAY_ENABLED && (
             <button
               onClick={() => (replayOn ? closeReplay() : openReplay())}
@@ -2838,6 +2904,13 @@ export default function FireMap({ lang }: { lang: Lang }) {
                 🛩️
               </span>
               {t.legendPlane}
+            </span>
+            <span className="flex items-center gap-[9px]">
+              <span
+                className="inline-block h-[11px] w-[11px] shrink-0 rounded-[3px]"
+                style={{ background: "#8A5A2B", opacity: 0.5 }}
+              />
+              {t.legendSmoke}
             </span>
             <span
               className="mt-0.5 border-t pt-2 text-xs"
