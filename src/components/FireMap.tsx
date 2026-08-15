@@ -7,6 +7,7 @@ import type { FireEvent, Confidence } from "@/lib/cluster";
 import type { SocialResult, SocialPost } from "@/lib/social";
 import type { SocialSignal } from "@/lib/socialscan";
 import { DICT, type Lang, type Dict } from "@/lib/i18n";
+import { InstallNudge } from "@/components/InstallNudge";
 import { dfciCode } from "@/lib/dfci";
 import type { FireRisk } from "@/lib/firerisk";
 import type { Plane } from "@/lib/aircraft";
@@ -61,9 +62,11 @@ function formatShort(h: number): string {
   return `${Math.round(h / 24)} j`;
 }
 
-// Bouton « M'alerter sur cette zone » masqué en attendant une refonte (fiabilité
-// des alertes push) : passer à true pour le réafficher.
-const ALERTS_ENABLED = false;
+// Alertes de zone réactivées le 15/08/2026 : la « fiabilité » qui avait
+// justifié le masquage était le readJson blob muet (Authorization manquante,
+// corrigé le 14/08) — les abonnements étaient écrits mais jamais relus par le
+// cron. La chaîne subscribe → blob → cron 5 min → web-push est vérifiée.
+const ALERTS_ENABLED = true;
 
 // ---- Braises : dimension réelle et phase d'animation ----------------------
 // Rayon d'emprise du foyer (km) depuis sa bbox de détections : la taille du
@@ -2677,6 +2680,9 @@ export default function FireMap({ lang }: { lang: Lang }) {
   return (
     <div className="relative h-full w-full" style={{ fontFamily: "var(--font-body)" }}>
       <div ref={containerRef} className="h-full w-full" />
+
+      {/* Invitation d'installation PWA (chip discret, jamais en mode installé) */}
+      <InstallNudge lang={lang} />
 
       {/* Recherche + filtres (haut gauche, maquette v2) */}
       <div className="absolute left-3 top-3 z-30 flex flex-col gap-2.5 sm:left-5 sm:top-5">
