@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { isValidLang, type Lang, localize } from "@/lib/i18n";
 import { GUIDES } from "@/lib/guides";
 import { GUIDES_EN } from "@/lib/guides-en";
+import { GUIDES_ES } from "@/lib/guides-es";
+import { GUIDES_PT } from "@/lib/guides-pt";
 
 const T = {
   fr: {
@@ -26,6 +28,26 @@ const T = {
     backMap: "← Live wildfire map",
     faq: "FAQ",
   },
+  es: {
+    metaTitle: "Guías sobre incendios forestales: reflejos, satélites, humo | kanari",
+    metaDesc:
+      "Las guías de kanari para entender los incendios forestales: los reflejos correctos ante un foco, la detección satelital y qué hacer cuando huele a humo.",
+    h1: "Guías sobre incendios forestales",
+    intro:
+      "Entender los incendios forestales para protegerse mejor: los reflejos que salvan vidas, la detección satelital por dentro y qué hacer cuando huele a humo.",
+    backMap: "← Mapa de incendios en vivo",
+    faq: "Preguntas frecuentes",
+  },
+  pt: {
+    metaTitle: "Guias sobre incêndios florestais: reflexos, satélites, fumaça | kanari",
+    metaDesc:
+      "Os guias do kanari para entender os incêndios florestais: os reflexos certos diante de um foco, a detecção por satélite e o que fazer quando há cheiro de fumaça.",
+    h1: "Guias sobre incêndios florestais",
+    intro:
+      "Entender os incêndios florestais para se proteger melhor: os reflexos que salvam vidas, os bastidores da detecção por satélite e o que fazer quando há cheiro de fumaça.",
+    backMap: "← Mapa de incêndios ao vivo",
+    faq: "Perguntas frequentes",
+  },
 } as const;
 
 export async function generateMetadata({
@@ -40,8 +62,8 @@ export async function generateMetadata({
     title: t.metaTitle,
     description: t.metaDesc,
     alternates: {
-      canonical: `/${l === "fr" ? "fr" : "en"}/guide`,
-      languages: { fr: "/fr/guide", en: "/en/guide" },
+      canonical: `/${l}/guide`,
+      languages: { fr: "/fr/guide", en: "/en/guide", es: "/es/guide", pt: "/pt/guide" },
     },
   };
 }
@@ -50,7 +72,10 @@ export default async function GuideHub({ params }: { params: Promise<{ lang: str
   const { lang } = await params;
   if (!isValidLang(lang)) notFound();
   const t = localize(T, lang);
-  const guides = lang === "fr" ? GUIDES : GUIDES_EN;
+  // es/pt : seuls les guides traduits sont listés (les autres restent
+  // accessibles via la version anglaise du hub).
+  const guides =
+    lang === "fr" ? GUIDES : lang === "es" ? GUIDES_ES : lang === "pt" ? GUIDES_PT : GUIDES_EN;
 
   return (
     <div className="k-scroll h-full overflow-y-auto" style={{ background: "var(--paper)" }}>

@@ -74,8 +74,84 @@ const EN: { title: string; items: Item[] }[] = [
   },
 ];
 
+// es/pt : liens localisés quand la page existe dans la langue (carte,
+// statistiques, FAQ, guides), version anglaise pour le reste.
+const ES: { title: string; items: Item[] }[] = [
+  {
+    title: "En vivo",
+    items: [
+      { href: "/es", label: "Mapa de incendios en vivo" },
+      { href: "/en/canadair", label: "Aviones cisterna en vivo" },
+      { href: "/en/fires", label: "Incendios por país" },
+    ],
+  },
+  {
+    title: "Datos",
+    items: [
+      { href: "/es/statistiques", label: "Estadísticas en tiempo real" },
+      { href: "/opendata/feux.csv", label: "Datos abiertos (CSV, CC BY 4.0)" },
+      { href: "/en/api", label: "API pública (JSON)" },
+    ],
+  },
+  {
+    title: "Entender",
+    items: [
+      { href: "/es/guide", label: "Guías sobre incendios" },
+      { href: "/es/faq", label: "Preguntas frecuentes" },
+      { href: "/en/a-propos", label: "Sobre kanari" },
+      { href: "/en/widget", label: "Widget para tu sitio" },
+      { href: "/en/confidentialite", label: "Privacidad y cookies" },
+    ],
+  },
+];
+
+const PT: { title: string; items: Item[] }[] = [
+  {
+    title: "Ao vivo",
+    items: [
+      { href: "/pt", label: "Mapa de incêndios ao vivo" },
+      { href: "/en/canadair", label: "Aviões-tanque ao vivo" },
+      { href: "/en/fires", label: "Incêndios por país" },
+    ],
+  },
+  {
+    title: "Dados",
+    items: [
+      { href: "/pt/statistiques", label: "Estatísticas em tempo real" },
+      { href: "/opendata/feux.csv", label: "Dados abertos (CSV, CC BY 4.0)" },
+      { href: "/en/api", label: "API pública (JSON)" },
+    ],
+  },
+  {
+    title: "Entender",
+    items: [
+      { href: "/pt/guide", label: "Guias sobre incêndios" },
+      { href: "/pt/faq", label: "Perguntas frequentes" },
+      { href: "/en/a-propos", label: "Sobre o kanari" },
+      { href: "/en/widget", label: "Widget para seu site" },
+      { href: "/en/confidentialite", label: "Privacidade e cookies" },
+    ],
+  },
+];
+
+const COLS: Record<Lang, { title: string; items: Item[] }[]> = { fr: FR, en: EN, es: ES, pt: PT };
+
+const SUPPORT: Record<Lang, string> = {
+  fr: "Soutenir kanari (gratuit pour toujours, grâce à vous)",
+  en: "Support kanari (free forever, thanks to you)",
+  es: "Apoyar a kanari (gratis para siempre, gracias a ti)",
+  pt: "Apoiar o kanari (grátis para sempre, graças a você)",
+};
+
+const TAGLINE: Record<Lang, string> = {
+  fr: "kanari — le canari chante avant la sirène. Service d'information indépendant et gratuit ; en cas d'urgence : 18 ou 112.",
+  en: "kanari — the canary sings before the siren. Free, independent information service; in an emergency call 112 or 911.",
+  es: "kanari — el canario canta antes que la sirena. Servicio de información independiente y gratuito; en una emergencia llama al 911 o al 112.",
+  pt: "kanari — o canário canta antes da sirene. Serviço de informação independente e gratuito; em emergência, ligue 193 (Brasil) ou 112 (Portugal).",
+};
+
 export function SiteFooter({ lang }: { lang: Lang }) {
-  const cols = lang === "fr" ? FR : EN;
+  const cols = COLS[lang];
   return (
     <footer className="mt-10 border-t pt-8 pb-4" style={{ borderColor: "var(--line)" }}>
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
@@ -106,13 +182,11 @@ export function SiteFooter({ lang }: { lang: Lang }) {
           className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-[13.5px] font-semibold"
           style={{ background: "var(--canary)", color: "var(--charcoal, #1B1C1E)", boxShadow: "var(--shadow-s)" }}
         >
-          ☕ {lang === "fr" ? "Soutenir kanari (gratuit pour toujours, grâce à vous)" : "Support kanari (free forever, thanks to you)"}
+          ☕ {SUPPORT[lang]}
         </a>
       </p>
       <p className="mt-4 text-[12px]" style={{ color: "var(--ink-3)" }}>
-        {lang === "fr"
-          ? "kanari — le canari chante avant la sirène. Service d'information indépendant et gratuit ; en cas d'urgence : 18 ou 112."
-          : "kanari — the canary sings before the siren. Free, independent information service; in an emergency call 112 or 911."}
+        {TAGLINE[lang]}
       </p>
     </footer>
   );

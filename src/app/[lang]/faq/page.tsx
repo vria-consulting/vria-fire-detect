@@ -9,7 +9,7 @@ import { isValidLang, type Lang, localize } from "@/lib/i18n";
 
 type QA = { q: string; a: string };
 
-const FAQ: Record<"fr" | "en", { title: string; intro: string; items: QA[] }> = {
+const FAQ: Record<Lang, { title: string; intro: string; items: QA[] }> = {
   fr: {
     title: "Questions fréquentes",
     intro:
@@ -103,6 +103,98 @@ const FAQ: Record<"fr" | "en", { title: string; intro: string; items: QA[] }> = 
       },
     ],
   },
+  es: {
+    title: "Preguntas frecuentes",
+    intro: "Todo sobre kanari, el mapa gratuito de focos de incendio en tiempo real.",
+    items: [
+      {
+        q: "¿Cómo sé si hay un incendio forestal cerca de mí ahora mismo?",
+        a: "Abre kanari.io: el mapa se centra en tu región y muestra los focos detectados por satélite en las últimas horas, más los reportes ciudadanos verificados. Usa el buscador de ciudades o el botón « Mi posición » para revisar una zona precisa. Cada llama está coloreada según la antigüedad de la última señal: rojo significa activo hace menos de 3 horas.",
+      },
+      {
+        q: "¿El mapa de incendios de kanari es realmente en tiempo real?",
+        a: "El mapa se actualiza cada 2 a 3 minutos. Las detecciones vienen de los satélites NASA FIRMS (VIIRS, resolución de 375 m), GOES para las Américas y Meteosat MTG para Europa y África (refresco cada 10 minutos), completadas con testimonios ciudadanos publicados en redes sociales. Un incendio puede aparecer entre unos minutos y algunas decenas de minutos después de su inicio real.",
+      },
+      {
+        q: "¿De dónde vienen los datos de kanari?",
+        a: "De fuentes públicas y verificables: NASA FIRMS (satélites VIIRS NOAA-20/21), NOAA GOES, EUMETSAT Meteosat MTG (detección activa de incendios), la prensa vía GDELT, Bluesky y Telegram para los testimonios. Cada reporte ciudadano pasa por un triaje de IA (dos juicios independientes) antes de mostrarse, para eliminar falsos positivos.",
+      },
+      {
+        q: "¿Se pueden seguir los aviones cisterna en vivo en kanari?",
+        a: "Sí. kanari muestra en casi tiempo real la posición de los medios aéreos contra incendios que emiten ADS-B: Canadair CL-415 y CL-215, Air Tractor Fire Boss, DC-10 Air Tanker, helicópteros (S-64 Air Crane, Chinook, Firehawk). Haz clic en una aeronave para ver su modelo, nacionalidad, velocidad y altitud. Como vuelan solo de día, el mapa muestra pocas de noche.",
+      },
+      {
+        q: "¿Qué hago si soy testigo de un foco de incendio?",
+        a: "Llama primero a emergencias: 911 en la mayor parte de América, 112 en España y Europa. Es el único canal de alerta oficial. Después puedes usar el botón « Reportar un incendio » de kanari para marcar tu posición y ayudar a que otros vean el foco lo antes posible.",
+      },
+      {
+        q: "¿kanari es gratuito?",
+        a: "Sí, totalmente gratuito y sin crear cuenta. kanari es un proyecto con misión: ayudar a la ciudadanía, los servicios de emergencia, las autoridades y los medios a ver los focos de incendio lo antes posible. El mapa mundial seguirá siendo gratuito.",
+      },
+      {
+        q: "¿kanari reemplaza las alertas oficiales?",
+        a: "No. kanari es un servicio de información independiente, no un canal de emergencia oficial. Las decisiones de evacuación e intervención corresponden a las autoridades (protección civil, bomberos). En una emergencia, llama al 911 o al 112.",
+      },
+      {
+        q: "¿Por qué un incendio que estoy viendo no aparece en el mapa?",
+        a: "Varias razones posibles: el fuego es demasiado pequeño o reciente para haber sido sobrevolado por un satélite (VIIRS pasa cada 12 horas aproximadamente en latitudes medias; GOES y MTG miran más seguido pero con menos detalle), las nubes o el humo enmascaran la detección, o ningún testimonio geolocalizable se ha publicado todavía. Exactamente por eso importa el reporte ciudadano: el tuyo puede ser la primera señal.",
+      },
+      {
+        q: "¿Cómo contribuir o proponer una mejora?",
+        a: "A través de la página Contribuir: ideas, fuentes de datos, errores, alianzas — todo aporte es bienvenido y estudiado. Las mejoras pertinentes se integran de forma continua.",
+      },
+      {
+        q: "¿Quién está detrás de kanari?",
+        a: "kanari se desarrolla en Francia por VRIA, de forma independiente, con una comunidad creciente de contribuidores (bomberos, autoridades, desarrolladores, ciudadanos). El nombre viene del canario en la mina: el que canta antes de que el peligro sea visible.",
+      },
+    ],
+  },
+  pt: {
+    title: "Perguntas frequentes",
+    intro: "Tudo sobre o kanari, o mapa gratuito de focos de incêndio em tempo real.",
+    items: [
+      {
+        q: "Como sei se há um incêndio florestal perto de mim agora?",
+        a: "Abra kanari.io: o mapa se centraliza na sua região e mostra os focos detectados por satélite nas últimas horas, além dos relatos de moradores verificados. Use a busca de cidades ou o botão « Minha posição » para checar uma zona precisa. Cada chama é colorida pela idade do último sinal: vermelho significa ativo há menos de 3 horas.",
+      },
+      {
+        q: "O mapa de incêndios do kanari é mesmo em tempo real?",
+        a: "O mapa se atualiza a cada 2 a 3 minutos. As detecções vêm dos satélites NASA FIRMS (VIIRS, resolução de 375 m), GOES para as Américas e Meteosat MTG para Europa e África (atualização a cada 10 minutos), completadas por relatos publicados nas redes sociais. Um incêndio pode aparecer de alguns minutos a algumas dezenas de minutos depois do início real.",
+      },
+      {
+        q: "De onde vêm os dados do kanari?",
+        a: "De fontes públicas e verificáveis: NASA FIRMS (satélites VIIRS NOAA-20/21), NOAA GOES, EUMETSAT Meteosat MTG (detecção ativa de incêndios), a imprensa via GDELT, Bluesky e Telegram para os relatos. Cada relato de morador passa por uma triagem de IA (dois julgamentos independentes) antes de aparecer, para eliminar falsos positivos.",
+      },
+      {
+        q: "Dá para acompanhar os aviões-tanque ao vivo no kanari?",
+        a: "Sim. O kanari mostra em quase tempo real a posição dos meios aéreos de combate a incêndios que emitem ADS-B: Canadair CL-415 e CL-215, Air Tractor Fire Boss, DC-10 Air Tanker, helicópteros (S-64 Air Crane, Chinook, Firehawk). Clique numa aeronave para ver modelo, nacionalidade, velocidade e altitude. Como voam só de dia, o mapa mostra poucas à noite.",
+      },
+      {
+        q: "O que faço se presenciar um foco de incêndio?",
+        a: "Ligue primeiro para a emergência: 193 (Corpo de Bombeiros) no Brasil, 112 em Portugal e na Europa. É o único canal de alerta oficial. Depois você pode usar o botão « Reportar um incêndio » do kanari para marcar sua posição e ajudar outras pessoas a verem o foco o quanto antes.",
+      },
+      {
+        q: "O kanari é gratuito?",
+        a: "Sim, totalmente gratuito e sem criar conta. O kanari é um projeto com missão: ajudar cidadãos, equipes de emergência, autoridades e a imprensa a verem os focos de incêndio o mais cedo possível. O mapa mundial continuará gratuito.",
+      },
+      {
+        q: "O kanari substitui os alertas oficiais?",
+        a: "Não. O kanari é um serviço de informação independente, não um canal de emergência oficial. As decisões de evacuação e de combate cabem às autoridades (Defesa Civil, bombeiros). Numa emergência, ligue 193 no Brasil ou 112 em Portugal.",
+      },
+      {
+        q: "Por que um incêndio que estou vendo não aparece no mapa?",
+        a: "Várias razões possíveis: o fogo é pequeno ou recente demais para ter sido sobrevoado por um satélite (o VIIRS passa a cada 12 horas aproximadamente em latitudes médias; GOES e MTG olham com mais frequência mas com menos detalhe), nuvens ou fumaça mascaram a detecção, ou nenhum relato geolocalizável foi publicado ainda. É exatamente por isso que o relato de moradores importa: o seu pode ser o primeiro sinal.",
+      },
+      {
+        q: "Como contribuir ou sugerir uma melhoria?",
+        a: "Pela página Contribuir: ideias, fontes de dados, bugs, parcerias — todo retorno é bem-vindo e estudado. As melhorias pertinentes são integradas continuamente.",
+      },
+      {
+        q: "Quem está por trás do kanari?",
+        a: "O kanari é desenvolvido na França pela VRIA, de forma independente, com uma comunidade crescente de contribuidores (bombeiros, autoridades, desenvolvedores, cidadãos). O nome vem do canário na mina: o que canta antes de o perigo ficar visível.",
+      },
+    ],
+  },
 };
 
 export async function generateMetadata({
@@ -112,18 +204,33 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { lang } = await params;
   const l: Lang = isValidLang(lang) ? lang : "en";
+  const META: Record<Lang, { title: string; description: string }> = {
+    fr: {
+      title: "FAQ — carte des feux en temps réel, Canadair en direct | kanari",
+      description:
+        "Comment savoir s'il y a un feu près de chez vous, suivre les Canadair en direct, comprendre les données satellites : les réponses aux questions les plus fréquentes sur kanari.",
+    },
+    en: {
+      title: "FAQ — live wildfire map, water bomber tracking | kanari",
+      description:
+        "How to know if there is a fire near you, track water bombers live, understand satellite data: answers to the most asked questions about kanari.",
+    },
+    es: {
+      title: "Preguntas frecuentes — mapa de incendios en tiempo real | kanari",
+      description:
+        "Cómo saber si hay un incendio cerca de ti, seguir los aviones cisterna en vivo, entender los datos satelitales: las respuestas a las preguntas más frecuentes sobre kanari.",
+    },
+    pt: {
+      title: "Perguntas frequentes — mapa de incêndios em tempo real | kanari",
+      description:
+        "Como saber se há um incêndio perto de você, acompanhar os aviões-tanque ao vivo, entender os dados de satélite: as respostas às perguntas mais frequentes sobre o kanari.",
+    },
+  };
   return {
-    title:
-      l === "fr"
-        ? "FAQ — carte des feux en temps réel, Canadair en direct | kanari"
-        : "FAQ — live wildfire map, water bomber tracking | kanari",
-    description:
-      l === "fr"
-        ? "Comment savoir s'il y a un feu près de chez vous, suivre les Canadair en direct, comprendre les données satellites : les réponses aux questions les plus fréquentes sur kanari."
-        : "How to know if there is a fire near you, track water bombers live, understand satellite data: answers to the most asked questions about kanari.",
+    ...META[l],
     alternates: {
-      canonical: `/${l === "fr" ? "fr" : "en"}/faq`,
-      languages: { fr: "/fr/faq", en: "/en/faq" },
+      canonical: `/${l}/faq`,
+      languages: { fr: "/fr/faq", en: "/en/faq", es: "/es/faq", pt: "/pt/faq" },
     },
   };
 }
@@ -180,11 +287,27 @@ export default async function FaqPage({ params }: { params: Promise<{ lang: stri
         </div>
         <p className="mt-10 text-center text-[14px]" style={{ color: "var(--ink-2)" }}>
           <Link href={`/${lang}`} style={{ color: "var(--link)" }}>
-            {lang === "fr" ? "← Retour à la carte des feux en direct" : "← Back to the live fire map"}
+            {localize(
+              {
+                fr: "← Retour à la carte des feux en direct",
+                en: "← Back to the live fire map",
+                es: "← Volver al mapa de incendios en vivo",
+                pt: "← Voltar ao mapa de incêndios ao vivo",
+              } as const,
+              lang
+            )}
           </Link>
           {" · "}
           <Link href={`/${lang}/canadair`} style={{ color: "var(--link)" }}>
-            {lang === "fr" ? "Canadair en direct" : "Water bombers live"}
+            {localize(
+              {
+                fr: "Canadair en direct",
+                en: "Water bombers live",
+                es: "Aviones cisterna en vivo",
+                pt: "Aviões-tanque ao vivo",
+              } as const,
+              lang
+            )}
           </Link>
           {lang === "fr" && (
             <>
@@ -196,7 +319,15 @@ export default async function FaqPage({ params }: { params: Promise<{ lang: stri
           )}
           {" · "}
           <Link href={`/${lang}/contribuer`} style={{ color: "var(--link)" }}>
-            {lang === "fr" ? "Contribuer au projet" : "Contribute to the project"}
+            {localize(
+              {
+                fr: "Contribuer au projet",
+                en: "Contribute to the project",
+                es: "Contribuir al proyecto",
+                pt: "Contribuir com o projeto",
+              } as const,
+              lang
+            )}
           </Link>
         </p>
       </div>

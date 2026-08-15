@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { isValidLang, type Lang, localize } from "@/lib/i18n";
 import { GUIDES, GUIDE_BY_SLUG, type Guide } from "@/lib/guides";
 import { GUIDES_EN, GUIDE_EN_BY_SLUG } from "@/lib/guides-en";
+import { GUIDES_ES, GUIDE_ES_BY_SLUG } from "@/lib/guides-es";
+import { GUIDES_PT, GUIDE_PT_BY_SLUG } from "@/lib/guides-pt";
 import { countFires } from "@/lib/firearchive";
 import { Adsense } from "@/components/Adsense";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -39,9 +41,36 @@ const AFFILIATE: Record<string, { q: string; label: string }[]> = {
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
-function guideFor(lang: Lang, slug: string): Guide | undefined {
-  return lang === "fr" ? GUIDE_BY_SLUG.get(slug) : GUIDE_EN_BY_SLUG.get(slug);
+// Résolution par langue avec repli : es/pt n'ont que les guides les plus
+// cherchés — les autres sont servis en anglais avec canonical /en (la langue
+// EFFECTIVE pilote tout : UI, canonical, JSON-LD, liens).
+const BY_LANG: Record<Lang, { map: Map<string, Guide>; all: Guide[] }> = {
+  fr: { map: GUIDE_BY_SLUG, all: GUIDES },
+  en: { map: GUIDE_EN_BY_SLUG, all: GUIDES_EN },
+  es: { map: GUIDE_ES_BY_SLUG, all: GUIDES_ES },
+  pt: { map: GUIDE_PT_BY_SLUG, all: GUIDES_PT },
+};
+
+function resolveGuide(lang: Lang, slug: string): { g: Guide; eff: Lang } | undefined {
+  const own = BY_LANG[lang].map.get(slug);
+  if (own) return { g: own, eff: lang };
+  if (lang === "fr") return undefined;
+  const en = GUIDE_EN_BY_SLUG.get(slug);
+  return en ? { g: en, eff: "en" } : undefined;
 }
+
+// hreflang : uniquement les langues où le guide existe réellement.
+function guideLanguages(slug: string): Record<string, string> {
+  const languages: Record<string, string> = {
+    fr: `/fr/guide/${slug}`,
+    en: `/en/guide/${slug}`,
+  };
+  if (GUIDE_ES_BY_SLUG.has(slug)) languages.es = `/es/guide/${slug}`;
+  if (GUIDE_PT_BY_SLUG.has(slug)) languages.pt = `/pt/guide/${slug}`;
+  return languages;
+}
+
+const LOCALES: Record<Lang, string> = { fr: "fr-FR", en: "en-GB", es: "es", pt: "pt-BR" };
 
 const UI = {
   fr: {
@@ -76,6 +105,38 @@ const UI = {
     citable: (today: string, total: number, france: number | null) =>
       `As of ${today}, kanari has archived ${total.toLocaleString("en-US")} significant satellite-detected fires worldwide since August 3, 2026${france !== null && france > 0 ? `, including ${france.toLocaleString("en-US")} in France` : ""}. Source: kanari.io, open data (CC BY 4.0).`,
   },
+  es: {
+    guides: "Guías",
+    updatedOn: "actualizado el",
+    faqTitle: "Preguntas frecuentes",
+    liveTitle: "Ver la situación en vivo:",
+    liveLinks: [
+      { href: "/es", label: "mapa mundial de incendios" },
+      { href: "/es/statistiques", label: "estadísticas en vivo" },
+      { href: "/en/canadair", label: "aviones cisterna en vivo" },
+    ],
+    also: "También te puede interesar",
+    disclaimer:
+      "kanari es un servicio de información independiente y gratuito, no un canal de alerta oficial. En caso de emergencia llama al 911 (América) o al 112 (España y Europa).",
+    citable: (today: string, total: number, france: number | null) =>
+      `Al ${today}, kanari ha archivado ${total.toLocaleString("es")} incendios significativos detectados por satélite en el mundo desde el 3 de agosto de 2026${france !== null && france > 0 ? `, incluidos ${france.toLocaleString("es")} en Francia` : ""}. Fuente: kanari.io, datos abiertos (CC BY 4.0).`,
+  },
+  pt: {
+    guides: "Guias",
+    updatedOn: "atualizado em",
+    faqTitle: "Perguntas frequentes",
+    liveTitle: "Ver a situação ao vivo:",
+    liveLinks: [
+      { href: "/pt", label: "mapa mundial de incêndios" },
+      { href: "/pt/statistiques", label: "estatísticas ao vivo" },
+      { href: "/en/canadair", label: "aviões-tanque ao vivo" },
+    ],
+    also: "Vale a pena ler também",
+    disclaimer:
+      "O kanari é um serviço de informação independente e gratuito, não um canal de alerta oficial. Em caso de emergência, ligue 193 (Brasil) ou 112 (Portugal).",
+    citable: (today: string, total: number, france: number | null) =>
+      `Em ${today}, o kanari já arquivou ${total.toLocaleString("pt-BR")} incêndios significativos detectados por satélite no mundo desde 3 de agosto de 2026${france !== null && france > 0 ? `, incluindo ${france.toLocaleString("pt-BR")} na França` : ""}. Fonte: kanari.io, dados abertos (CC BY 4.0).`,
+  },
 } as const;
 
 export async function generateMetadata({
@@ -85,15 +146,16 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { lang, slug } = await params;
   const l: Lang = isValidLang(lang) ? lang : "fr";
-  const g = guideFor(l, slug);
-  if (!g) return {};
+  const resolved = resolveGuide(l, slug);
+  if (!resolved) return {};
+  const { g, eff } = resolved;
   const ogImg = `https://kanari.io/guides/${g.slug}.png`;
   return {
     title: g.metaTitle,
     description: g.metaDesc,
     alternates: {
-      canonical: `/${l === "fr" ? "fr" : "en"}/guide/${g.slug}`,
-      languages: { fr: `/fr/guide/${g.slug}`, en: `/en/guide/${g.slug}` },
+      canonical: `/${eff}/guide/${g.slug}`,
+      languages: guideLanguages(g.slug),
     },
     openGraph: {
       type: "article",
@@ -111,10 +173,11 @@ export default async function GuidePage({
 }) {
   const { lang, slug } = await params;
   if (!isValidLang(lang)) notFound();
-  const g = guideFor(lang, slug);
-  if (!g) notFound();
-  const ui = localize(UI, lang);
-  const locale = lang === "fr" ? "fr-FR" : "en-GB";
+  const resolved = resolveGuide(lang, slug);
+  if (!resolved) notFound();
+  const { g, eff } = resolved;
+  const ui = localize(UI, eff);
+  const locale = LOCALES[eff];
 
   // Chiffres live pour le bloc citable (échec silencieux : bloc masqué).
   const [total, france] = await Promise.all([
@@ -132,10 +195,10 @@ export default async function GuidePage({
     description: g.metaDesc,
     image: [`https://kanari.io/guides/${g.slug}.png`],
     dateModified: g.updated,
-    inLanguage: lang,
+    inLanguage: eff,
     author: { "@type": "Organization", name: "kanari", url: "https://kanari.io" },
     publisher: { "@id": "https://kanari.io/#org" },
-    mainEntityOfPage: `https://kanari.io/${lang}/guide/${g.slug}`,
+    mainEntityOfPage: `https://kanari.io/${eff}/guide/${g.slug}`,
   };
   const faqLd =
     g.faq && g.faq.length > 0
@@ -150,7 +213,7 @@ export default async function GuidePage({
         }
       : null;
 
-  const others = (lang === "fr" ? GUIDES : GUIDES_EN).filter((x) => x.slug !== g.slug);
+  const others = BY_LANG[eff].all.filter((x) => x.slug !== g.slug);
   const affiliate = lang === "fr" ? AFFILIATE[g.slug] : undefined;
 
   return (
@@ -268,7 +331,7 @@ export default async function GuidePage({
           <h2 className="mb-2 text-[15px] font-semibold" style={{ color: "var(--ink)" }}>{ui.also}</h2>
           <p className="flex flex-col gap-1 text-[14px]">
             {others.map((o) => (
-              <Link key={o.slug} href={`/${lang}/guide/${o.slug}`} style={{ color: "var(--link)" }}>
+              <Link key={o.slug} href={`/${eff}/guide/${o.slug}`} style={{ color: "var(--link)" }}>
                 {o.title}
               </Link>
             ))}

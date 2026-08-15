@@ -29,15 +29,61 @@ const PAGES = [
     path: "/fr/statistiques",
     title: /Statistiques des feux/i,
     canonical: "/fr/statistiques",
-    hreflang: ["fr", "en"],
+    hreflang: ["fr", "en", "es", "pt"],
     jsonld: ["FAQPage", "Dataset"],
   },
   {
     path: "/en/statistiques",
     title: /Wildfire statistics/i,
     canonical: "/en/statistiques",
-    hreflang: ["fr", "en"],
+    hreflang: ["fr", "en", "es", "pt"],
     jsonld: ["FAQPage", "Dataset"],
+  },
+  {
+    path: "/es/statistiques",
+    title: /Estadísticas de incendios forestales/i,
+    canonical: "/es/statistiques",
+    hreflang: ["fr", "en", "es", "pt"],
+    jsonld: ["FAQPage", "Dataset"],
+  },
+  {
+    path: "/pt/statistiques",
+    title: /Estatísticas de incêndios florestais/i,
+    canonical: "/pt/statistiques",
+    hreflang: ["fr", "en", "es", "pt"],
+    jsonld: ["FAQPage", "Dataset"],
+  },
+  {
+    path: "/es/faq",
+    title: /Preguntas frecuentes/i,
+    canonical: "/es/faq",
+    jsonld: ["FAQPage"],
+  },
+  {
+    path: "/pt/faq",
+    title: /Perguntas frequentes/i,
+    canonical: "/pt/faq",
+    jsonld: ["FAQPage"],
+  },
+  {
+    path: "/es/guide/detection-feux-satellite",
+    title: /Detección de incendios desde el espacio/i,
+    canonical: "/es/guide/detection-feux-satellite",
+    hreflang: ["fr", "en", "es", "pt"],
+    jsonld: ["Article", "FAQPage"],
+  },
+  {
+    path: "/pt/guide/odeur-de-fumee-que-faire",
+    title: /Cheiro de fumaça/i,
+    canonical: "/pt/guide/odeur-de-fumee-que-faire",
+    jsonld: ["Article", "FAQPage"],
+  },
+  // Repli : un guide NON traduit demandé en es doit servir l'anglais avec
+  // canonical /en — le contrat anti-duplicate content.
+  {
+    path: "/es/guide/comment-fonctionne-un-canadair",
+    title: /How does a Canadair work/i,
+    canonical: "/en/guide/comment-fonctionne-un-canadair",
   },
   {
     path: "/fr/canadair",

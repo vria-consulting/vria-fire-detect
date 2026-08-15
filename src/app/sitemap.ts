@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 import { DEPARTEMENTS } from "@/lib/departements";
 import { GUIDES } from "@/lib/guides";
+import { GUIDE_ES_BY_SLUG } from "@/lib/guides-es";
+import { GUIDE_PT_BY_SLUG } from "@/lib/guides-pt";
 import { COUNTRIES } from "@/lib/countries";
 import { FRENCH_FLEET } from "@/lib/aircraft";
 
@@ -15,9 +17,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.7,
   }));
   const guidePages: MetadataRoute.Sitemap = GUIDES.flatMap((g) => {
-    const alternates = {
-      languages: { fr: `${base}/fr/guide/${g.slug}`, en: `${base}/en/guide/${g.slug}` },
+    // es/pt : uniquement les guides réellement traduits (les autres slugs
+    // servent l'anglais avec canonical /en — pas leur place dans le sitemap).
+    const languages: Record<string, string> = {
+      fr: `${base}/fr/guide/${g.slug}`,
+      en: `${base}/en/guide/${g.slug}`,
     };
+    if (GUIDE_ES_BY_SLUG.has(g.slug)) languages.es = `${base}/es/guide/${g.slug}`;
+    if (GUIDE_PT_BY_SLUG.has(g.slug)) languages.pt = `${base}/pt/guide/${g.slug}`;
+    const alternates = { languages };
     return [
       {
         url: `${base}/fr/guide/${g.slug}`,
@@ -33,6 +41,24 @@ export default function sitemap(): MetadataRoute.Sitemap {
         priority: 0.6,
         alternates,
       },
+      ...(languages.es
+        ? [{
+            url: languages.es,
+            lastModified: new Date(),
+            changeFrequency: "monthly" as const,
+            priority: 0.6,
+            alternates,
+          }]
+        : []),
+      ...(languages.pt
+        ? [{
+            url: languages.pt,
+            lastModified: new Date(),
+            changeFrequency: "monthly" as const,
+            priority: 0.6,
+            alternates,
+          }]
+        : []),
     ];
   });
   const countryPages: MetadataRoute.Sitemap = COUNTRIES.map((c) => ({
@@ -81,14 +107,28 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.8,
-      alternates: { languages: { fr: `${base}/fr/statistiques`, en: `${base}/en/statistiques` } },
+      alternates: { languages: { fr: `${base}/fr/statistiques`, en: `${base}/en/statistiques`, es: `${base}/es/statistiques`, pt: `${base}/pt/statistiques` } },
     },
     {
       url: `${base}/en/statistiques`,
       lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.7,
-      alternates: { languages: { fr: `${base}/fr/statistiques`, en: `${base}/en/statistiques` } },
+      alternates: { languages: { fr: `${base}/fr/statistiques`, en: `${base}/en/statistiques`, es: `${base}/es/statistiques`, pt: `${base}/pt/statistiques` } },
+    },
+    {
+      url: `${base}/es/statistiques`,
+      lastModified: new Date(),
+      changeFrequency: "hourly",
+      priority: 0.7,
+      alternates: { languages: { fr: `${base}/fr/statistiques`, en: `${base}/en/statistiques`, es: `${base}/es/statistiques`, pt: `${base}/pt/statistiques` } },
+    },
+    {
+      url: `${base}/pt/statistiques`,
+      lastModified: new Date(),
+      changeFrequency: "hourly",
+      priority: 0.7,
+      alternates: { languages: { fr: `${base}/fr/statistiques`, en: `${base}/en/statistiques`, es: `${base}/es/statistiques`, pt: `${base}/pt/statistiques` } },
     },
     {
       url: `${base}/fr/comparatif`,
@@ -116,14 +156,28 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.7,
-      alternates: { languages: { fr: `${base}/fr/guide`, en: `${base}/en/guide` } },
+      alternates: { languages: { fr: `${base}/fr/guide`, en: `${base}/en/guide`, es: `${base}/es/guide`, pt: `${base}/pt/guide` } },
     },
     {
       url: `${base}/en/guide`,
       lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.6,
-      alternates: { languages: { fr: `${base}/fr/guide`, en: `${base}/en/guide` } },
+      alternates: { languages: { fr: `${base}/fr/guide`, en: `${base}/en/guide`, es: `${base}/es/guide`, pt: `${base}/pt/guide` } },
+    },
+    {
+      url: `${base}/es/guide`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.6,
+      alternates: { languages: { fr: `${base}/fr/guide`, en: `${base}/en/guide`, es: `${base}/es/guide`, pt: `${base}/pt/guide` } },
+    },
+    {
+      url: `${base}/pt/guide`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.6,
+      alternates: { languages: { fr: `${base}/fr/guide`, en: `${base}/en/guide`, es: `${base}/es/guide`, pt: `${base}/pt/guide` } },
     },
     ...guidePages,
     {
@@ -227,14 +281,28 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.8,
-      alternates: { languages: { fr: `${base}/fr/faq`, en: `${base}/en/faq` } },
+      alternates: { languages: { fr: `${base}/fr/faq`, en: `${base}/en/faq`, es: `${base}/es/faq`, pt: `${base}/pt/faq` } },
     },
     {
       url: `${base}/en/faq`,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.8,
-      alternates: { languages: { fr: `${base}/fr/faq`, en: `${base}/en/faq` } },
+      alternates: { languages: { fr: `${base}/fr/faq`, en: `${base}/en/faq`, es: `${base}/es/faq`, pt: `${base}/pt/faq` } },
+    },
+    {
+      url: `${base}/es/faq`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.8,
+      alternates: { languages: { fr: `${base}/fr/faq`, en: `${base}/en/faq`, es: `${base}/es/faq`, pt: `${base}/pt/faq` } },
+    },
+    {
+      url: `${base}/pt/faq`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.8,
+      alternates: { languages: { fr: `${base}/fr/faq`, en: `${base}/en/faq`, es: `${base}/es/faq`, pt: `${base}/pt/faq` } },
     },
     {
       url: `${base}/fr/contribuer`,
