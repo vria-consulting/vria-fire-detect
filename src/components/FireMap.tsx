@@ -856,6 +856,12 @@ export default function FireMap({ lang }: { lang: Lang }) {
     const pZ = parseFloat(params.get("z") ?? "");
     const hasDeepLink = isFinite(pLat) && isFinite(pLon);
     pendingSelectRef.current = params.get("ev");
+    // ?smoke=1 : couche fumée activée d'entrée (liens partagés « regarde le
+    // panache », tests automatisés).
+    if (params.get("smoke") === "1") {
+      smokeOnRef.current = true;
+      setSmokeOn(true);
+    }
     // Sans lien profond : la carte s'ouvre sur le pays du visiteur (géo).
     const start = visitorStart();
     // Intro cinématique : le globe entier, puis plongée vers le pays du
