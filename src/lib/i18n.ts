@@ -48,6 +48,14 @@ const EMERGENCY_BY_COUNTRY: Record<string, string> = {
   NZ: "111",
   // Brésil : 193 = Corpo de Bombeiros — LE réflexe feu (le 190 est la police).
   IN: "112", BR: "193", JP: "119", CN: "119", KR: "119",
+  // Amérique latine hispanophone (cible es) : le 112 européen n'y existe pas.
+  // Chili 132 et Pérou 116 = lignes Bomberos dédiées ; ailleurs le 911 est la
+  // ligne unique nationale.
+  CL: "132", PE: "116", CO: "123",
+  AR: "911", EC: "911", UY: "911", PY: "911", VE: "911",
+  CR: "911", PA: "911", DO: "911", HN: "911", SV: "911", NI: "911",
+  // Indonésie : 113 = pompiers.
+  ID: "113",
 };
 
 export function emergencyNumber(country: string | null, lang: Lang): string {

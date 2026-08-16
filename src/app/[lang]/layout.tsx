@@ -183,33 +183,58 @@ export default async function RootLayout({
                 className="cursor-pointer list-none text-sm font-medium [&::-webkit-details-marker]:hidden"
                 style={{ color: "var(--ink)" }}
               >
-                {lang === "fr" ? "Explorer" : "Explore"} ▾
+                {{ fr: "Explorer", en: "Explore", es: "Explorar", pt: "Explorar" }[lang]} ▾
               </summary>
               <nav
                 className="absolute right-0 top-9 z-50 flex w-60 flex-col gap-2 rounded-[18px] p-4 text-[13.5px]"
                 style={{ background: "var(--white)", boxShadow: "var(--shadow-m)" }}
               >
-                {(lang === "fr"
-                  ? [
-                      ["/fr/feux-en-cours", "Incendies en cours (liste)"],
-                      ["/fr/feux", "Feux par département"],
-                      ["/fr/canadair", "Canadair en direct"],
-                      ["/fr/feu", "Mémoire des feux"],
-                      ["/fr/bilan", "Bilans quotidiens"],
-                      ["/fr/statistiques", "Observatoire et statistiques"],
-                      ["/fr/guide", "Guides feux de forêt"],
-                      ["/fr/sdis", "Pour les SDIS"],
-                      ["/fr/widget", "Widget pour votre site"],
-                      ["/fr/api", "API et open data"],
-                    ]
-                  : [
-                      ["/en/fires", "Wildfires by country"],
-                      ["/en/canadair", "Water bombers live"],
-                      ["/fr/statistiques", "Observatory (FR)"],
-                      ["/fr/widget", "Embed widget"],
-                      ["/opendata/feux.csv", "Open data (CSV)"],
-                    ]
-                ).map(([href, label]) => (
+                {/* Liens localisés quand la page existe dans la langue
+                    (statistiques, guides, FAQ en es/pt), version EN sinon. */}
+                {({
+                  fr: [
+                    ["/fr/feux-en-cours", "Incendies en cours (liste)"],
+                    ["/fr/feux", "Feux par département"],
+                    ["/fr/canadair", "Canadair en direct"],
+                    ["/fr/feu", "Mémoire des feux"],
+                    ["/fr/bilan", "Bilans quotidiens"],
+                    ["/fr/statistiques", "Observatoire et statistiques"],
+                    ["/fr/guide", "Guides feux de forêt"],
+                    ["/fr/sdis", "Pour les SDIS"],
+                    ["/fr/widget", "Widget pour votre site"],
+                    ["/fr/api", "API et open data"],
+                  ],
+                  en: [
+                    ["/en/fires", "Wildfires by country"],
+                    ["/en/canadair", "Water bombers live"],
+                    ["/en/statistiques", "Wildfire statistics"],
+                    ["/en/guide", "Wildfire guides"],
+                    ["/en/faq", "FAQ"],
+                    ["/en/widget", "Embed widget"],
+                    ["/en/api", "API and open data"],
+                    ["/opendata/feux.csv", "Open data (CSV)"],
+                  ],
+                  es: [
+                    ["/en/fires", "Incendios por país"],
+                    ["/en/canadair", "Aviones cisterna en vivo"],
+                    ["/es/statistiques", "Observatorio y estadísticas"],
+                    ["/es/guide", "Guías sobre incendios"],
+                    ["/es/faq", "Preguntas frecuentes"],
+                    ["/en/widget", "Widget para tu sitio"],
+                    ["/en/api", "API y datos abiertos"],
+                    ["/opendata/feux.csv", "Datos abiertos (CSV)"],
+                  ],
+                  pt: [
+                    ["/en/fires", "Incêndios por país"],
+                    ["/en/canadair", "Aviões-tanque ao vivo"],
+                    ["/pt/statistiques", "Observatório e estatísticas"],
+                    ["/pt/guide", "Guias sobre incêndios"],
+                    ["/pt/faq", "Perguntas frequentes"],
+                    ["/en/widget", "Widget para seu site"],
+                    ["/en/api", "API e dados abertos"],
+                    ["/opendata/feux.csv", "Dados abertos (CSV)"],
+                  ],
+                }[lang] as [string, string][]).map(([href, label]) => (
                   <Link key={href} href={href} style={{ color: "var(--ink)" }}>
                     {label}
                   </Link>
