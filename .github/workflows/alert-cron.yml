@@ -13,7 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Déclenche la vérification des foyers
+        # max-time aligné sur le maxDuration (300 s) de la fonction : un scan
+        # lent (cold start, grosse journée de feux) n'est pas un échec — seuls
+        # les vrais problèmes (4xx/5xx, réseau) doivent faire rougir le run.
         run: |
-          curl -fsS --max-time 55 \
+          curl -fsS --max-time 280 --retry 2 --retry-connrefused \
             -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
             "https://vria-fire-detect.vercel.app/api/cron/check"
