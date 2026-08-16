@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { isValidLang } from "@/lib/i18n";
 import { COUNTRIES, COUNTRY_BY_CC } from "@/lib/countries";
+import { US_STATES } from "@/lib/us-states";
 import { listFiresBetween } from "@/lib/firearchive";
 import { SiteFooter } from "@/components/SiteFooter";
 
@@ -95,6 +96,21 @@ export default async function FiresHub({ params }: { params: Promise<{ lang: str
             {COUNTRIES.map((c) => (
               <Link key={c.slug} href={`/en/fires/${c.slug}`} style={{ color: "var(--link)" }}>
                 {c.name.replace(/^the /, "")}
+              </Link>
+            ))}
+          </p>
+        </section>
+
+        {/* Le maillage 50 États : le marché de recherche feu n°1 au monde
+            ("california fire map"…) — chaque État a sa page locale live. */}
+        <section className="mb-8">
+          <h2 className="mb-3 text-[19px] font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>
+            United States, state by state
+          </h2>
+          <p className="flex flex-wrap gap-x-3 gap-y-1.5 text-[13.5px] leading-relaxed">
+            {US_STATES.map((s) => (
+              <Link key={s.slug} href={`/en/fires/${s.slug}`} style={{ color: "var(--link)" }}>
+                {s.name}
               </Link>
             ))}
           </p>

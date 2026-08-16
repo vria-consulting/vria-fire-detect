@@ -143,6 +143,13 @@ const PAGES = [
     jsonld: ["FAQPage"],
   },
   {
+    path: "/en/fires/california",
+    title: /California wildfires today/i,
+    canonical: "/en/fires/california",
+    jsonld: ["FAQPage"],
+    contains: ["NIFC"],
+  },
+  {
     path: "/fr/confidentialite",
     title: /Confidentialité/i,
   },

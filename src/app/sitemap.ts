@@ -4,6 +4,7 @@ import { GUIDES } from "@/lib/guides";
 import { GUIDE_ES_BY_SLUG } from "@/lib/guides-es";
 import { GUIDE_PT_BY_SLUG } from "@/lib/guides-pt";
 import { COUNTRIES } from "@/lib/countries";
+import { US_STATES } from "@/lib/us-states";
 import { FRENCH_FLEET } from "@/lib/aircraft";
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -67,6 +68,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     changeFrequency: "hourly" as const,
     priority: 0.7,
   }));
+  // 50 US states + DC : le plus gros marché de recherche feux au monde.
+  const statePages: MetadataRoute.Sitemap = US_STATES.map((s) => ({
+    url: `${base}/en/fires/${s.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "hourly" as const,
+    priority: 0.75,
+  }));
   const aircraftPages: MetadataRoute.Sitemap = Object.values(FRENCH_FLEET).map((a) => ({
     url: `${base}/fr/canadair/${a.reg.toLowerCase()}`,
     lastModified: new Date(),
@@ -81,6 +89,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.9,
     },
     ...countryPages,
+    ...statePages,
     ...aircraftPages,
     {
       url: `${base}/fr/widget`,
