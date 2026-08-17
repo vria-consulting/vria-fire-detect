@@ -7,6 +7,7 @@ import type { FireEvent, Confidence } from "@/lib/cluster";
 import type { SocialResult, SocialPost } from "@/lib/social";
 import type { SocialSignal } from "@/lib/socialscan";
 import { DICT, type Lang, type Dict } from "@/lib/i18n";
+import { countryName } from "@/lib/countries";
 import { InstallNudge } from "@/components/InstallNudge";
 import { dfciCode } from "@/lib/dfci";
 import type { FireRisk } from "@/lib/firerisk";
@@ -580,8 +581,18 @@ function visitorStart(): { center: [number, number]; zoom: number } {
   return REGIONS["France"];
 }
 
-export default function FireMap({ lang }: { lang: Lang }) {
+// Zone la plus active du moment (calculée côté serveur depuis l'archive) :
+// la « rotation éditoriale mondiale » — le chip emmène là où ça brûle.
+export type Hotspot = { cc: string; count: number; lat: number; lon: number; zoom: number };
+
+export default function FireMap({ lang, hotspots = [] }: { lang: Lang; hotspots?: Hotspot[] }) {
   const t = DICT[lang];
+  const [hotspotIdx, setHotspotIdx] = useState(0);
+  useEffect(() => {
+    if (hotspots.length < 2) return;
+    const id = setInterval(() => setHotspotIdx((i) => (i + 1) % hotspots.length), 8000);
+    return () => clearInterval(id);
+  }, [hotspots.length]);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const eventsRef = useRef<FireEvent[]>([]);
@@ -2976,6 +2987,27 @@ export default function FireMap({ lang }: { lang: Lang }) {
             {t.planesShort}
           </button>
         )}
+
+        {/* Hotspot mondial : où ça brûle le plus en ce moment (top 3 en
+            rotation). Clic : la carte y vole — la home reste vivante même
+            quand la saison locale est éteinte. */}
+        {hotspots.length > 0 && (() => {
+          const h = hotspots[hotspotIdx % hotspots.length];
+          return (
+            <button
+              onClick={() => mapRef.current?.flyTo({ center: [h.lon, h.lat], zoom: h.zoom, duration: 2200 })}
+              className="flex h-[30px] items-center gap-1.5 self-start rounded-full px-3 text-[12px] transition-transform hover:scale-[1.03]"
+              style={{ ...card, color: "var(--ink-2)" }}
+            >
+              <span aria-hidden="true">🔥</span>
+              {t.hotspotNow}
+              <span className="font-semibold" style={{ color: "var(--ink)" }}>
+                {countryName(h.cc, lang, h.cc)}
+              </span>
+              · {t.hotspotFires(h.count)}
+            </button>
+          );
+        })()}
 
         {/* État de chargement / erreur */}
         {status.kind === "loading" && (
