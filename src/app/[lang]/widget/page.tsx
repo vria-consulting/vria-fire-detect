@@ -68,6 +68,64 @@ const T = {
       },
     ],
   },
+  es: {
+    metaTitle: "Insertar el mapa de incendios kanari en tu sitio (widget gratuito)",
+    metaDesc:
+      "Medios, municipios, sitios de clima: inserten gratis el mapa de incendios en tiempo real de kanari, centrado en su país o zona. Generador de código, 4 idiomas, actualización continua.",
+    h1: "Inserta el mapa de incendios en tu sitio",
+    intro:
+      "Medio, municipio, sitio de clima, blog: el mapa kanari (incendios en tiempo real, aviones cisterna, humo) se puede insertar gratis, centrado en la zona que elijas. Una sola condición: conservar el enlace de atribución a kanari.io.",
+    pressTitle: "Para las redacciones",
+    press: [
+      "El widget es de uso libre en sus artículos y coberturas en directo, incluida la cobertura de un incendio en curso.",
+      "Las cifras de kanari (incendios activos, detecciones, cronologías) son citables libremente: datos abiertos CC BY 4.0, mención « kanari.io ».",
+      "¿Necesitan un mapa a medida, un export, una cita o una cronología precisa durante un episodio? contact@kanari.io — respuesta rápida en temporada de incendios.",
+    ],
+    faqTitle: "Preguntas frecuentes",
+    faq: [
+      {
+        q: "¿El widget es realmente gratuito?",
+        a: "Sí, sin límite de tráfico ni de tiempo. La única condición es la atribución: el enlace a kanari.io debajo del mapa.",
+      },
+      {
+        q: "¿Puedo centrar el mapa en mi ciudad?",
+        a: "El generador ofrece países y departamentos franceses. Para un centrado más fino, ajusta los parámetros lat, lon y z de la URL del iframe: el mapa los acepta libremente.",
+      },
+      {
+        q: "¿Los datos están al día durante un incendio?",
+        a: "El mapa insertado es el mismo que kanari.io: detecciones satelitales refrescadas de forma continua (cada 10 minutos para los satélites geoestacionarios), aeronaves en vuelo, reportes verificados.",
+      },
+    ],
+  },
+  pt: {
+    metaTitle: "Inserir o mapa de incêndios kanari no seu site (widget gratuito)",
+    metaDesc:
+      "Redações, prefeituras, sites de clima: insiram grátis o mapa de incêndios em tempo real do kanari, centrado no seu país ou zona. Gerador de código, 4 línguas, atualização contínua.",
+    h1: "Insira o mapa de incêndios no seu site",
+    intro:
+      "Redação, prefeitura, site de clima, blog: o mapa kanari (incêndios em tempo real, aviões-tanque, fumaça) pode ser inserido gratuitamente, centrado na zona da sua escolha. Uma única condição: manter o link de atribuição para kanari.io.",
+    pressTitle: "Para as redações",
+    press: [
+      "O widget é de uso livre em seus artigos e coberturas ao vivo, inclusive na cobertura de um incêndio em curso.",
+      "Os números do kanari (incêndios ativos, detecções, cronologias) são citáveis livremente: dados abertos CC BY 4.0, menção « kanari.io ».",
+      "Precisa de um mapa sob medida, um export, uma citação ou uma cronologia precisa durante um episódio? contact@kanari.io — resposta rápida na temporada de incêndios.",
+    ],
+    faqTitle: "Perguntas frequentes",
+    faq: [
+      {
+        q: "O widget é mesmo gratuito?",
+        a: "Sim, sem limite de tráfego nem de tempo. A única condição é a atribuição: o link para kanari.io abaixo do mapa.",
+      },
+      {
+        q: "Posso centrar o mapa na minha cidade?",
+        a: "O gerador oferece países e departamentos franceses. Para um centro mais fino, ajuste os parâmetros lat, lon e z da URL do iframe: o mapa os aceita livremente.",
+      },
+      {
+        q: "Os dados ficam atualizados durante um incêndio?",
+        a: "O mapa inserido é o mesmo de kanari.io: detecções por satélite atualizadas continuamente (a cada 10 minutos para os satélites geoestacionários), aeronaves em voo, relatos verificados.",
+      },
+    ],
+  },
 } as const;
 
 export async function generateMetadata({
@@ -82,8 +140,13 @@ export async function generateMetadata({
     title: t.metaTitle,
     description: t.metaDesc,
     alternates: {
-      canonical: `/${l === "fr" ? "fr" : "en"}/widget`,
-      languages: { fr: "/fr/widget", en: "/en/widget" },
+      canonical: `/${l}/widget`,
+      languages: {
+        fr: "/fr/widget",
+        en: "/en/widget",
+        es: "/es/widget",
+        pt: "/pt/widget",
+      },
     },
   };
 }
@@ -145,6 +208,16 @@ export default async function WidgetPage({ params }: { params: Promise<{ lang: s
               Voir aussi : <Link href="/fr/api" style={{ color: "var(--link)" }}>l&apos;API publique</Link> ·{" "}
               <Link href="/fr/statistiques" style={{ color: "var(--link)" }}>les chiffres en direct</Link> ·{" "}
               <Link href="/fr/sdis" style={{ color: "var(--link)" }}>l&apos;offre SDIS et collectivités</Link>.
+            </>
+          ) : lang === "es" ? (
+            <>
+              Ver también: <Link href="/en/api" style={{ color: "var(--link)" }}>la API pública</Link> ·{" "}
+              <Link href="/es/statistiques" style={{ color: "var(--link)" }}>las cifras en vivo</Link>.
+            </>
+          ) : lang === "pt" ? (
+            <>
+              Ver também: <Link href="/en/api" style={{ color: "var(--link)" }}>a API pública</Link> ·{" "}
+              <Link href="/pt/statistiques" style={{ color: "var(--link)" }}>os números ao vivo</Link>.
             </>
           ) : (
             <>

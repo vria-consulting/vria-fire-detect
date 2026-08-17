@@ -60,3 +60,14 @@ export const COUNTRIES: FireCountry[] = [
 
 export const COUNTRY_BY_SLUG = new Map(COUNTRIES.map((c) => [c.slug, c]));
 export const COUNTRY_BY_CC = new Map(COUNTRIES.map((c) => [c.cc, c]));
+
+// Nom de pays localisé sans table : Intl.DisplayNames fait foi (les slugs et
+// le contenu anglais gardent le nom canonique du dict).
+export function countryName(cc: string, lang: string, fallback: string): string {
+  if (lang === "en") return fallback.replace(/^the /, "");
+  try {
+    return new Intl.DisplayNames([lang], { type: "region" }).of(cc) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}

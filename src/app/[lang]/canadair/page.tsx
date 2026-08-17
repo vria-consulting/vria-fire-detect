@@ -114,6 +114,102 @@ const T = {
       },
     ],
   },
+  es: {
+    title: "Aviones cisterna en vivo: sigue los medios aéreos contra incendios en tiempo real",
+    metaTitle: "Aviones cisterna en vivo — posición en tiempo real de los medios aéreos | kanari",
+    metaDesc:
+      "¿Dónde están los aviones contra incendios ahora mismo? Posición en tiempo real de los medios aéreos del mundo entero: Canadair CL-415, Air Tractor Fire Boss, tanqueros DC-10, helicópteros Air Crane. Gratis, sin registro.",
+    updated: "Situación actualizada de forma continua",
+    inFlight: (n: number) =>
+      n === 0
+        ? "Ningún avión cisterna detectado en vuelo en este momento"
+        : `${n} medio${n > 1 ? "s" : ""} aéreo${n > 1 ? "s" : ""} contra incendios en vuelo ahora mismo`,
+    nightNote:
+      "Los aviones cisterna solo operan de día: es normal ver pocos o ninguno de noche. Reaparecen sobre las zonas de incendio al amanecer.",
+    cta: "Ver los aviones en el mapa en vivo →",
+    listTitle: "En vuelo ahora mismo",
+    kn: "kn",
+    ft: "ft",
+    how: "¿Cómo funciona el seguimiento de los aviones?",
+    howText:
+      "Cada aeronave emite su posición por ADS-B (la misma señal que los aviones de línea). kanari agrega esas señales a través de redes comunitarias mundiales y filtra los medios contra incendios: Canadair CL-415 y CL-215, Air Tractor AT-802 Fire Boss (muy usado en Chile, Argentina y España), S-2T Turbo Tracker, tanqueros DC-10 y BAe 146, helicópteros (S-64 Air Crane, Chinook, Firehawk). Las posiciones se refrescan cada 15 segundos aproximadamente, con movimiento interpolado.",
+    fleet: "Las flotas: Europa, América y la Sécurité Civile francesa",
+    fleetText:
+      "Italia opera la mayor flota europea de Canadair, seguida por España, Grecia y Croacia; Francia alinea 12 CL-415 « Pélican » y 6 Dash 8 « Milan » con base en Nîmes-Garons, seguidos individualmente por kanari desde el despegue. En América, Chile y Argentina recurren a Fire Boss y helicópteros contratados, y Norteamérica a grandes tanqueros terrestres.",
+    why: "¿Por qué no veo ningún avión cerca de un incendio?",
+    whyText:
+      "Tres explicaciones posibles: es de noche (no hay descargas nocturnas), los medios comprometidos son helicópteros locales o militares que no emiten públicamente, o la aeronave apagó su transpondedor. kanari muestra todo lo que emite públicamente, que ya cubre la mayoría de los Canadair europeos y los tanqueros norteamericanos.",
+    faq: [
+      {
+        q: "¿Cómo seguir los aviones contra incendios en vivo?",
+        a: "Abre el mapa kanari.io: los aviones cisterna en vuelo aparecen en tiempo real, con su velocidad y altitud, junto a los incendios detectados por satélite. El seguimiento es gratuito, sin registro, en celular y computadora.",
+      },
+      {
+        q: "¿Dónde están los Canadair ahora mismo?",
+        a: "El mapa kanari.io muestra en tiempo real la posición de todos los Canadair y aviones cisterna que emiten ADS-B en el mundo: Italia, Francia, Croacia, Grecia, España, Norteamérica, Australia. Haz clic en una aeronave para ver su modelo, nacionalidad, velocidad y altitud.",
+      },
+      {
+        q: "¿Los aviones contra incendios aparecen en Flightradar24?",
+        a: "En parte: los rastreadores generalistas los pierden entre miles de aviones de línea. kanari muestra solo los medios contra incendios, en el mismo mapa que los focos, el viento y los puntos de agua: se entiende la misión, no solo la posición.",
+      },
+      {
+        q: "¿Qué aviones se usan contra los incendios en América Latina?",
+        a: "Chile y Argentina emplean sobre todo Air Tractor AT-802 Fire Boss y helicópteros contratados; Brasil usa aviones agrícolas adaptados. Cuando emiten ADS-B, kanari los muestra en vivo sobre las zonas de fuego.",
+      },
+      {
+        q: "¿Cuánta agua descarga un Canadair?",
+        a: "Un CL-415 recoge unos 6.000 litros en 12 segundos sobre un plano de agua y puede encadenar rotaciones: hasta varias decenas de descargas al día cuando el punto de recogida está cerca del incendio.",
+      },
+    ],
+  },
+  pt: {
+    title: "Aviões-tanque ao vivo: acompanhe os meios aéreos de combate em tempo real",
+    metaTitle: "Aviões-tanque ao vivo — posição em tempo real dos meios aéreos | kanari",
+    metaDesc:
+      "Onde estão os aviões de combate a incêndios agora? Posição em tempo real dos meios aéreos do mundo inteiro: Canadair CL-415, Air Tractor Fire Boss, tanqueiros DC-10, helicópteros Air Crane. Grátis, sem cadastro.",
+    updated: "Situação atualizada continuamente",
+    inFlight: (n: number) =>
+      n === 0
+        ? "Nenhum avião-tanque detectado em voo neste momento"
+        : `${n} meio${n > 1 ? "s" : ""} aéreo${n > 1 ? "s" : ""} de combate em voo agora`,
+    nightNote:
+      "Os aviões-tanque só operam de dia: é normal ver poucos ou nenhum à noite. Eles reaparecem sobre as zonas de incêndio ao amanhecer.",
+    cta: "Ver os aviões no mapa ao vivo →",
+    listTitle: "Em voo agora",
+    kn: "kn",
+    ft: "ft",
+    how: "Como funciona o rastreamento dos aviões?",
+    howText:
+      "Cada aeronave transmite sua posição por ADS-B (o mesmo sinal dos aviões de linha). O kanari agrega esses sinais por redes comunitárias mundiais e filtra os meios de combate a incêndios: Canadair CL-415 e CL-215, Air Tractor AT-802 Fire Boss (muito usado no Brasil e no Chile), S-2T Turbo Tracker, tanqueiros DC-10 e BAe 146, helicópteros (S-64 Air Crane, Chinook, Firehawk). As posições se atualizam a cada 15 segundos, com movimento interpolado.",
+    fleet: "As frotas: Europa, Américas e a Sécurité Civile francesa",
+    fleetText:
+      "A Itália opera a maior frota europeia de Canadair, seguida por Espanha, Grécia e Croácia; a França alinha 12 CL-415 « Pélican » e 6 Dash 8 « Milan » com base em Nîmes-Garons, acompanhados individualmente pelo kanari desde a decolagem. Nas Américas, o Brasil emprega sobretudo aviões agrícolas adaptados (Air Tractor) e helicópteros contratados contra as queimadas.",
+    why: "Por que não vejo nenhum avião perto de um incêndio?",
+    whyText:
+      "Três explicações possíveis: é noite (não há lançamentos noturnos), os meios engajados são helicópteros locais ou militares que não transmitem publicamente, ou a aeronave desligou o transponder. O kanari mostra tudo o que emite publicamente, o que já cobre a maioria dos Canadair europeus e dos tanqueiros norte-americanos.",
+    faq: [
+      {
+        q: "Como acompanhar os aviões de combate a incêndios ao vivo?",
+        a: "Abra o mapa kanari.io: os aviões-tanque em voo aparecem em tempo real, com velocidade e altitude, ao lado dos incêndios detectados por satélite. O acompanhamento é gratuito, sem cadastro, no celular e no computador.",
+      },
+      {
+        q: "Onde estão os Canadair agora?",
+        a: "O mapa kanari.io mostra em tempo real a posição de todos os Canadair e aviões-tanque que emitem ADS-B no mundo: Itália, França, Croácia, Grécia, Espanha, América do Norte, Austrália. Clique numa aeronave para ver modelo, nacionalidade, velocidade e altitude.",
+      },
+      {
+        q: "Os aviões de combate aparecem no Flightradar24?",
+        a: "Em parte: os rastreadores genéricos os perdem entre milhares de aviões de linha. O kanari mostra só os meios de combate a incêndios, no mesmo mapa dos focos, do vento e dos pontos de água: entende-se a missão, não só a posição.",
+      },
+      {
+        q: "Que aviões combatem as queimadas no Brasil?",
+        a: "O Brasil emprega sobretudo aviões agrícolas adaptados como o Air Tractor AT-802, além de helicópteros contratados pelos estados e pelo Ibama. Quando emitem ADS-B, o kanari os mostra ao vivo sobre as zonas de fogo.",
+      },
+      {
+        q: "Quanta água um Canadair lança?",
+        a: "Um CL-415 recolhe cerca de 6.000 litros em 12 segundos num espelho d'água e pode encadear rotações: até várias dezenas de lançamentos por dia quando o ponto de coleta fica perto do incêndio.",
+      },
+    ],
+  },
 } as const;
 
 export async function generateMetadata({
@@ -128,8 +224,13 @@ export async function generateMetadata({
     title: t.metaTitle,
     description: t.metaDesc,
     alternates: {
-      canonical: `/${l === "fr" ? "fr" : "en"}/canadair`,
-      languages: { fr: "/fr/canadair", en: "/en/canadair" },
+      canonical: `/${l}/canadair`,
+      languages: {
+        fr: "/fr/canadair",
+        en: "/en/canadair",
+        es: "/es/canadair",
+        pt: "/pt/canadair",
+      },
     },
   };
 }
@@ -247,6 +348,10 @@ export default async function CanadairPage({ params }: { params: Promise<{ lang:
         <p className="mt-8 border-t pt-4 text-[12.5px]" style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}>
           {lang === "fr" ? (
             <>Voir aussi : <Link href="/fr/feux-en-cours" style={{ color: "var(--link)" }}>Incendies en cours en France</Link> · <Link href="/fr/feux" style={{ color: "var(--link)" }}>Feux par département</Link> · <Link href="/fr/faq" style={{ color: "var(--link)" }}>FAQ</Link>. Données : réseaux ADS-B communautaires. En cas d'urgence : 18 ou 112.</>
+          ) : lang === "es" ? (
+            <>Ver también: <Link href="/es/statistiques" style={{ color: "var(--link)" }}>estadísticas en vivo</Link> · <Link href="/es/faq" style={{ color: "var(--link)" }}>preguntas frecuentes</Link>. Datos: redes ADS-B comunitarias. En una emergencia llama al 911 o al 112.</>
+          ) : lang === "pt" ? (
+            <>Ver também: <Link href="/pt/statistiques" style={{ color: "var(--link)" }}>estatísticas ao vivo</Link> · <Link href="/pt/faq" style={{ color: "var(--link)" }}>perguntas frequentes</Link>. Dados: redes ADS-B comunitárias. Em emergência, ligue 193 (Brasil) ou 112 (Portugal).</>
           ) : (
             <>See also: <Link href="/en/faq" style={{ color: "var(--link)" }}>FAQ</Link>. Data: community ADS-B networks. In an emergency call 112 / 911.</>
           )}

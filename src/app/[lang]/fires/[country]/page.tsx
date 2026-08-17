@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { isValidLang } from "@/lib/i18n";
-import { COUNTRY_BY_SLUG } from "@/lib/countries";
+import { COUNTRY_BY_SLUG, countryName } from "@/lib/countries";
 import { STATE_BY_SLUG, US_STATES, stateOf, type UsState } from "@/lib/us-states";
 import { listFiresByCountry, type ArchivedFire } from "@/lib/firearchive";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -20,18 +20,111 @@ function ago(iso: string): string {
   return `${Math.round(h / 24)} d ago`;
 }
 
+// Portugais : la préposition « em » se contracte selon le genre du pays
+// (« no Brasil », « na Argentina », « nos Estados Unidos ») — table des pays
+// à feux, repli « em X » pour le reste.
+const PT_IN: Record<string, string> = {
+  BR: "no Brasil", PT: "em Portugal", US: "nos Estados Unidos", CA: "no Canadá",
+  MX: "no México", CL: "no Chile", AR: "na Argentina", BO: "na Bolívia",
+  PY: "no Paraguai", UY: "no Uruguai", PE: "no Peru", EC: "no Equador",
+  CO: "na Colômbia", VE: "na Venezuela", ES: "na Espanha", FR: "na França",
+  IT: "na Itália", GR: "na Grécia", HR: "na Croácia", TR: "na Turquia",
+  AU: "na Austrália", ID: "na Indonésia", RU: "na Rússia", ZA: "na África do Sul",
+  AO: "em Angola", MZ: "em Moçambique",
+};
+
+const CT = {
+  en: {
+    metaTitle: (n: string) => `Wildfires in ${n} today: live fire map and latest ignitions | kanari`,
+    metaDesc: (n: string) => `Is there a wildfire in ${n} right now? Live map of fire ignitions detected by satellite (NASA FIRMS, GOES, MTG) and verified witness reports, plus the latest significant fires. Free, no account.`,
+    crumb: "Wildfires by country",
+    h1: (n: string) => `Wildfires in ${n}: the live situation`,
+    asOf: (d: string) => `As of ${d} UTC — significant fires archived by kanari from satellite detections (NASA FIRMS, GOES, Meteosat MTG) and AI-verified witness reports. Continuously updated.`,
+    tracked: (n: number) => (n === 1 ? "fire currently tracked" : "fires currently tracked"),
+    cta: (n: string) => `Open the live map of ${n} →`,
+    latest: "Latest significant fires",
+    det: (n: number) => `${n} detection${n > 1 ? "s" : ""}`,
+    aircraft: (n: number) => `${n} aircraft observed`,
+    sat: "Satellite detection",
+    how: (n: string) => `How do I know if there is a fire near me in ${n}?`,
+    how1:
+      "kanari continuously fuses thermal detections from satellites (VIIRS at 375 m resolution, geostationary GOES and Meteosat MTG re-scanning every 10 minutes) with witness reports published on social networks, each verified twice by AI before being shown. A new ignition can appear on the map within minutes of its first signals — often before the press.",
+    how2a: "You can also ",
+    how2link: "track water bombers live",
+    how2b: " while they operate. If you witness a fire starting, call your local emergency number first (112 in Europe, 911 in North America).",
+    byState: "Wildfires by state",
+    note: "kanari is a free, independent information service — not an official alert channel. Open data:",
+    noteLink: "full fire archive (CSV, CC BY 4.0)",
+  },
+  es: {
+    metaTitle: (n: string) => `Incendios en ${n} hoy: mapa en vivo y últimos focos | kanari`,
+    metaDesc: (n: string) => `¿Hay un incendio en ${n} ahora mismo? Mapa en vivo de los focos detectados por satélite (NASA FIRMS, GOES, MTG) y reportes de testigos verificados, más los últimos incendios significativos. Gratis, sin cuenta.`,
+    crumb: "Incendios por país",
+    h1: (n: string) => `Incendios en ${n}: la situación en vivo`,
+    asOf: (d: string) => `Al ${d} UTC — incendios significativos archivados por kanari a partir de detecciones satelitales (NASA FIRMS, GOES, Meteosat MTG) y reportes de testigos verificados por IA. Actualización continua.`,
+    tracked: (n: number) => (n === 1 ? "incendio seguido ahora" : "incendios seguidos ahora"),
+    cta: (n: string) => `Abrir el mapa en vivo de ${n} →`,
+    latest: "Últimos incendios significativos",
+    det: (n: number) => `${n} detección${n > 1 ? "es" : ""}`,
+    aircraft: (n: number) => `${n} aeronave${n > 1 ? "s" : ""} observada${n > 1 ? "s" : ""}`,
+    sat: "Detección satelital",
+    how: (n: string) => `¿Cómo sé si hay un incendio cerca de mí en ${n}?`,
+    how1:
+      "kanari fusiona de forma continua las detecciones térmicas de los satélites (VIIRS a 375 m de resolución, los geoestacionarios GOES y Meteosat MTG que reescanean cada 10 minutos) con reportes de testigos publicados en redes sociales, verificados dos veces por IA antes de mostrarse. Un foco nuevo puede aparecer en el mapa a los pocos minutos de sus primeras señales, a menudo antes que la prensa.",
+    how2a: "También puedes ",
+    how2link: "seguir los aviones cisterna en vivo",
+    how2b: " mientras operan. Si eres testigo de un foco, llama primero a tu número de emergencias local (911 en América, 112 en Europa).",
+    byState: "Incendios por estado",
+    note: "kanari es un servicio de información independiente y gratuito, no un canal de alerta oficial. Datos abiertos:",
+    noteLink: "archivo completo de incendios (CSV, CC BY 4.0)",
+  },
+  pt: {
+    metaTitle: (n: string) => `Incêndios ${n} hoje: mapa ao vivo e últimos focos | kanari`,
+    metaDesc: (n: string) => `Há um incêndio ${n} agora? Mapa ao vivo dos focos detectados por satélite (NASA FIRMS, GOES, MTG) e relatos de testemunhas verificados, mais os últimos incêndios significativos. Grátis, sem conta.`,
+    crumb: "Incêndios por país",
+    h1: (n: string) => `Incêndios ${n}: a situação ao vivo`,
+    asOf: (d: string) => `Em ${d} UTC — incêndios significativos arquivados pelo kanari a partir de detecções por satélite (NASA FIRMS, GOES, Meteosat MTG) e relatos de testemunhas verificados por IA. Atualização contínua.`,
+    tracked: (n: number) => (n === 1 ? "incêndio acompanhado agora" : "incêndios acompanhados agora"),
+    cta: (n: string) => `Abrir o mapa ao vivo · ${n} →`,
+    latest: "Últimos incêndios significativos",
+    det: (n: number) => `${n} detecção${n > 1 ? "ões" : ""}`.replace("çãoões", "ções"),
+    aircraft: (n: number) => `${n} aeronave${n > 1 ? "s" : ""} observada${n > 1 ? "s" : ""}`,
+    sat: "Detecção por satélite",
+    how: (n: string) => `Como sei se há um incêndio perto de mim ${n}?`,
+    how1:
+      "O kanari funde continuamente as detecções térmicas dos satélites (VIIRS a 375 m de resolução, os geoestacionários GOES e Meteosat MTG que revarrem a cada 10 minutos) com relatos de testemunhas publicados nas redes sociais, verificados duas vezes por IA antes de aparecerem. Um foco novo pode surgir no mapa poucos minutos após os primeiros sinais, muitas vezes antes da imprensa.",
+    how2a: "Você também pode ",
+    how2link: "acompanhar os aviões-tanque ao vivo",
+    how2b: " enquanto operam. Se presenciar um foco, ligue primeiro para o número de emergência local (193 no Brasil, 112 em Portugal).",
+    byState: "Incêndios por estado",
+    note: "O kanari é um serviço de informação independente e gratuito, não um canal de alerta oficial. Dados abertos:",
+    noteLink: "arquivo completo de incêndios (CSV, CC BY 4.0)",
+  },
+} as const;
+
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ lang: string; country: string }>;
 }): Promise<Metadata> {
-  const { country } = await params;
+  const { lang, country } = await params;
   const c = COUNTRY_BY_SLUG.get(country);
   if (c) {
+    const l = lang === "es" || lang === "pt" ? lang : "en";
+    const t = CT[l];
+    const plain = l === "en" ? c.name : countryName(c.cc, l, c.name);
+    const name = l === "pt" ? (PT_IN[c.cc] ?? `em ${plain}`) : plain;
     return {
-      title: `Wildfires in ${c.name} today: live fire map and latest ignitions | kanari`,
-      description: `Is there a wildfire in ${c.name} right now? Live map of fire ignitions detected by satellite (NASA FIRMS, GOES, MTG) and verified witness reports, plus the latest significant fires. Free, no account.`,
-      alternates: { canonical: `/en/fires/${c.slug}` },
+      title: t.metaTitle(name),
+      description: t.metaDesc(name),
+      alternates: {
+        canonical: `/${l}/fires/${c.slug}`,
+        languages: {
+          en: `/en/fires/${c.slug}`,
+          es: `/es/fires/${c.slug}`,
+          pt: `/pt/fires/${c.slug}`,
+        },
+      },
     };
   }
   const s = STATE_BY_SLUG.get(country);
@@ -57,7 +150,10 @@ export default async function CountryFires({
     if (lang !== "en") redirect(`/en/fires/${s.slug}`);
     return <StateFires state={s} />;
   }
-  if (lang !== "en") redirect(`/en/fires/${c.slug}`);
+  if (lang === "fr") redirect(`/en/fires/${c.slug}`);
+  const t = CT[lang as "en" | "es" | "pt"];
+  const plain = lang === "en" ? c.name : countryName(c.cc, lang, c.name);
+  const name = lang === "pt" ? (PT_IN[c.cc] ?? `em ${plain}`) : plain;
 
   const fires = await listFiresByCountry(c.cc, 25);
   const active = fires.filter((f) => f.status === "active");
@@ -68,14 +164,13 @@ export default async function CountryFires({
     <div className="k-scroll h-full overflow-y-auto" style={{ background: "var(--paper)" }}>
       <div className="mx-auto max-w-2xl px-4 py-10 sm:py-14">
         <p className="mb-1 text-[13px]" style={{ color: "var(--ink-3)" }}>
-          <Link href="/en/fires" style={{ color: "var(--link)" }}>Wildfires by country</Link>
+          <Link href={`/${lang}/fires`} style={{ color: "var(--link)" }}>{t.crumb}</Link>
         </p>
         <h1 className="mb-3" style={{ fontFamily: "var(--font-display)", fontSize: "var(--text-h2)", color: "var(--ink)" }}>
-          Wildfires in {c.name}: the live situation
+          {t.h1(name)}
         </h1>
         <p className="mb-6 text-[15px] leading-relaxed" style={{ color: "var(--ink-2)" }}>
-          As of {now} UTC — significant fires archived by kanari from satellite detections
-          (NASA FIRMS, GOES, Meteosat MTG) and AI-verified witness reports. Continuously updated.
+          {t.asOf(now)}
         </p>
 
         <div className="mb-6 flex flex-wrap gap-3">
@@ -84,7 +179,7 @@ export default async function CountryFires({
               {active.length}
             </div>
             <div className="text-[13px]" style={{ color: "var(--ink-2)" }}>
-              {active.length === 1 ? "fire currently tracked" : "fires currently tracked"}
+              {t.tracked(active.length)}
             </div>
           </div>
         </div>
@@ -94,13 +189,13 @@ export default async function CountryFires({
           className="mb-8 flex h-[50px] items-center justify-center rounded-full text-[15px] font-semibold"
           style={{ background: "var(--canary)", color: "var(--charcoal)", boxShadow: "var(--shadow-m)" }}
         >
-          Open the live map of {c.name} →
+          {t.cta(lang === "pt" ? plain : name)}
         </Link>
 
         {fires.length > 0 && (
           <section className="mb-8">
             <h2 className="mb-3 text-[19px] font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>
-              Latest significant fires
+              {t.latest}
             </h2>
             <div className="flex flex-col gap-2">
               {fires.map((f: ArchivedFire) => (
@@ -113,11 +208,11 @@ export default async function CountryFires({
                   <span className="h-[9px] w-[9px] shrink-0 rounded-full" style={{ background: f.status === "active" ? "#D64545" : "#8A8880" }} />
                   <span className="min-w-0 flex-1">
                     <strong className="block truncate text-[14.5px]" style={{ color: "var(--ink)" }}>
-                      {f.place ?? "Satellite detection"}{f.admin ? ` — ${f.admin}` : ""}
+                      {f.place ?? t.sat}{f.admin ? ` — ${f.admin}` : ""}
                     </strong>
                     <span className="text-[12.5px]" style={{ color: "var(--ink-2)" }}>
-                      {f.detections} detection{f.detections > 1 ? "s" : ""} · {Math.round(f.max_frp)} MW max
-                      {f.aircraft.length > 0 ? ` · ${f.aircraft.length} aircraft observed` : ""}
+                      {t.det(f.detections)} · {Math.round(f.max_frp)} MW max
+                      {f.aircraft.length > 0 ? ` · ${t.aircraft(f.aircraft.length)}` : ""}
                     </span>
                   </span>
                   <span className="whitespace-nowrap text-[12px]" style={{ color: "var(--ink-3)" }}>{ago(f.last_seen)}</span>
@@ -129,26 +224,18 @@ export default async function CountryFires({
 
         <section className="mb-8 text-[14.5px] leading-relaxed" style={{ color: "var(--ink-2)" }}>
           <h2 className="mb-2 text-[19px] font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>
-            How do I know if there is a fire near me in {c.name}?
+            {t.how(name)}
           </h2>
-          <p className="mb-3">
-            kanari continuously fuses thermal detections from satellites (VIIRS at 375 m
-            resolution, geostationary GOES and Meteosat MTG re-scanning every 10 minutes) with
-            witness reports published on social networks, each verified twice by AI before being
-            shown. A new ignition can appear on the map within minutes of its first signals —
-            often before the press.
-          </p>
+          <p className="mb-3">{t.how1}</p>
           <p>
-            You can also <Link href="/en/canadair" style={{ color: "var(--link)" }}>track water
-            bombers live</Link> while they operate. If you witness a fire starting, call your
-            local emergency number first (112 in Europe, 911 in North America).
+            {t.how2a}<Link href={`/${lang}/canadair`} style={{ color: "var(--link)" }}>{t.how2link}</Link>{t.how2b}
           </p>
         </section>
 
         {c.cc === "US" && (
           <section className="mb-8">
             <h2 className="mb-3 text-[19px] font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>
-              Wildfires by state
+              {t.byState}
             </h2>
             <p className="flex flex-wrap gap-x-3 gap-y-1.5 text-[13.5px] leading-relaxed">
               {US_STATES.map((s) => (
@@ -161,10 +248,9 @@ export default async function CountryFires({
         )}
 
         <p className="mt-8 border-t pt-4 text-[12.5px]" style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}>
-          kanari is a free, independent information service — not an official alert channel.
-          Open data: <a href="/opendata/feux.csv" style={{ color: "var(--link)" }}>full fire archive (CSV, CC BY 4.0)</a>.
+          {t.note} <a href="/opendata/feux.csv" style={{ color: "var(--link)" }}>{t.noteLink}</a>.
         </p>
-        <SiteFooter lang="en" />
+        <SiteFooter lang={lang} />
       </div>
     </div>
   );

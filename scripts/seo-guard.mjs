@@ -143,6 +143,36 @@ const PAGES = [
     jsonld: ["FAQPage"],
   },
   {
+    path: "/es/canadair",
+    title: /Aviones cisterna en vivo/i,
+    canonical: "/es/canadair",
+    hreflang: ["fr", "en", "es", "pt"],
+    jsonld: ["FAQPage"],
+  },
+  {
+    path: "/pt/canadair",
+    title: /Aviões-tanque ao vivo/i,
+    canonical: "/pt/canadair",
+    jsonld: ["FAQPage"],
+  },
+  {
+    path: "/es/fires/chile",
+    title: /Incendios en Chile hoy/i,
+    canonical: "/es/fires/chile",
+    hreflang: ["en", "es", "pt"],
+  },
+  {
+    path: "/pt/fires/brazil",
+    title: /Incêndios no Brasil hoje/i,
+    canonical: "/pt/fires/brazil",
+  },
+  {
+    path: "/es/widget",
+    title: /Insertar el mapa de incendios/i,
+    canonical: "/es/widget",
+    jsonld: ["FAQPage"],
+  },
+  {
     path: "/en/fires/california",
     title: /California wildfires today/i,
     canonical: "/en/fires/california",

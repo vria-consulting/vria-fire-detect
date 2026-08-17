@@ -62,12 +62,26 @@ export default function sitemap(): MetadataRoute.Sitemap {
         : []),
     ];
   });
-  const countryPages: MetadataRoute.Sitemap = COUNTRIES.map((c) => ({
-    url: `${base}/en/fires/${c.slug}`,
-    lastModified: new Date(),
-    changeFrequency: "hourly" as const,
-    priority: 0.7,
-  }));
+  // Pages pays en 3 langues (en/es/pt) avec hreflang croisé.
+  const countryPages: MetadataRoute.Sitemap = COUNTRIES.flatMap((c) => {
+    const alternates = {
+      languages: {
+        en: `${base}/en/fires/${c.slug}`,
+        es: `${base}/es/fires/${c.slug}`,
+        pt: `${base}/pt/fires/${c.slug}`,
+      },
+    };
+    return (["en", "es", "pt"] as const).map((l) => ({
+      url: `${base}/${l}/fires/${c.slug}`,
+      lastModified: new Date(),
+      changeFrequency: "hourly" as const,
+      priority: l === "en" ? 0.7 : 0.65,
+      alternates,
+    }));
+  });
+  const firesHubAlt = {
+    languages: { en: `${base}/en/fires`, es: `${base}/es/fires`, pt: `${base}/pt/fires` },
+  };
   // 50 US states + DC : le plus gros marché de recherche feux au monde.
   const statePages: MetadataRoute.Sitemap = US_STATES.map((s) => ({
     url: `${base}/en/fires/${s.slug}`,
@@ -87,6 +101,21 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.9,
+      alternates: firesHubAlt,
+    },
+    {
+      url: `${base}/es/fires`,
+      lastModified: new Date(),
+      changeFrequency: "hourly",
+      priority: 0.85,
+      alternates: firesHubAlt,
+    },
+    {
+      url: `${base}/pt/fires`,
+      lastModified: new Date(),
+      changeFrequency: "hourly",
+      priority: 0.85,
+      alternates: firesHubAlt,
     },
     ...countryPages,
     ...statePages,
@@ -96,14 +125,28 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.6,
-      alternates: { languages: { fr: `${base}/fr/widget`, en: `${base}/en/widget` } },
+      alternates: { languages: { fr: `${base}/fr/widget`, en: `${base}/en/widget`, es: `${base}/es/widget`, pt: `${base}/pt/widget` } },
     },
     {
       url: `${base}/en/widget`,
       lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.6,
-      alternates: { languages: { fr: `${base}/fr/widget`, en: `${base}/en/widget` } },
+      alternates: { languages: { fr: `${base}/fr/widget`, en: `${base}/en/widget`, es: `${base}/es/widget`, pt: `${base}/pt/widget` } },
+    },
+    {
+      url: `${base}/es/widget`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.6,
+      alternates: { languages: { fr: `${base}/fr/widget`, en: `${base}/en/widget`, es: `${base}/es/widget`, pt: `${base}/pt/widget` } },
+    },
+    {
+      url: `${base}/pt/widget`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.6,
+      alternates: { languages: { fr: `${base}/fr/widget`, en: `${base}/en/widget`, es: `${base}/es/widget`, pt: `${base}/pt/widget` } },
     },
     {
       url: `${base}/fr/bilan`,
@@ -220,14 +263,28 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.9,
-      alternates: { languages: { fr: `${base}/fr/canadair`, en: `${base}/en/canadair` } },
+      alternates: { languages: { fr: `${base}/fr/canadair`, en: `${base}/en/canadair`, es: `${base}/es/canadair`, pt: `${base}/pt/canadair` } },
     },
     {
       url: `${base}/en/canadair`,
       lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.8,
-      alternates: { languages: { fr: `${base}/fr/canadair`, en: `${base}/en/canadair` } },
+      alternates: { languages: { fr: `${base}/fr/canadair`, en: `${base}/en/canadair`, es: `${base}/es/canadair`, pt: `${base}/pt/canadair` } },
+    },
+    {
+      url: `${base}/es/canadair`,
+      lastModified: new Date(),
+      changeFrequency: "hourly",
+      priority: 0.8,
+      alternates: { languages: { fr: `${base}/fr/canadair`, en: `${base}/en/canadair`, es: `${base}/es/canadair`, pt: `${base}/pt/canadair` } },
+    },
+    {
+      url: `${base}/pt/canadair`,
+      lastModified: new Date(),
+      changeFrequency: "hourly",
+      priority: 0.8,
+      alternates: { languages: { fr: `${base}/fr/canadair`, en: `${base}/en/canadair`, es: `${base}/es/canadair`, pt: `${base}/pt/canadair` } },
     },
     {
       url: `${base}/fr`,

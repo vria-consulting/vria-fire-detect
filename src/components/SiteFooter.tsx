@@ -81,8 +81,8 @@ const ES: { title: string; items: Item[] }[] = [
     title: "En vivo",
     items: [
       { href: "/es", label: "Mapa de incendios en vivo" },
-      { href: "/en/canadair", label: "Aviones cisterna en vivo" },
-      { href: "/en/fires", label: "Incendios por país" },
+      { href: "/es/canadair", label: "Aviones cisterna en vivo" },
+      { href: "/es/fires", label: "Incendios por país" },
     ],
   },
   {
@@ -99,7 +99,7 @@ const ES: { title: string; items: Item[] }[] = [
       { href: "/es/guide", label: "Guías sobre incendios" },
       { href: "/es/faq", label: "Preguntas frecuentes" },
       { href: "/en/a-propos", label: "Sobre kanari" },
-      { href: "/en/widget", label: "Widget para tu sitio" },
+      { href: "/es/widget", label: "Widget para tu sitio" },
       { href: "/en/confidentialite", label: "Privacidad y cookies" },
     ],
   },
@@ -110,8 +110,8 @@ const PT: { title: string; items: Item[] }[] = [
     title: "Ao vivo",
     items: [
       { href: "/pt", label: "Mapa de incêndios ao vivo" },
-      { href: "/en/canadair", label: "Aviões-tanque ao vivo" },
-      { href: "/en/fires", label: "Incêndios por país" },
+      { href: "/pt/canadair", label: "Aviões-tanque ao vivo" },
+      { href: "/pt/fires", label: "Incêndios por país" },
     ],
   },
   {
@@ -128,7 +128,7 @@ const PT: { title: string; items: Item[] }[] = [
       { href: "/pt/guide", label: "Guias sobre incêndios" },
       { href: "/pt/faq", label: "Perguntas frequentes" },
       { href: "/en/a-propos", label: "Sobre o kanari" },
-      { href: "/en/widget", label: "Widget para seu site" },
+      { href: "/pt/widget", label: "Widget para seu site" },
       { href: "/en/confidentialite", label: "Privacidade e cookies" },
     ],
   },
