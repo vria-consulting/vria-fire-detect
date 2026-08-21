@@ -4,7 +4,7 @@
 vérification échoue : toute régression est détectée immédiatement.
 
 ```bash
-npm run qa          # audite la production (vria-fire-detect.vercel.app)
+npm run qa          # audite la production (kanari.io)
 npm run qa:local    # audite le serveur de dev (localhost:3100)
 ```
 

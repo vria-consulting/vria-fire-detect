@@ -17,7 +17,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   await params;
   return {
-    title: "Feux de forêt en France aujourd'hui : carte en temps réel par département | kanari",
+    title: "Feux de forêt en France aujourd'hui par département | kanari",
     description:
       "Où sont les feux de forêt en France en ce moment ? Carte des départs de feu en temps réel, département par département : détections satellites, témoins vérifiés, Canadair en direct.",
     alternates: { canonical: "/fr/feux" },

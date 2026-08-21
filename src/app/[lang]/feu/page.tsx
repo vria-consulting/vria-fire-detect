@@ -16,7 +16,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   await params;
   return {
-    title: "Historique des feux de forêt : chronologie de chaque incendie détecté | kanari",
+    title: "Historique des feux de forêt : chaque incendie détecté | kanari",
     description:
       "La mémoire publique des feux de forêt : chaque incendie significatif détecté par kanari a sa page permanente — chronologie, détections satellites, moyens aériens engagés.",
     alternates: { canonical: "/fr/feu" },

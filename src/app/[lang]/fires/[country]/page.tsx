@@ -35,8 +35,8 @@ const PT_IN: Record<string, string> = {
 
 const CT = {
   en: {
-    metaTitle: (n: string) => `Wildfires in ${n} today: live fire map and latest ignitions | kanari`,
-    metaDesc: (n: string) => `Is there a wildfire in ${n} right now? Live map of fire ignitions detected by satellite (NASA FIRMS, GOES, MTG) and verified witness reports, plus the latest significant fires. Free, no account.`,
+    metaTitle: (n: string) => `Wildfires in ${n} today: live fire map | kanari`,
+    metaDesc: (n: string) => `Is there a wildfire in ${n} right now? Live map of fire ignitions detected by satellite (NASA FIRMS, GOES, MTG) and verified witness reports. Free, no account.`,
     crumb: "Wildfires by country",
     h1: (n: string) => `Wildfires in ${n}: the live situation`,
     asOf: (d: string) => `As of ${d} UTC — significant fires archived by kanari from satellite detections (NASA FIRMS, GOES, Meteosat MTG) and AI-verified witness reports. Continuously updated.`,
@@ -57,8 +57,8 @@ const CT = {
     noteLink: "full fire archive (CSV, CC BY 4.0)",
   },
   es: {
-    metaTitle: (n: string) => `Incendios en ${n} hoy: mapa en vivo y últimos focos | kanari`,
-    metaDesc: (n: string) => `¿Hay un incendio en ${n} ahora mismo? Mapa en vivo de los focos detectados por satélite (NASA FIRMS, GOES, MTG) y reportes de testigos verificados, más los últimos incendios significativos. Gratis, sin cuenta.`,
+    metaTitle: (n: string) => `Incendios en ${n} hoy: mapa en vivo | kanari`,
+    metaDesc: (n: string) => `¿Hay un incendio en ${n} ahora mismo? Mapa en vivo de los focos detectados por satélite (NASA FIRMS, GOES, MTG) y reportes de testigos verificados. Gratis, sin cuenta.`,
     crumb: "Incendios por país",
     h1: (n: string) => `Incendios en ${n}: la situación en vivo`,
     asOf: (d: string) => `Al ${d} UTC — incendios significativos archivados por kanari a partir de detecciones satelitales (NASA FIRMS, GOES, Meteosat MTG) y reportes de testigos verificados por IA. Actualización continua.`,
@@ -79,8 +79,8 @@ const CT = {
     noteLink: "archivo completo de incendios (CSV, CC BY 4.0)",
   },
   pt: {
-    metaTitle: (n: string) => `Incêndios ${n} hoje: mapa ao vivo e últimos focos | kanari`,
-    metaDesc: (n: string) => `Há um incêndio ${n} agora? Mapa ao vivo dos focos detectados por satélite (NASA FIRMS, GOES, MTG) e relatos de testemunhas verificados, mais os últimos incêndios significativos. Grátis, sem conta.`,
+    metaTitle: (n: string) => `Incêndios ${n} hoje: mapa ao vivo | kanari`,
+    metaDesc: (n: string) => `Há um incêndio ${n} agora? Mapa ao vivo dos focos detectados por satélite (NASA FIRMS, GOES, MTG) e relatos de testemunhas verificados. Grátis, sem conta.`,
     crumb: "Incêndios por país",
     h1: (n: string) => `Incêndios ${n}: a situação ao vivo`,
     asOf: (d: string) => `Em ${d} UTC — incêndios significativos arquivados pelo kanari a partir de detecções por satélite (NASA FIRMS, GOES, Meteosat MTG) e relatos de testemunhas verificados por IA. Atualização contínua.`,
@@ -130,8 +130,8 @@ export async function generateMetadata({
   const s = STATE_BY_SLUG.get(country);
   if (!s) return {};
   return {
-    title: `${s.name} wildfires today: live fire map, active fires and perimeters | kanari`,
-    description: `Is there a fire in ${s.name} right now? Live map of wildfire ignitions detected by satellite (NASA FIRMS, GOES), official NIFC perimeters, water bombers in flight and the latest significant fires. Free, no account.`,
+    title: `${s.name} wildfires today: live fire map | kanari`,
+    description: `Is there a fire in ${s.name} right now? Live map of wildfire ignitions detected by satellite, NIFC perimeters and water bombers in flight. Free, no account.`,
     alternates: { canonical: `/en/fires/${s.slug}` },
   };
 }

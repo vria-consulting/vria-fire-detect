@@ -14,8 +14,8 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
   return {
     title:
       l === "fr"
-        ? "API publique feux de forêt : détections satellite en JSON + open data CSV | kanari"
-        : "Free wildfire API: satellite detections in JSON + open data CSV | kanari",
+        ? "API feux de forêt : détections satellite JSON + open data CSV | kanari"
+        : "Free wildfire API: satellite detections (JSON) + open data | kanari",
     description:
       l === "fr"
         ? "API gratuite des feux de forêt détectés dans le monde : foyers en temps réel (JSON), signalements vérifiés, archive complète en CSV (CC BY 4.0) et flux RSS. Sans clé, sans compte."

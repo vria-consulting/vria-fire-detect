@@ -17,6 +17,29 @@ const nextConfig: NextConfig = {
     "/api/cron/check": ["./node_modules/h5wasm/dist/node/**"],
     "/api/goes-debug": ["./node_modules/h5wasm/dist/node/**"],
   },
+  // Un seul hôte canonique : kanari.io. Sans ces redirections, www.kanari.io et
+  // le domaine technique Vercel servaient le site à l'identique (3 copies) ;
+  // Bing avait indexé des pages sous www, absentes des sitemaps et d'IndexNow
+  // (« important pages missing in sitemaps »), et diluait le ranking de l'apex.
+  // 308 permanent : les moteurs consolident sur kanari.io.
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.kanari.io" }],
+        destination: "https://kanari.io/:path*",
+        permanent: true,
+      },
+      {
+        // Tout sauf /api : le cron GitHub Actions appelle /api/cron/check sur
+        // ce domaine, et une API ne doit jamais répondre par une redirection.
+        source: "/:path((?!api(?:/|$)).*)",
+        has: [{ type: "host", value: "vria-fire-detect.vercel.app" }],
+        destination: "https://kanari.io/:path",
+        permanent: true,
+      },
+    ];
+  },
   // Les visuels publics (og.png, images de partage) sont réutilisables par
   // des sites tiers (annuaires, portails open data) : CORS ouvert en lecture.
   // Idem pour l'API publique documentée sur /fr/api (events, signals, CSV, RSS).

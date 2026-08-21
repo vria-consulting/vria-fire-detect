@@ -79,7 +79,7 @@ export const GUIDES: Guide[] = [
   {
     slug: "comment-fonctionne-un-canadair",
     title: "Comment fonctionne un Canadair ?",
-    metaTitle: "Comment fonctionne un Canadair ? Écopage, largage, flotte française | kanari",
+    metaTitle: "Comment fonctionne un Canadair ? Écopage, largage, flotte | kanari",
     metaDesc:
       "6 000 litres écopés en 12 secondes, largage à 30 mètres du sol : comment le Canadair CL-415 combat les feux, et comment suivre les Pélican français en direct.",
     imageAlt:
@@ -134,7 +134,7 @@ export const GUIDES: Guide[] = [
   {
     slug: "detection-feux-satellite",
     title: "Comment les satellites détectent-ils les feux de forêt ?",
-    metaTitle: "Détection des feux de forêt par satellite : VIIRS, GOES, Meteosat expliqués | kanari",
+    metaTitle: "Détecter les feux de forêt par satellite : VIIRS, GOES, MTG | kanari",
     metaDesc:
       "Anomalies thermiques, résolution 375 m, rafraîchissement 10 minutes : comment les satellites VIIRS, GOES et Meteosat MTG repèrent les départs de feu, et leurs limites.",
     imageAlt:

@@ -12,7 +12,7 @@ export const revalidate = 3600;
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   await params;
   return {
-    title: "kanari pour les SDIS, communes et gestionnaires forestiers : veille satellite gratuite | kanari",
+    title: "kanari pour les SDIS et collectivités : veille satellite gratuite",
     description:
       "Un complément gratuit à vos dispositifs : détections satellite mondiales (Meteosat 10 min, VIIRS, GOES), témoignages vérifiés par IA, suivi des moyens aériens, alertes par zone, open data et API. Sans déploiement, sans compte, sans coût.",
     alternates: { canonical: "/fr/sdis" },

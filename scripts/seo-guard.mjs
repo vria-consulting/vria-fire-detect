@@ -252,6 +252,14 @@ for (const p of PAGES) {
     if (titleMatch && p.title.test(titleMatch[1])) ok(`title « ${titleMatch[1].slice(0, 60)} »`);
     else ko(`title absent ou inattendu (${titleMatch ? titleMatch[1].slice(0, 80) : "aucun"})`);
   }
+  // Bing classe « Title too long » (> 70 caractères) en erreur haute ;
+  // Google tronque vers 60. Jamais plus de 70.
+  const titleLen = titleMatch
+    ? titleMatch[1].replace(/&#x27;|&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&").length
+    : 0;
+  if (titleLen > 70) {
+    ko(`title trop long (${titleLen} caractères, max 70)`);
+  }
 
   if (/<meta[^>]+name="robots"[^>]+noindex/i.test(r.body) || /<meta[^>]+noindex[^>]+name="robots"/i.test(r.body)) {
     ko("balise noindex détectée !");
@@ -308,9 +316,62 @@ for (const c of STATIC_CHECKS) {
   }
 }
 
+// Un seul hôte canonique : www.kanari.io et le domaine technique Vercel
+// doivent rediriger (308) vers kanari.io — Bing avait indexé le site en
+// doublon sous www. Le /api du domaine Vercel reste servi (cron GitHub).
+// On parle au même serveur en forçant l'en-tête Host (fetch l'interdit :
+// http(s).request natif).
+const HOST_CHECKS = [
+  { host: "www.kanari.io", path: "/fr/feux/pas-de-calais", expect: "https://kanari.io/fr/feux/pas-de-calais" },
+  { host: "www.kanari.io", path: "/sitemap.xml", expect: "https://kanari.io/sitemap.xml" },
+  { host: "vria-fire-detect.vercel.app", path: "/fr", expect: "https://kanari.io/fr" },
+  { host: "vria-fire-detect.vercel.app", path: "/api/events?hours=1", expect: null },
+];
+
+async function headWithHost(path, host) {
+  const { default: http } = await import(BASE.startsWith("https") ? "node:https" : "node:http");
+  const u = new URL(BASE + path);
+  return new Promise((resolve, reject) => {
+    const req = http.request(
+      {
+        hostname: u.hostname,
+        port: u.port || undefined,
+        path: u.pathname + u.search,
+        method: "GET",
+        headers: { host, "user-agent": "kanari-seo-guard" },
+        timeout: 30000,
+      },
+      (res) => {
+        res.resume();
+        resolve({ status: res.statusCode, location: res.headers.location ?? null });
+      }
+    );
+    req.on("error", reject);
+    req.on("timeout", () => req.destroy(new Error("timeout")));
+    req.end();
+  });
+}
+
+for (const c of HOST_CHECKS) {
+  console.log(`\nHost: ${c.host} ${c.path}`);
+  let r;
+  try {
+    r = await headWithHost(c.path, c.host);
+  } catch (e) {
+    ko(`inaccessible: ${e.message}`);
+    continue;
+  }
+  if (c.expect) {
+    if (r.status === 308 && r.location === c.expect) ok(`308 → ${c.expect}`);
+    else ko(`attendu 308 → ${c.expect}, reçu ${r.status} → ${r.location}`);
+  } else if (r.status >= 300 && r.status < 400) {
+    ko(`l'API ne doit pas rediriger (reçu ${r.status} → ${r.location})`);
+  } else ok(`pas de redirection (HTTP ${r.status})`);
+}
+
 console.log(
   failures.length === 0
-    ? `\n✅ Garde SEO : ${PAGES.length + STATIC_CHECKS.length} cibles vérifiées, aucun problème.`
+    ? `\n✅ Garde SEO : ${PAGES.length + STATIC_CHECKS.length + HOST_CHECKS.length} cibles vérifiées, aucun problème.`
     : `\n❌ Garde SEO : ${failures.length} problème(s).`
 );
 process.exit(failures.length === 0 ? 0 : 1);

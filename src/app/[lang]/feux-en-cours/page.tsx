@@ -91,9 +91,9 @@ export async function generateMetadata({
   }
   const lead =
     count === null
-      ? "Incendies en cours en France aujourd'hui : liste en temps réel"
+      ? "Incendies en cours en France aujourd'hui : liste en direct"
       : count === 0
-        ? "Incendies en cours en France aujourd'hui : aucun foyer actif détecté"
+        ? "Incendies en cours en France aujourd'hui : aucun foyer actif"
         : `Incendies en cours en France aujourd'hui : ${count} foyer${count > 1 ? "s" : ""} actif${count > 1 ? "s" : ""}`;
   return {
     title: `${lead} | kanari`,

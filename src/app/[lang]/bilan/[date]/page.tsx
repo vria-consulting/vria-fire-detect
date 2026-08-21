@@ -58,8 +58,8 @@ export async function generateMetadata({
   // Titre façon Discover : chiffres précis + enjeu, sans sensationnalisme.
   const title =
     fires.length > 0
-      ? `Feux de forêt du ${frLongDate(date)} : ${fires.length} départs détectés dans le monde${fr > 0 ? `, dont ${fr} en France` : ""}`
-      : `Bilan des feux de forêt du ${frLongDate(date)} : départs détectés dans le monde | kanari`;
+      ? `Feux de forêt du ${frLongDate(date)} : ${fires.length} départs${fr > 0 ? `, dont ${fr} en France` : " dans le monde"}`
+      : `Bilan des feux de forêt du ${frLongDate(date)} | kanari`;
   const img = `https://kanari.io/ogbilan/${date}`;
   return {
     title,

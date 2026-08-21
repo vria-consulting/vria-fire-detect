@@ -16,7 +16,7 @@ type Row = { name: string; coverage: string; latency: string; aircraft: string; 
 
 const T = {
   fr: {
-    metaTitle: "Quelle carte des feux de forêt choisir ? Comparatif honnête 2026 | kanari",
+    metaTitle: "Quelle carte des feux de forêt choisir ? Comparatif 2026 | kanari",
     metaDesc:
       "Watch Duty, FireTracking, NASA FIRMS, Windy ou kanari : couverture, latence de détection, suivi des Canadair, prix et données ouvertes. Comparatif factuel mis à jour en 2026.",
     h1: "Quelle carte des feux de forêt choisir ?",

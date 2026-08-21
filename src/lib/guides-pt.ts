@@ -10,7 +10,7 @@ export const GUIDES_PT: Guide[] = [
   {
     slug: "que-faire-feu-de-foret",
     title: "O que fazer diante de um incêndio florestal: os reflexos que salvam vidas",
-    metaTitle: "O que fazer diante de um incêndio florestal? Os reflexos certos | kanari",
+    metaTitle: "O que fazer diante de um incêndio florestal? | kanari",
     metaDesc:
       "Ver um foco começar, casa ameaçada, fumaça ao longe: os reflexos certos, passo a passo, segundo as orientações da defesa civil e dos bombeiros.",
     imageAlt:

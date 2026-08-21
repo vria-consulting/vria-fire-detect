@@ -87,7 +87,7 @@ export function parseOptions(): QaOptions {
   const get = (k: string) => args.find((a) => a.startsWith(`--${k}=`))?.split("=")[1];
   const target = args.includes("--local")
     ? "http://localhost:3100"
-    : (get("target") ?? process.env.QA_TARGET ?? "https://vria-fire-detect.vercel.app");
+    : (get("target") ?? process.env.QA_TARGET ?? "https://kanari.io");
   return {
     target: target.replace(/\/$/, ""),
     aiSample: parseInt(get("ai-sample") ?? "24", 10),

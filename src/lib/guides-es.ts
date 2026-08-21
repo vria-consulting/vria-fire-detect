@@ -66,7 +66,7 @@ export const GUIDES_ES: Guide[] = [
   {
     slug: "detection-feux-satellite",
     title: "¿Cómo detectan los satélites los incendios forestales?",
-    metaTitle: "Detección de incendios desde el espacio: VIIRS, GOES, Meteosat | kanari",
+    metaTitle: "Detección de incendios desde el espacio: VIIRS, GOES, MTG | kanari",
     metaDesc:
       "Anomalías térmicas, resolución de 375 m, refresco cada 10 minutos: cómo los satélites VIIRS, GOES y Meteosat MTG detectan los focos nuevos, y sus límites.",
     imageAlt:

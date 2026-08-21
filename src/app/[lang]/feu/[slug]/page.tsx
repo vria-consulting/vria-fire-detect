@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { isValidLang } from "@/lib/i18n";
-import { getFireBySlug, type ArchivedFire } from "@/lib/firearchive";
+import { getFireBySlug, isFireIndexable, type ArchivedFire } from "@/lib/firearchive";
 import { DEPT_BY_SLUG } from "@/lib/departements";
 import { fetchStrategicPoints, type StrategicPoint } from "@/lib/strategic";
 import { fetchOfficialPerimeter, type OfficialPerimeter } from "@/lib/perimeters";
@@ -59,7 +59,7 @@ export async function generateMetadata({
     // Bing : sortie de l'index le 19-20/08). Les feux significatifs restent
     // indexables.
     robots: {
-      index: f.detections >= 3 || f.aircraft.length > 0 || f.max_frp >= 20,
+      index: isFireIndexable(f),
       follow: true,
     },
     openGraph: {

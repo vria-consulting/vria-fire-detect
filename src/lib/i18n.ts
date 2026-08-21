@@ -84,7 +84,7 @@ const fr = {
   viewPlan: "Plan",
   // Titre = requête principale d'abord (« carte des feux… temps réel »),
   // marque ensuite : c'est la requête tapée, pas la marque, qui amène le SEO.
-  metaTitle: "Carte des feux de forêt en temps réel — kanari, l'alerte avant tout le monde",
+  metaTitle: "Carte des feux de forêt en direct — kanari, l'alerte avant la sirène",
   metaDescription:
     "Carte mondiale en temps quasi réel des départs de feu de forêt : détection satellite (NASA FIRMS, Meteosat), témoignages citoyens vérifiés par IA, alertes gratuites par zone. Le canari chante avant la sirène.",
 

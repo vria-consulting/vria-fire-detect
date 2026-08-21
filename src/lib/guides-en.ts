@@ -120,7 +120,7 @@ export const GUIDES_EN: Guide[] = [
   {
     slug: "detection-feux-satellite",
     title: "How do satellites detect wildfires?",
-    metaTitle: "Wildfire detection from space: VIIRS, GOES, Meteosat explained | kanari",
+    metaTitle: "Wildfire detection from space: VIIRS, GOES, Meteosat | kanari",
     metaDesc:
       "Thermal anomalies, 375 m resolution, 10-minute refresh: how VIIRS, GOES and Meteosat MTG satellites spot new fires, and their limits.",
     imageAlt:

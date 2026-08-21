@@ -140,7 +140,7 @@ const T = {
       "Significant wildfires detected by satellites (NASA FIRMS, GOES, Meteosat MTG) and verified witnesses, continuously archived by kanari: position, timeline, power, observed firefighting aircraft.",
   },
   es: {
-    metaTitle: "Estadísticas de incendios forestales en tiempo real: el observatorio kanari",
+    metaTitle: "Estadísticas de incendios forestales en tiempo real | kanari",
     metaDesc:
       "¿Cuántos incendios forestales hay hoy, esta semana, en el mundo? Cifras en tiempo real, países más afectados, medios aéreos — y datos abiertos (CSV).",
     h1: "El observatorio de incendios forestales",
@@ -200,7 +200,7 @@ const T = {
       "Incendios forestales significativos detectados por satélites (NASA FIRMS, GOES, Meteosat MTG) y testigos verificados, archivados de forma continua por kanari: posición, cronología, potencia, medios aéreos observados.",
   },
   pt: {
-    metaTitle: "Estatísticas de incêndios florestais em tempo real: o observatório kanari",
+    metaTitle: "Estatísticas de incêndios florestais em tempo real | kanari",
     metaDesc:
       "Quantos incêndios florestais hoje, nesta semana, no mundo? Números em tempo real, países mais afetados, meios aéreos — e dados abertos (CSV).",
     h1: "O observatório de incêndios florestais",

@@ -24,7 +24,7 @@ export async function generateMetadata({
   const a = BY_REG.get(reg.toLowerCase());
   if (!a) return {};
   return {
-    title: `${a.reg} — ${a.model} de la Sécurité Civile : suivi en direct et missions | kanari`,
+    title: `${a.reg} ${a.model} : suivi en direct | kanari`,
     description: `Où est le ${a.model} ${a.reg} en ce moment ? Position en direct quand il vole, et historique des feux sur lesquels kanari l'a observé.`,
     alternates: { canonical: `/fr/canadair/${a.reg.toLowerCase()}` },
   };

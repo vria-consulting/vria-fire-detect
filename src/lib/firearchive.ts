@@ -407,9 +407,17 @@ export async function listFiresByAircraft(hex: string, limit = 30): Promise<Arch
   }
 }
 
+// Slugs des pages feu destinées à l'index (sitemap-events) : même règle que
+// la balise robots de /fr/feu/[slug] — un feu « mince » (< 3 détections,
+// sans moyen aérien, FRP < 20 MW) est noindex et ne doit donc pas être
+// poussé aux moteurs : 5 000 URLs quasi identiques dans un sitemap, c'est
+// la masse « découvertes, non indexées » qui a fait décrocher Bing et Google.
+export function isFireIndexable(f: { detections: number; max_frp: number; aircraft: unknown[] | null }): boolean {
+  return f.detections >= 3 || (f.aircraft?.length ?? 0) > 0 || f.max_frp >= 20;
+}
+
 export async function listFireSlugs(limit = 5000): Promise<{ slug: string; updated_at: string }[]> {
-  return fetchPaged<{ slug: string; updated_at: string }>(
-    `select=slug,updated_at&order=last_seen.desc`,
-    limit
-  );
+  type Row = { slug: string; updated_at: string; detections: number; max_frp: number; aircraft: unknown[] | null };
+  const rows = await fetchPaged<Row>(`select=slug,updated_at,detections,max_frp,aircraft&order=last_seen.desc`, limit);
+  return rows.filter(isFireIndexable).map(({ slug, updated_at }) => ({ slug, updated_at }));
 }

@@ -9,7 +9,7 @@ import { GUIDES_PT } from "@/lib/guides-pt";
 
 const T = {
   fr: {
-    metaTitle: "Guides feux de forêt : réflexes, Canadair, satellites, risque météo | kanari",
+    metaTitle: "Guides feux de forêt : réflexes, Canadair, satellites | kanari",
     metaDesc:
       "Les guides kanari pour tout comprendre des feux de forêt : bons réflexes en cas de départ de feu, fonctionnement des Canadair, détection satellite, météo des forêts.",
     h1: "Guides feux de forêt",
@@ -19,7 +19,7 @@ const T = {
     faq: "FAQ",
   },
   en: {
-    metaTitle: "Wildfire guides: reflexes, water bombers, satellites, fire weather | kanari",
+    metaTitle: "Wildfire guides: reflexes, water bombers, satellites | kanari",
     metaDesc:
       "kanari's guides to understand wildfires: the right reflexes during an ignition, how Canadair water bombers work, satellite detection, fire weather.",
     h1: "Wildfire guides",

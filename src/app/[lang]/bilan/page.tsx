@@ -17,7 +17,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   await params;
   return {
-    title: "Bilans quotidiens des feux de forêt : combien de départs chaque jour ? | kanari",
+    title: "Bilans quotidiens des feux de forêt en France | kanari",
     description:
       "Jour par jour, le bilan automatique des feux de forêt détectés dans le monde et en France : nombre de départs, foyers les plus puissants, moyens aériens engagés.",
     alternates: { canonical: "/fr/bilan" },

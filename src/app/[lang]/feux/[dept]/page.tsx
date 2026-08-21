@@ -72,8 +72,8 @@ export async function generateMetadata({
   const d = DEPT_BY_SLUG.get(dept);
   if (!d) return {};
   return {
-    title: `Incendie ${d.name} aujourd'hui : feux en cours, carte en temps réel | kanari`,
-    description: `Y a-t-il un feu de forêt en ${d.name} (${d.code}) en ce moment ? Carte des départs de feu en temps réel (satellites + témoins vérifiés), risque incendie du jour et suivi des Canadair. Gratuit, sans compte.`,
+    title: `Incendie ${d.name} aujourd'hui : carte en direct | kanari`,
+    description: `Y a-t-il un feu de forêt en ${d.name} (${d.code}) en ce moment ? Carte des départs de feu en temps réel, risque incendie du jour et Canadair en direct. Gratuit.`,
     alternates: { canonical: `/fr/feux/${d.slug}` },
   };
 }
