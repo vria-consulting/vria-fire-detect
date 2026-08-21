@@ -61,16 +61,17 @@ export async function GET(req: NextRequest) {
     const planes = await getWaterBombers().catch(() => []);
     const res = await archiveEvents(events, planes);
     archived = res.count;
-    // IndexNow : les nouvelles pages feu + les pages fraîches du jour partent
-    // immédiatement vers l'index Bing (qui nourrit ChatGPT/Copilot/Perplexity).
-    if (res.newSlugs.length > 0) {
-      const day = new Date().toISOString().slice(0, 10);
-      await pingIndexNow([
-        ...res.newSlugs.map((s) => `/fr/feu/${s}`),
-        `/fr/bilan/${day}`,
-        "/fr/statistiques",
-        "/fr/feu",
-      ]);
+    // IndexNow : pages éditoriales du jour, UNE fois par jour. Jamais les
+    // pages feu individuelles — en pousser ~550 par jour (quasi identiques)
+    // et re-pinger les mêmes URLs à chaque run a fait sortir kanari de
+    // l'index Bing (= Bing + DuckDuckGo + Ecosia + Qwant + Yahoo, 80 % de
+    // notre search) entre le 18 et le 20/08. Les pages feu restent crawlables
+    // par le maillage (/fr/feu) et le flux RSS.
+    const day = new Date().toISOString().slice(0, 10);
+    const last = await readJson<{ day: string }>("indexnow-last.json", { day: "" });
+    if (last.day !== day) {
+      await pingIndexNow([`/fr/bilan/${day}`, "/fr/statistiques", "/fr/feu"]);
+      await writeJson("indexnow-last.json", { day });
     }
   } catch (e) {
     console.error("fire archive failed:", e);

@@ -52,7 +52,16 @@ export async function generateMetadata({
     title,
     description: `${t} détecté le ${frDate(f.first_seen)} : ${f.detections} détection${f.detections > 1 ? "s" : ""} satellite, puissance max ${Math.round(f.max_frp)} MW${f.aircraft.length > 0 ? `, ${f.aircraft.length} moyen(s) aérien(s) engagé(s)` : ""}. Chronologie complète et carte sur kanari.`,
     alternates: { canonical: `/fr/feu/${f.slug}` },
-    robots: { index: true, follow: true },
+    // Pages feu « minces » (1-2 détections, sans moyens aériens ni puissance
+    // notable) : noindex,follow — elles restent dans le maillage mais ne
+    // gonflent plus la masse de pages quasi identiques qui a pesé sur la
+    // réputation du domaine (Google : 4 700 « détectées non indexées » ;
+    // Bing : sortie de l'index le 19-20/08). Les feux significatifs restent
+    // indexables.
+    robots: {
+      index: f.detections >= 3 || f.aircraft.length > 0 || f.max_frp >= 20,
+      follow: true,
+    },
     openGraph: {
       type: "article",
       title,
