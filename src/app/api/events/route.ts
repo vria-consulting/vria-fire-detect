@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getEvents, staleEvents, staleBlobEvents } from "@/lib/eventscache";
+import { getEvents, staleEvents, staleBlobEvents, lightenEvents, type EventsPayload } from "@/lib/eventscache";
 
 export const runtime = "nodejs";
 // Démarrage à froid (juste après un déploiement) : fetch FIRMS mondial +
@@ -15,9 +15,21 @@ export async function GET(req: NextRequest) {
   );
   const hours = [6, 12, 24, 48, 72].includes(hoursParam) ? hoursParam : 24;
 
+  // ?full=1 : payload complet (API publique, open data). Par défaut : version
+  // allégée pour la carte — voir lightenEvents (plafond + tri par pertinence).
+  const full = req.nextUrl.searchParams.get("full") === "1";
+  const shape = (data: EventsPayload) => {
+    if (full) return data;
+    const l = lightenEvents(data.events);
+    return {
+      events: l.events,
+      meta: { ...data.meta, totalEvents: l.totalEvents, returned: l.events.length, truncated: l.truncated, light: true },
+    };
+  };
+
   try {
     const data = await getEvents(hours);
-    return NextResponse.json(data, {
+    return NextResponse.json(shape(data), {
       // s-maxage : le CDN Vercel absorbe le trafic (le pic LinkedIn du
       // 2026-07-19 multipliait les instances froides) ; SWR sert l'ancien
       // snapshot pendant la revalidation.
@@ -34,7 +46,7 @@ export async function GET(req: NextRequest) {
     // En cas de panne FIRMS : cache d'instance périmé, sinon snapshot Blob
     // périmé — une carte datée vaut toujours mieux qu'une carte vide.
     const stale = staleEvents(hours) ?? (await staleBlobEvents(hours));
-    if (stale) return NextResponse.json(stale, { headers: { "x-cache": "stale" } });
+    if (stale) return NextResponse.json(shape(stale), { headers: { "x-cache": "stale" } });
     return NextResponse.json({ error: "FIRMS_UNAVAILABLE" }, { status: 502 });
   }
 }

@@ -765,7 +765,7 @@ export default function FireMap({ lang, hotspots = [] }: { lang: Lang; hotspots?
         setStatus({ kind: "error", code: body.error ?? `HTTP_${evRes.status}` });
         return;
       }
-      const data: { events: FireEvent[]; meta: { totalDetections: number } } =
+      const data: { events: FireEvent[]; meta: { totalDetections: number; totalEvents?: number } } =
         await evRes.json();
       eventsRef.current = data.events;
       setEvents(data.events);
@@ -800,7 +800,9 @@ export default function FireMap({ lang, hotspots = [] }: { lang: Lang; hotspots?
         });
       setStatus({
         kind: "ready",
-        events: data.events.length,
+        // Compteur = foyers réellement suivis (le payload carte est plafonné
+        // aux plus pertinents, le total vient du serveur).
+        events: data.meta.totalEvents ?? data.events.length,
         detections: data.meta.totalDetections,
         signals: signalsRef.current.length,
       });

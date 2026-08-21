@@ -87,8 +87,8 @@ export default async function ApiPage({ params }: { params: Promise<{ lang: stri
           <pre style={CODE_STYLE}>GET https://kanari.io/api/events?hours=24</pre>
           <p className="mt-2 mb-2">
             {fr
-              ? "Foyers agrégés (clusters de détections satellite VIIRS, GOES et Meteosat MTG) sur la fenêtre demandée. hours ∈ 6, 12, 24, 48, 72. Réponse : { events, meta }."
-              : "Aggregated fire clusters (VIIRS, GOES and Meteosat MTG satellite detections) over the requested window. hours ∈ 6, 12, 24, 48, 72. Response: { events, meta }."}
+              ? "Foyers agrégés (clusters de détections satellite VIIRS, GOES et Meteosat MTG) sur la fenêtre demandée. hours ∈ 6, 12, 24, 48, 72. Réponse : { events, meta }. Par défaut la réponse est allégée (les 2 000 foyers les plus pertinents, meta.truncated l'indique) ; ajoutez full=1 pour l'intégralité."
+              : "Aggregated fire clusters (VIIRS, GOES and Meteosat MTG satellite detections) over the requested window. hours ∈ 6, 12, 24, 48, 72. Response: { events, meta }. By default the response is lightened (the 2,000 most relevant clusters, flagged by meta.truncated); add full=1 for the complete set."}
           </p>
           <ul className="list-disc space-y-1 pl-5 text-[13.5px]">
             <Field name="id" desc={fr ? "identifiant du foyer (heure + cellule)" : "cluster id (hour + cell)"} />

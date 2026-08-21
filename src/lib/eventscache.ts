@@ -252,3 +252,41 @@ export async function rebuildAll(): Promise<{ rebuilt: number[]; totalDetections
   }
   return { rebuilt: hoursList, totalDetections: total };
 }
+
+// Allègement pour la carte : fin août, la saison mondiale + GOES direct + MTG
+// produisent 7 000+ foyers / 6 h (2 Mo, 6,7 Mo sur 24 h) — le navigateur gèle
+// (carte blanche, Core Web Vitals en chute, trafic search divisé par 10 du
+// 18 au 20/08). On ne sert à la carte que les foyers les plus pertinents :
+// départs récents d'abord (la précocité est la mission : un count=1 de moins
+// de 3 h passe AVANT un gros feu ancien), puis corroborés, probables,
+// possibles. Le bruit géostationnaire unitaire (1 pixel GOES/MTG « possible »
+// sans VIIRS) est écarté. L'API complète reste disponible avec ?full=1.
+export const LIGHT_CAP = 2000;
+export const NEW_FIRE_HOURS = 3;
+
+export function lightenEvents(
+  events: FireEvent[],
+  cap = LIGHT_CAP,
+  nowMs = Date.now()
+): { events: FireEvent[]; totalEvents: number; truncated: boolean } {
+  const kept = events.filter(
+    (e) => !(e.confidence === "possible" && e.count === 1 && e.viirsCount === 0)
+  );
+  const rank = (e: FireEvent): number => {
+    if (e.confidence === "corrobore") return 0;
+    const ageH = (nowMs - new Date(e.firstSeen).getTime()) / 3_600_000;
+    if (ageH < NEW_FIRE_HOURS) return 1;
+    if (e.confidence === "probable") return 2;
+    return 3;
+  };
+  kept.sort((a, b) => rank(a) - rank(b) || b.count - a.count || b.maxFrp - a.maxFrp);
+  const truncated = kept.length > cap;
+  const r3 = (x: number) => Math.round(x * 1000) / 1000;
+  const out = kept.slice(0, cap).map((e) => ({
+    ...e,
+    centroid: [r3(e.centroid[0]), r3(e.centroid[1])] as [number, number],
+    bbox: [r3(e.bbox[0]), r3(e.bbox[1]), r3(e.bbox[2]), r3(e.bbox[3])] as [number, number, number, number],
+    maxFrp: Math.round(e.maxFrp * 10) / 10,
+  }));
+  return { events: out, totalEvents: events.length, truncated };
+}
