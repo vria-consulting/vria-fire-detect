@@ -94,3 +94,28 @@ Resend (https://resend.com, 3 000 e-mails/mois) ; fournir la clé API à Vercel
 
 Chaîne YouTube « kanari » (compte Google) : Claude produit les vidéos explicatives
 (détection satellite, Canadair, comment lire la carte) et les descriptions liées au site.
+
+## 7. Partenaires d'intégration : statut au 22/08/2026
+
+Mails envoyés (adresses vérifiées sur les sites officiels ou leurs canaux), ne pas redoubler :
+- Entente Valabre, prévention et 15 SDIS : contact-prevention@valabre.com
+- Meteociel : webmaster@meteociel.fr
+- FFRandonnée (service partenariats) : partenariat@ffrandonnee.fr
+- Camptocamp Association (administrateurs) : board@camptocamp.org
+- Windy (proposition de plugin « kanari wildfires ») : info@windy.com
+- Outdooractive (API / data) : business@outdooractive.com
+- Visorando : formulaire Presse/Media/Partenariat envoyé (accusé de réception reçu).
+
+Restent à faire par Vincent :
+- Meteored (tiempo.com/contacto) : formulaire avec reCAPTCHA et bandeau cookies ; texte ES prêt ci-dessous.
+- Infoclimat : le formulaire exige un compte Infoclimat.
+- meteo-paris.com/contact (motif « Une question sur les widgets ») : formulaire rempli deux fois sans accusé de réception affiché, statut inconnu ; à renvoyer ou à contacter via X @Meteovilles.
+- Climatempo : le formulaire « Fale conosco » ne couvre que le support client ; parcerias joignable par l'adresse indiquée sur climatempo.com.br/fale-conosco.
+
+### Texte ES (Meteored, Wikiloc, protección civil…)
+
+Hola, soy Vincent Ryckbosch, desarrollador independiente francés. He creado kanari.io, un mapa mundial, gratuito e independiente de los focos de incendio: detecciones satelitales NASA FIRMS, GOES y Meteosat MTG cada 10 minutos, testimonios verificados por IA, aviones cisterna en vivo y un archivo abierto de cada incendio significativo. Os propongo, gratis y sin clave, con la única condición de citar kanari.io: API JSON de focos en tiempo real (https://kanari.io/api/events?hours=24, documentación https://kanari.io/en/api), widget de mapa centrado en una región (https://kanari.io/es/widget), archivo completo en CSV CC BY 4.0 (https://kanari.io/opendata/feux.csv) y observatorio citable por país y mes (https://kanari.io/es/statistiques). kanari es un servicio de información, no un canal oficial de alerta, y seguirá siendo gratuito. Gracias, Vincent Ryckbosch, contact@kanari.io
+
+### Texte PT (Climatempo, Defesa Civil, veículos BR/PT)
+
+Olá, sou Vincent Ryckbosch, desenvolvedor independente francês. Criei o kanari.io, um mapa mundial, gratuito e independente dos focos de incêndio: detecções de satélite NASA FIRMS, GOES e Meteosat MTG a cada 10 minutos, relatos verificados por IA, aviões-tanque ao vivo e um arquivo aberto de cada incêndio significativo. Ofereço, grátis e sem chave, com a única condição de citar kanari.io: API JSON de focos em tempo real (https://kanari.io/api/events?hours=24, documentação https://kanari.io/en/api), widget de mapa centrado em uma região (https://kanari.io/pt/widget), arquivo completo em CSV CC BY 4.0 (https://kanari.io/opendata/feux.csv) e observatório citável por país e mês (https://kanari.io/pt/statistiques). O kanari é um serviço de informação, não um canal oficial de alerta, e continuará gratuito. Obrigado, Vincent Ryckbosch, contact@kanari.io
