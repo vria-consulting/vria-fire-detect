@@ -1,0 +1,21 @@
+{
+  "name": "kanari-fires",
+  "version": "0.1.0",
+  "description": "Tiny, dependency-free client for the kanari wildfire API: live fire clusters, verified witness signals, open-data archive and MCP endpoint.",
+  "keywords": ["wildfire", "fire", "satellite", "NASA FIRMS", "GOES", "Meteosat", "open data", "kanari", "mcp"],
+  "homepage": "https://kanari.io/en/api",
+  "repository": { "type": "git", "url": "git+https://github.com/vria-consulting/vria-fire-detect.git", "directory": "packages/kanari-fires" },
+  "bugs": "https://github.com/vria-consulting/vria-fire-detect/issues",
+  "license": "MIT",
+  "type": "module",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "exports": { ".": { "types": "./index.d.ts", "import": "./index.js" } },
+  "files": ["index.js", "index.d.ts", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": { "typescript": "^5" },
+  "engines": { "node": ">=18" }
+}

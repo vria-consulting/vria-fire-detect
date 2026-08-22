@@ -6,6 +6,7 @@ import { GUIDE_PT_BY_SLUG } from "@/lib/guides-pt";
 import { COUNTRIES } from "@/lib/countries";
 import { US_STATES } from "@/lib/us-states";
 import { FRENCH_FLEET } from "@/lib/aircraft";
+import { archiveMonths } from "@/lib/observatory";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = "https://kanari.io";
@@ -16,6 +17,40 @@ export default function sitemap(): MetadataRoute.Sitemap {
     lastModified: new Date(),
     changeFrequency: "hourly" as const,
     priority: 0.7,
+  }));
+  // Observatoire citable : une page par pays (46 pays à feux + monde) et par
+  // mois d'archive, dans les 4 langues — chiffres uniques, permaliens que la
+  // presse et les assistants IA peuvent relier.
+  const LANGS = ["fr", "en", "es", "pt"] as const;
+  const scopes = ["world", ...COUNTRIES.map((c) => c.slug)];
+  const months = archiveMonths();
+  const obsAlt = (path: string) => ({
+    languages: Object.fromEntries(LANGS.map((l) => [l, `${base}/${l}${path}`])),
+  });
+  const observatoryPages: MetadataRoute.Sitemap = scopes.flatMap((slug) => [
+    ...LANGS.map((l) => ({
+      url: `${base}/${l}/statistiques/${slug}`,
+      lastModified: new Date(),
+      changeFrequency: "daily" as const,
+      priority: 0.6,
+      alternates: obsAlt(`/statistiques/${slug}`),
+    })),
+    ...months.flatMap((m) =>
+      LANGS.map((l) => ({
+        url: `${base}/${l}/statistiques/${slug}/${m}`,
+        lastModified: new Date(),
+        changeFrequency: (m === months[0] ? "daily" : "monthly") as "daily" | "monthly",
+        priority: m === months[0] ? 0.7 : 0.5,
+        alternates: obsAlt(`/statistiques/${slug}/${m}`),
+      }))
+    ),
+  ]);
+  const methodologyPages: MetadataRoute.Sitemap = LANGS.map((l) => ({
+    url: `${base}/${l}/methodologie`,
+    lastModified: new Date("2026-08-22"),
+    changeFrequency: "monthly" as const,
+    priority: 0.7,
+    alternates: obsAlt("/methodologie"),
   }));
   const guidePages: MetadataRoute.Sitemap = GUIDES.flatMap((g) => {
     // es/pt : uniquement les guides réellement traduits (les autres slugs
@@ -232,6 +267,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
       alternates: { languages: { fr: `${base}/fr/guide`, en: `${base}/en/guide`, es: `${base}/es/guide`, pt: `${base}/pt/guide` } },
     },
     ...guidePages,
+    ...methodologyPages,
+    ...observatoryPages,
     {
       url: `${base}/fr/feux`,
       lastModified: new Date(),

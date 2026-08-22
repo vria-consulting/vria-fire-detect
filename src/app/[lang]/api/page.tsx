@@ -144,6 +144,32 @@ export default async function ApiPage({ params }: { params: Promise<{ lang: stri
           </p>
         </section>
 
+        <section className="mb-8 text-[14.5px] leading-relaxed" id="mcp">
+          <h2 className="mb-2 text-[19px] font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>
+            {fr ? "Serveur MCP pour les assistants IA" : "MCP server for AI assistants"}
+          </h2>
+          <pre style={CODE_STYLE}>https://kanari.io/api/mcp</pre>
+          <p className="mt-2 mb-2">
+            {fr
+              ? "kanari est aussi un serveur MCP (Model Context Protocol, Streamable HTTP, sans clé) : branchez cette URL dans Claude, ChatGPT, Cursor ou n'importe quel agent, et il pourra interroger les feux en direct, l'archive, les statistiques, les moyens aériens et la précocité mesurée — en citant kanari.io. Outils exposés :"
+              : "kanari is also an MCP server (Model Context Protocol, Streamable HTTP, no key): add this URL to Claude, ChatGPT, Cursor or any agent and it can query live fires, the archive, statistics, firefighting aircraft and measured earliness — citing kanari.io. Exposed tools:"}
+          </p>
+          <ul className="list-disc space-y-1 pl-5 text-[13.5px]">
+            <Field name="active_fires" desc={fr ? "foyers des 6 à 72 dernières heures, filtrables par pays, emprise ou rayon autour d'un point" : "clusters of the last 6 to 72 hours, filterable by country, bounding box or radius around a point"} />
+            <Field name="fire_archive_search / fire_details" desc={fr ? "recherche dans l'archive (pays, dates, mois, seuils) et fiche complète d'un feu" : "archive search (country, dates, month, thresholds) and full record of one fire"} />
+            <Field name="wildfire_stats" desc={fr ? "chiffres citables par période et par pays, avec phrase de citation et source" : "citable figures per period and country, with a ready-to-cite sentence and source"} />
+            <Field name="firefighting_aircraft" desc={fr ? "bombardiers d'eau et hélicoptères en vol (ADS-B)" : "water bombers and helicopters in flight (ADS-B)"} />
+            <Field name="earliness_cases" desc={fr ? "cas mesurés d'avance sur la presse (72 h glissantes)" : "measured cases of lead over press coverage (rolling 72 h)"} />
+          </ul>
+          <p className="mt-2 mb-2">{fr ? "Exemple de configuration client :" : "Client configuration example:"}</p>
+          <pre style={CODE_STYLE}>{`{ "mcpServers": { "kanari": { "url": "https://kanari.io/api/mcp" } } }`}</pre>
+          <p className="mt-2">
+            {fr
+              ? "Clients stdio uniquement : npx -y mcp-remote https://kanari.io/api/mcp. Lecture seule, mêmes données que l'API REST, même licence (CC BY 4.0, citer « kanari.io »)."
+              : "Stdio-only clients: npx -y mcp-remote https://kanari.io/api/mcp. Read-only, same data as the REST API, same licence (CC BY 4.0, cite “kanari.io”)."}
+          </p>
+        </section>
+
         <section className="mb-8 text-[14.5px] leading-relaxed">
           <h2 className="mb-2 text-[19px] font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>
             {fr ? "Conditions d'utilisation" : "Terms of use"}

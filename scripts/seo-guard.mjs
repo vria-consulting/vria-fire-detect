@@ -173,6 +173,30 @@ const PAGES = [
     jsonld: ["FAQPage"],
   },
   {
+    path: "/en/statistiques/brazil/2026-08",
+    title: /Brazil, August 2026/i,
+    canonical: "/en/statistiques/brazil/2026-08",
+    hreflang: ["fr", "en", "es", "pt"],
+    jsonld: ["Dataset", "BreadcrumbList"],
+  },
+  {
+    path: "/fr/statistiques/world",
+    title: /Monde : feux de forêt mois par mois/i,
+    canonical: "/fr/statistiques/world",
+  },
+  {
+    path: "/fr/methodologie",
+    title: /Méthodologie kanari/i,
+    canonical: "/fr/methodologie",
+    hreflang: ["fr", "en", "es", "pt"],
+    jsonld: ["TechArticle"],
+  },
+  {
+    path: "/en/methodologie",
+    title: /kanari methodology/i,
+    canonical: "/en/methodologie",
+  },
+  {
     path: "/en/fires/california",
     title: /California wildfires today/i,
     canonical: "/en/fires/california",
@@ -187,6 +211,8 @@ const PAGES = [
 
 const STATIC_CHECKS = [
   { path: "/ads.txt", contains: ["pub-9521453937448688"] },
+  { path: "/llms.txt", contains: ["https://kanari.io/api/mcp", "/statistiques/"] },
+  { path: "/server.json", contains: ["streamable-http", "https://kanari.io/api/mcp"] },
   { path: "/robots.txt", contains: ["Sitemap"], forbidden: [/^Disallow:\s*\/\s*$/m] },
   {
     path: "/sitemap.xml",

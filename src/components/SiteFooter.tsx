@@ -34,6 +34,7 @@ const FR: { title: string; items: Item[] }[] = [
       { href: "/fr/guide", label: "Guides feux de forêt" },
       { href: "/fr/comparatif", label: "Comparatif des cartes de feux" },
       { href: "/fr/precocite", label: "Précocité mesurée" },
+      { href: "/fr/methodologie", label: "Méthodologie et citation" },
       { href: "/fr/faq", label: "Questions fréquentes" },
       { href: "/fr/a-propos", label: "À propos de kanari" },
       { href: "/fr/sdis", label: "Pour les SDIS et collectivités" },
@@ -67,6 +68,7 @@ const EN: { title: string; items: Item[] }[] = [
       { href: "/en/guide", label: "Wildfire guides" },
       { href: "/en/faq", label: "FAQ" },
       { href: "/en/comparatif", label: "Wildfire maps compared" },
+      { href: "/en/methodologie", label: "Methodology and how to cite" },
       { href: "/en/a-propos", label: "About kanari" },
       { href: "/en/widget", label: "Embed widget" },
       { href: "/en/confidentialite", label: "Privacy and cookies" },
@@ -98,6 +100,7 @@ const ES: { title: string; items: Item[] }[] = [
     items: [
       { href: "/es/guide", label: "Guías sobre incendios" },
       { href: "/es/faq", label: "Preguntas frecuentes" },
+      { href: "/es/methodologie", label: "Metodología y cita" },
       { href: "/en/a-propos", label: "Sobre kanari" },
       { href: "/es/widget", label: "Widget para tu sitio" },
       { href: "/en/confidentialite", label: "Privacidad y cookies" },
@@ -127,6 +130,7 @@ const PT: { title: string; items: Item[] }[] = [
     items: [
       { href: "/pt/guide", label: "Guias sobre incêndios" },
       { href: "/pt/faq", label: "Perguntas frequentes" },
+      { href: "/pt/methodologie", label: "Metodologia e citação" },
       { href: "/en/a-propos", label: "Sobre o kanari" },
       { href: "/pt/widget", label: "Widget para seu site" },
       { href: "/en/confidentialite", label: "Privacidade e cookies" },

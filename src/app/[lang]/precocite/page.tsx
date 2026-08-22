@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isValidLang, type Lang } from "@/lib/i18n";
-import { readJson } from "@/lib/store";
-import type { EventsPayload } from "@/lib/eventscache";
+import { measuredEarliness, type EarlinessCase } from "@/lib/precocity";
 
 // Page « Précocité mesurée » : la réponse rigoureuse aux questions « plus
 // rapide qu'un appel au 18 ? » et « sur quelle base affirmez-vous être en
@@ -27,35 +26,7 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
   };
 }
 
-type Case = {
-  place: string;
-  firstSeen: string;
-  firstPress: string;
-  deltaMin: number;
-  lat: number;
-  lon: number;
-};
-
-async function measuredCases(): Promise<{ cases: Case[]; total: number; fetchedAt: string | null }> {
-  const payload = await readJson<EventsPayload | null>("events-72h.json", null);
-  if (!payload) return { cases: [], total: 0, fetchedAt: null };
-  const cases: Case[] = [];
-  for (const ev of payload.events) {
-    if (!ev.social?.firstPress || !ev.social.place) continue;
-    const delta = Date.parse(ev.social.firstPress) - Date.parse(ev.firstSeen);
-    if (delta <= 0) continue; // la presse a été plus rapide : pas un cas d'avance
-    cases.push({
-      place: ev.social.place,
-      firstSeen: ev.firstSeen,
-      firstPress: ev.social.firstPress,
-      deltaMin: Math.round(delta / 60_000),
-      lat: ev.centroid[1],
-      lon: ev.centroid[0],
-    });
-  }
-  cases.sort((a, b) => b.deltaMin - a.deltaMin);
-  return { cases: cases.slice(0, 20), total: payload.events.length, fetchedAt: payload.meta.fetchedAt };
-}
+type Case = EarlinessCase;
 
 function fmtDelta(min: number, l: Lang): string {
   if (min < 60) return `${min} min`;
@@ -73,7 +44,7 @@ const H2 = ({ children }: { children: React.ReactNode }) => (
 export default async function Precocite({ params }: { params: Promise<{ lang: string }> }) {
   const { lang } = await params;
   if (!isValidLang(lang)) notFound();
-  const { cases, fetchedAt } = await measuredCases();
+  const { cases, fetchedAt } = await measuredEarliness();
   const median =
     cases.length > 0 ? cases.map((c) => c.deltaMin).sort((a, b) => a - b)[Math.floor(cases.length / 2)] : null;
 

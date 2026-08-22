@@ -12,6 +12,8 @@ import { getWaterBombers } from "@/lib/aircraft";
 import { DEPT_BY_SLUG } from "@/lib/departements";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Adsense } from "@/components/Adsense";
+import { archiveMonths } from "@/lib/observatory";
+import { allScopes, monthLabel } from "@/lib/observatory-i18n";
 
 // Observatoire des feux : chiffres agrégés citables (presse, LLM) + open data.
 // Servi en FR et en EN sur le même segment (comme /canadair) : les questions
@@ -528,6 +530,31 @@ export default async function StatsPage({ params }: { params: Promise<{ lang: st
           ))}
           .
         </p>
+        {/* Observatoire citable : permaliens pays × mois (chiffres uniques,
+            reliables par la presse et les assistants IA). */}
+        <section className="mb-8">
+          <h2 className="mb-3 text-[19px] font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>
+            {{ fr: "Chiffres par pays et par mois", en: "Figures by country and month", es: "Cifras por país y por mes", pt: "Números por país e por mês" }[lang]}
+          </h2>
+          <p className="mb-2 text-[13.5px]" style={{ color: "var(--ink-2)" }}>
+            {{ fr: "Pages permanentes et citables, mois en cours : ", en: "Permanent, citable pages, current month: ", es: "Páginas permanentes y citables, mes en curso: ", pt: "Páginas permanentes e citáveis, mês atual: " }[lang]}
+            <strong style={{ color: "var(--ink)" }}>{monthLabel(archiveMonths()[0], lang)}</strong>
+          </p>
+          <p className="text-[13px] leading-relaxed">
+            {allScopes(lang).map((s, i) => (
+              <span key={s.slug}>
+                {i > 0 ? " · " : ""}
+                <Link href={`/${lang}/statistiques/${s.slug}/${archiveMonths()[0]}`} style={{ color: "var(--link)" }}>{s.name}</Link>
+              </span>
+            ))}
+          </p>
+          <p className="mt-3 text-[13px]">
+            <Link href={`/${lang}/methodologie`} style={{ color: "var(--link)" }}>
+              {{ fr: "Méthodologie, limites et comment citer ces chiffres", en: "Methodology, limits and how to cite these figures", es: "Metodología, límites y cómo citar estas cifras", pt: "Metodologia, limites e como citar estes números" }[lang]}
+            </Link>
+          </p>
+        </section>
+
         <SiteFooter lang={lang} />
       </div>
     </div>
