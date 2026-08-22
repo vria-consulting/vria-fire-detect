@@ -1,6 +1,6 @@
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
-import { getEvents, staleEvents, staleBlobEvents, lightenEvents, type EventsPayload } from "@/lib/eventscache";
+import { staleBlobEvents, lightenEvents, type EventsPayload } from "@/lib/eventscache";
 import { getFireBySlug, countFires } from "@/lib/firearchive";
 import { getWaterBombers } from "@/lib/aircraft";
 import {
@@ -50,12 +50,24 @@ function distKm(lat1: number, lon1: number, lat2: number, lon2: number): number 
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
+// Même donnée que la carte : l'API publique, servie par le CDN (s-maxage 120 s),
+// plutôt qu'un recalcul FIRMS dans une fonction froide (lent, quota partagé,
+// risque de snapshot partiel). full=1 : l'intégralité des foyers, pour que les
+// filtres géographiques voient aussi les petits départs locaux. Repli : le
+// dernier snapshot écrit par le cron.
+const SITE = process.env.KANARI_SITE_URL ?? "https://kanari.io";
+
 async function loadEvents(hours: number): Promise<EventsPayload | null> {
   try {
-    return await getEvents(hours);
+    const res = await fetch(`${SITE}/api/events?hours=${hours}&full=1`, {
+      headers: { "user-agent": "kanari-mcp/1.0", accept: "application/json" },
+      signal: AbortSignal.timeout(45_000),
+    });
+    if (res.ok) return (await res.json()) as EventsPayload;
   } catch {
-    return staleEvents(hours) ?? (await staleBlobEvents(hours));
+    /* repli ci-dessous */
   }
+  return staleBlobEvents(hours);
 }
 
 function archiveRowOut(r: ArchiveRow) {
@@ -146,6 +158,7 @@ const handler = createMcpHandler(
           fetchedAt: payload.meta.fetchedAt,
           hours,
           totalClustersInWindow: payload.events.length,
+          totalSatelliteDetections: payload.meta.totalDetections ?? null,
           matching: filtered.length,
           returned: out.length,
           fires: out,
