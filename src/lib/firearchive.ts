@@ -412,12 +412,38 @@ export async function listFiresByAircraft(hex: string, limit = 30): Promise<Arch
 // sans moyen aérien, FRP < 20 MW) est noindex et ne doit donc pas être
 // poussé aux moteurs : 5 000 URLs quasi identiques dans un sitemap, c'est
 // la masse « découvertes, non indexées » qui a fait décrocher Bing et Google.
-export function isFireIndexable(f: { detections: number; max_frp: number; aircraft: unknown[] | null }): boolean {
-  return f.detections >= 3 || (f.aircraft?.length ?? 0) > 0 || f.max_frp >= 20;
+// Mesuré sur l'archive (10 000 feux, 22/08/2026) : 97 % des feux dépassent
+// 20 MW et 80 % comptent 3 détections ou plus — la première règle (≥ 3 ou
+// ≥ 20 MW) laissait donc tout passer. Celle-ci garde ~30 % : les feux
+// français (pertinence locale, requêtes « incendie <lieu> »), ceux qui ont
+// du contenu unique (témoins vérifiés, moyens aériens observés) et les gros
+// feux (≥ 20 détections ou ≥ 200 MW). Le reste est noindex,follow : toujours
+// maillé, dans le RSS et l'API, mais plus poussé aux moteurs.
+export type IndexableFields = {
+  detections: number;
+  max_frp: number;
+  aircraft: unknown[] | null;
+  country: string | null;
+  dept_code: string | null;
+  post_count: number | null;
+};
+
+export function isFireIndexable(f: IndexableFields): boolean {
+  return (
+    f.country === "FR" ||
+    !!f.dept_code ||
+    (f.post_count ?? 0) > 0 ||
+    (f.aircraft?.length ?? 0) > 0 ||
+    f.detections >= 20 ||
+    f.max_frp >= 200
+  );
 }
 
 export async function listFireSlugs(limit = 5000): Promise<{ slug: string; updated_at: string }[]> {
-  type Row = { slug: string; updated_at: string; detections: number; max_frp: number; aircraft: unknown[] | null };
-  const rows = await fetchPaged<Row>(`select=slug,updated_at,detections,max_frp,aircraft&order=last_seen.desc`, limit);
+  type Row = IndexableFields & { slug: string; updated_at: string };
+  const rows = await fetchPaged<Row>(
+    `select=slug,updated_at,detections,max_frp,aircraft,country,dept_code,post_count&order=last_seen.desc`,
+    limit
+  );
   return rows.filter(isFireIndexable).map(({ slug, updated_at }) => ({ slug, updated_at }));
 }
