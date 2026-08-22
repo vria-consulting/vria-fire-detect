@@ -4,6 +4,8 @@ import { notFound, redirect } from "next/navigation";
 import { isValidLang } from "@/lib/i18n";
 import { listFiresBetween } from "@/lib/firearchive";
 import { SiteFooter } from "@/components/SiteFooter";
+import { archiveMonths } from "@/lib/observatory";
+import { monthLabel } from "@/lib/observatory-i18n";
 
 // Hub des bilans quotidiens (30 derniers jours).
 export const dynamic = "force-dynamic";
@@ -81,6 +83,27 @@ export default async function BilanHub({ params }: { params: Promise<{ lang: str
             );
           })}
         </div>
+        {/* Bilans mensuels : les permaliens de l'observatoire (monde, France),
+            chiffres uniques et citables, mois par mois. */}
+        <section className="mt-10">
+          <h2 className="mb-3 text-[19px] font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>
+            Bilans mensuels
+          </h2>
+          <div className="flex flex-col gap-2">
+            {archiveMonths().map((m) => (
+              <div key={m} className="flex flex-wrap items-center justify-between gap-2 rounded-[14px] px-4 py-3" style={{ background: "var(--white)", boxShadow: "var(--shadow-s)" }}>
+                <span className="text-[14.5px] font-medium" style={{ color: "var(--ink)" }}>{monthLabel(m, "fr")}</span>
+                <span className="text-[13.5px]">
+                  <Link href={`/fr/statistiques/world/${m}`} style={{ color: "var(--link)" }}>Monde</Link>
+                  {" · "}
+                  <Link href={`/fr/statistiques/france/${m}`} style={{ color: "var(--link)" }}>France</Link>
+                  {" · "}
+                  <Link href={`/fr/statistiques`} style={{ color: "var(--link)" }}>tous les pays</Link>
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
         <p className="mt-8 border-t pt-4 text-[12.5px]" style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}>
           Archive démarrée le 3 août 2026. Voir aussi :{" "}
           <Link href="/fr/statistiques" style={{ color: "var(--link)" }}>l'observatoire des feux</Link> ·{" "}

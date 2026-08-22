@@ -47,7 +47,7 @@ const nextConfig: NextConfig = {
     const cors = [{ key: "Access-Control-Allow-Origin", value: "*" }];
     return [
       {
-        source: "/(og\\.png|ogfire/.*|ogbilan/.*)",
+        source: "/(og\\.png|ogfire/.*|ogbilan/.*|ogobs/.*)",
         headers: cors,
       },
       {

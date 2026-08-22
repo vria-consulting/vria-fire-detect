@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { isValidLang, localize, type Lang } from "@/lib/i18n";
 import { WidgetBuilder } from "@/components/WidgetBuilder";
 import { SiteFooter } from "@/components/SiteFooter";
+import { KIT, BADGE_HTML } from "@/lib/widget-kit-i18n";
 
 // Page « intégrer la carte » pour médias, mairies, sites météo : le widget
 // gratuit contre un lien d'attribution — la machine à backlinks. v2 : un
@@ -189,6 +190,59 @@ export default async function WidgetPage({ params }: { params: Promise<{ lang: s
             ))}
           </ul>
         </section>
+
+        {(() => {
+          const k = KIT[lang];
+          const code = { background: "var(--charcoal)", color: "#E8E6E1", borderRadius: 12, padding: "12px 16px", fontSize: 12.5, overflowX: "auto" as const };
+          const h2 = { fontFamily: "var(--font-display)", color: "var(--ink)" } as const;
+          return (
+            <>
+              <section className="mb-8">
+                <h2 className="mb-3 text-[19px] font-semibold" style={h2}>{k.whoTitle}</h2>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {k.who.map((a) => (
+                    <div key={a.h} className="rounded-[18px] p-4" style={{ background: "var(--white)", boxShadow: "var(--shadow-s)" }}>
+                      <h3 className="mb-1 text-[15px] font-semibold" style={{ color: "var(--ink)" }}>{a.h}</h3>
+                      <p className="mb-2 text-[13.5px] leading-relaxed" style={{ color: "var(--ink-2)" }}>{a.p}</p>
+                      <Link href={a.cta.href} className="text-[13.5px] font-semibold" style={{ color: "var(--link)" }}>{a.cta.label} →</Link>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="mb-8 text-[14px] leading-relaxed" style={{ color: "var(--ink-2)" }}>
+                <h2 className="mb-2 text-[19px] font-semibold" style={h2}>{k.beyondTitle}</h2>
+                <p className="mb-2">{k.beyondIntro}</p>
+                <ul className="flex flex-col gap-2">
+                  <li><span className="font-semibold" style={{ color: "var(--ink)" }}>{k.apiLabel}</span><pre style={code}>GET https://kanari.io/api/events?hours=24</pre></li>
+                  <li><span className="font-semibold" style={{ color: "var(--ink)" }}>{k.mcpLabel}</span><pre style={code}>{`{ "mcpServers": { "kanari": { "url": "https://kanari.io/api/mcp" } } }`}</pre></li>
+                  <li><span className="font-semibold" style={{ color: "var(--ink)" }}>{k.csvLabel}</span><pre style={code}>https://kanari.io/opendata/feux.csv</pre></li>
+                  <li><span className="font-semibold" style={{ color: "var(--ink)" }}>{k.rssLabel}</span><pre style={code}>https://kanari.io/feed.xml</pre></li>
+                </ul>
+              </section>
+
+              <section className="mb-8 text-[14px] leading-relaxed" style={{ color: "var(--ink-2)" }}>
+                <h2 className="mb-2 text-[19px] font-semibold" style={h2}>{k.badgeTitle}</h2>
+                <p className="mb-3">{k.badgeText}</p>
+                <p className="mb-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={`/brand/badge-kanari-${lang === "fr" ? "fr" : "en"}.svg`} alt={lang === "fr" ? "Données : kanari.io" : "Data: kanari.io"} height={28} />
+                </p>
+                <p className="mb-1 font-semibold" style={{ color: "var(--ink)" }}>{k.badgeHtmlLabel}</p>
+                <pre style={code}>{BADGE_HTML(lang)}</pre>
+                <p className="mt-3">
+                  <span className="font-semibold" style={{ color: "var(--ink)" }}>{k.logosLabel} : </span>
+                  <a href="/brand/kanari.svg" style={{ color: "var(--link)" }}>kanari.svg</a>{" · "}
+                  <a href="/brand/kanari-noir.svg" style={{ color: "var(--link)" }}>kanari-noir.svg</a>{" · "}
+                  <a href="/brand/kanari-blanc.svg" style={{ color: "var(--link)" }}>kanari-blanc.svg</a>{" · "}
+                  <a href="/brand/logo-symbole.svg" style={{ color: "var(--link)" }}>logo-symbole.svg</a>
+                </p>
+                <p className="mt-3">{k.contact}</p>
+              </section>
+
+            </>
+          );
+        })()}
 
         <section className="mb-4">
           <h2 className="mb-3 text-[19px] font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>

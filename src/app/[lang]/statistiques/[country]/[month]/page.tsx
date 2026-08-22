@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isValidLang, localize, type Lang } from "@/lib/i18n";
 import { ARCHIVE_START, MONTH_RE, archiveMonths, fireUrl, monthRange, periodStats } from "@/lib/observatory";
-import { OBS, allScopes, fmtDate, monthLabel, resolveScope } from "@/lib/observatory-i18n";
+import { LOCALE, OBS, allScopes, fmtDate, monthLabel, resolveScope } from "@/lib/observatory-i18n";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Adsense } from "@/components/Adsense";
 
@@ -15,6 +15,10 @@ export const revalidate = 1800;
 
 function hasArchive(): boolean {
   return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+}
+
+function isCurrentMonth(month: string): boolean {
+  return month === new Date().toISOString().slice(0, 7);
 }
 
 function validMonth(month: string): boolean {
@@ -36,6 +40,7 @@ export async function generateMetadata({
   const t = localize(OBS, l);
   const label = monthLabel(month, l);
   const path = `/statistiques/${country}/${month}`;
+  const og = `https://kanari.io/ogobs/${country}/${month}.png?lang=${l}`;
   return {
     title: t.titleMonth(scope.name, label),
     description: t.descMonth(scope.name, label),
@@ -43,6 +48,14 @@ export async function generateMetadata({
       canonical: `/${l}${path}`,
       languages: { fr: `/fr${path}`, en: `/en${path}`, es: `/es${path}`, pt: `/pt${path}` },
     },
+    openGraph: {
+      type: "article",
+      url: `https://kanari.io/${l}${path}`,
+      title: t.h1Month(scope.name, label),
+      description: t.descMonth(scope.name, label),
+      images: [{ url: og, width: 1200, height: 630, alt: t.ogAlt(scope.name, label) }],
+    },
+    twitter: { card: "summary_large_image", images: [og] },
   };
 }
 
@@ -59,11 +72,34 @@ export default async function ObservatoryMonthPage({
   const t = localize(OBS, lang);
   const label = monthLabel(month, lang);
 
-  const stats = await periodStats(range.fromIso, range.toIso, scope.cc);
   const months = archiveMonths();
   const idx = months.indexOf(month);
   const newer = idx > 0 ? months[idx - 1] : null;
   const older = idx >= 0 && idx < months.length - 1 ? months[idx + 1] : null;
+  const [stats, prevStats] = await Promise.all([
+    periodStats(range.fromIso, range.toIso, scope.cc),
+    older ? periodStats(monthRange(older)!.fromIso, monthRange(older)!.toIso, scope.cc) : Promise.resolve(null),
+  ]);
+  // Résumé narratif : les phrases qu'un journaliste ou un assistant IA reprend
+  // telles quelles (journée de pointe, pays dominant, feu le plus long, écart
+  // avec le mois précédent).
+  const narrative: string[] = [];
+  if (stats.total > 0) {
+    const peak = [...stats.byDay].sort((a, b) => b.n - a.n)[0];
+    if (peak) narrative.push(t.peakDay(new Date(`${peak.day}T12:00:00Z`).toLocaleDateString(LOCALE[lang], { day: "numeric", month: "long", timeZone: "UTC" }), peak.n));
+    if (!scope.cc && stats.byCountry[0] && stats.byCountry[0].cc !== "??") {
+      const topScope = allScopes(lang).find((x) => x.cc === stats.byCountry[0].cc);
+      narrative.push(t.topShare(topScope?.name ?? stats.byCountry[0].cc, Math.round((100 * stats.byCountry[0].n) / stats.total), stats.byCountry[0].n));
+    }
+    const lg = stats.longest[0];
+    if (lg) {
+      const h = Math.round((Date.parse(lg.last_seen) - Date.parse(lg.first_seen)) / 3_600_000);
+      if (h >= 6) narrative.push(t.longest(lg.place ?? lg.slug, h));
+    }
+    if (prevStats && prevStats.total > 0 && !isCurrentMonth(month)) {
+      narrative.push(t.vsPrev(Math.round((100 * (stats.total - prevStats.total)) / prevStats.total), monthLabel(older!, lang)));
+    }
+  }
   const updated = new Date().toLocaleString(
     { fr: "fr-FR", en: "en-GB", es: "es-ES", pt: "pt-BR" }[lang],
     { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" }
@@ -122,9 +158,12 @@ export default async function ObservatoryMonthPage({
         <h1 className="mb-3" style={{ fontFamily: "var(--font-display)", fontSize: "var(--text-h2)", color: "var(--ink)" }}>
           {scope.flag} {t.h1Month(scope.name, label)}
         </h1>
-        <p className="mb-6 text-[15px] leading-relaxed" style={{ color: "var(--ink-2)" }}>
+        <p className="mb-3 text-[15px] leading-relaxed" style={{ color: "var(--ink-2)" }}>
           {stats.total > 0 ? t.introMonth(scope.name, label, stats.total, updated) : t.noData}
         </p>
+        {narrative.length > 0 && (
+          <p className="mb-6 text-[15px] leading-relaxed" style={{ color: "var(--ink-2)" }}>{narrative.join(" ")}</p>
+        )}
 
         {stats.total > 0 && (
           <>
