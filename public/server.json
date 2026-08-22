@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.vria-consulting/kanari-wildfires",
   "title": "kanari wildfires",
-  "description": "Live worldwide wildfire detections (NASA FIRMS, GOES, Meteosat MTG), fire archive with permanent pages, citable statistics, firefighting aircraft in flight and measured earliness over press. Free, read-only, CC BY 4.0.",
+  "description": "Live worldwide wildfire detections, fire archive, citable stats, aircraft. Free, CC BY 4.0.",
   "websiteUrl": "https://kanari.io/en/api",
   "repository": {
     "url": "https://github.com/vria-consulting/vria-fire-detect",
