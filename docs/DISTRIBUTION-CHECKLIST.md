@@ -51,9 +51,7 @@ https://kanari.io/opendata/feux.csv (licence CC BY 4.0, mis à jour en continu).
   mots-clés wildfire, remote sensing, NASA FIRMS, GOES, Meteosat, early warning.
   Joindre un export CSV daté + un README (le texte ci-dessous). Après publication,
   renseigner le DOI sur `/[lang]/methodologie` (champ `citeDoi`) et dans le README.
-- **data.gouv.fr** : https://www.data.gouv.fr (compte gratuit), jeu de données
-  « Feux de forêt détectés par satellite et témoins vérifiés (kanari) », ressource
-  distante = URL du CSV, fréquence « continue », licence « Creative Commons Attribution ».
+- **data.gouv.fr** : FAIT (24/08/2026) : https://www.data.gouv.fr/datasets/feux-de-foret-detectes-par-satellite-et-temoins-verifies-kanari
 - **HDX (Humanitarian Data Exchange)** : https://data.humdata.org (organisation à créer,
   validation manuelle par l'équipe HDX) — très lié par les ONG et la presse humanitaire.
 - **Kaggle** : https://www.kaggle.com/datasets (nouveau dataset, CSV uploadé, licence CC BY 4.0).
