@@ -16,6 +16,30 @@ Tools, SERP en navigation privee, Gmail, registres.
 | Hotes dupliques | 308 vers l'apex | www et vercel.app en 308 | atteint |
 | sitemap-events.xml | ~1 644 URLs | 1 702 URLs lues le 24/08 par Google | atteint |
 
+### Diagnostic du 24/08 : bingbot ne crawle plus depuis le 14/08
+
+Releve dans Bing WMT > Site Explorer : 691 URLs indexees, 0 erreur, 1 avertissement,
+4 exclues. **Toutes les dates « Last crawled » visibles, a la racine comme dans /fr et
+/en, sont le 13 ou le 14 aout 2026. Aucune apres le 14.**
+
+Consequences :
+- La courbe colle : le trafic Bing est tombe de 109/jour a 0 entre le 15 et le 20/08,
+  ce qui correspond a un arret de crawl le 14/08 suivi de l'expiration des pages.
+- **Aucun de nos correctifs des 21 et 22/08 n'a jamais ete vu par bingbot.** Bing evalue
+  encore le site tel qu'il etait le 14 aout.
+- Les 18 pages resoumises via URL Submission le 22/08 n'ont declenche aucun crawl.
+
+bingbot n'est pas bloque : requetes avec les deux user agents bingbot sur /fr,
+/robots.txt, /sitemap.xml et /fr/canadair renvoient toutes HTTP 200, aucune regle de
+pare-feu ni challenge.
+
+Hypothese : le flood IndexNow (~48 000 URLs/jour du 9 au 21/08) a provoque une
+retrogradation de crawl de l'hote autour du 13-14/08, toujours active bien que la cause
+soit corrigee. Transmis au support Microsoft le 24/08 avec demande de recrawl.
+
+Coincidence a noter : la monetisation (AdSense, affiliation, ads.txt) a ete deployee le
+14/08, le jour meme du dernier crawl. Voir section monetisation.
+
 ## 2. Google Search Console (28 jours glissants)
 
 | Indicateur | 24/08 |
@@ -100,3 +124,10 @@ meteo-paris, Climatempo.
   kanari.io des descriptions sont toujours rendues en texte brut cote public. Delai de
   propagation cote YouTube, a recontroler a la prochaine session ; si c'est toujours le
   cas apres 24 h, forcer un re-enregistrement des descriptions.
+- **Diagnostic majeur du 24/08** : bingbot n'a plus crawle kanari.io depuis le 14/08.
+  Tous les correctifs des 21-22/08 sont donc invisibles pour Bing. Signale au support
+  avec demande explicite de recrawl de l'hote.
+- AdSense : Vincent a decide le 24/08 de le **suspendre entierement** (priorite absolue
+  a Bing, revenu negligeable). Retrait du composant et de ads.txt confie a la
+  conversation Developpement. Le bouton de don et l'affiliation Amazon restent.
+- Site Scan Bing lance le 24/08 (quota 10 pages), resultat a relever.
