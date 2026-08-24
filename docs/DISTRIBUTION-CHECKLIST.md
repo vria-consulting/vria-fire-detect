@@ -81,11 +81,40 @@ témoignages, moyens aériens observés, statut. Seuls les feux significatifs so
 recensements officiels exhaustifs. Licence CC BY 4.0, mention « kanari.io ».
 Méthodologie : https://kanari.io/fr/methodologie. Carte : https://kanari.io.
 
-## 5. Newsletter hebdomadaire
+## 5. Newsletter — FAIT (implémentation le 24/08/2026, commit fd55a53)
 
-Compte gratuit Buttondown (https://buttondown.com, gratuit jusqu'à 100 abonnés) ou
-Resend (https://resend.com, 3 000 e-mails/mois) ; fournir la clé API à Vercel
-(variable d'environnement) et Claude branche l'automatisation « bilan de la semaine ».
+Infra (conversation Référencement) : Resend offre Marketing gratuite (1 000 contacts),
+domaine d'envoi news.kanari.io vérifié (eu-west-1, DKIM chez Hostinger), audience
+« General » 61f9b271-be52-46cd-a423-46a7c7f1a494, RESEND_API_KEY sur Vercel
+(Preview + Production ; PAS sur Development). Pas de MX sur news.kanari.io :
+Reply-To contact@kanari.io partout. Pas de tracking ouverture/clic (choix privacy).
+
+Application (cette implémentation) :
+- Double opt-in : POST /api/newsletter/subscribe (mail de confirmation via /emails,
+  transactionnel) → clic → /api/newsletter/confirm (jeton HMAC 7 j, secret
+  NEWSLETTER_SECRET ?? CRON_SECRET ?? RESEND_API_KEY) → contact créé dans l'audience.
+  Zone (bbox/label) et langue stockées côté kanari (Blob newsletter-subscribers.json,
+  l'API Contacts Resend n'a pas de propriétés libres). Cap MAX_EMAIL_SUBS = 950.
+  Honeypot « website » anti-robots.
+- Envoi du bilan : /api/cron/newsletter (x-cron-secret), tiré par GitHub Actions
+  newsletter-cron.yml chaque lundi 06:05 UTC. Hebdo de mai à octobre, mensuel
+  (premier lundi) de novembre à avril. UNIQUEMENT via /broadcasts (jamais /emails
+  pour la masse). Anti-doublon par slug. `?dry=1` = HTML sans envoi ni stockage.
+  Blocs : chiffres période (+ comparaison précédente), feu de la période,
+  « vu avant la presse » (précocité, bloc omis si vide). E-mail en FR (V1),
+  lien « Lire le bilan complet » vers l'archive. Désinscription Resend
+  {{{RESEND_UNSUBSCRIBE_URL}}}.
+- Archive indexable : /[lang]/newsletter (formulaire + numéros) et
+  /[lang]/newsletter/[slug] en 4 langues, JSON-LD Article, sitemap (page + slugs),
+  seo-guard (43 cibles). Slugs : semaine-AAAA-MM-JJ (lundi de début) / mois-AAAA-MM.
+- Formulaires : /[lang]/canadair (audience n°1 Search Console), pages feu
+  /fr/feu/[slug] (bbox ±0.4°), départements /fr/feux/[dept] (bbox ±0.6°), archive.
+  Sur la carte : encart e-mail proposé après interaction avec « M'alerter sur cette
+  zone » (push accepté, refusé ou non supporté), bbox de la vue. Jamais de pop-up.
+- Premier envoi automatique : lundi 31/08/2026, 06:05 UTC (couvre 24→30/08).
+- Reste à faire : page « ça sent le feu dehors » (attendre la copie 4 langues de la
+  conversation Référencement) ; segments par langue si l'audience non-FR grossit ;
+  test du lien de confirmation avec une vraie boîte mail (Vincent).
 
 ## 6. Vidéos — FAIT le 24/08/2026
 
