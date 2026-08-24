@@ -25,6 +25,8 @@
   signals). Documentation: https://kanari.io/en/api
 - Open data: full archive of significant fires as CSV, CC BY 4.0,
   continuously updated: https://kanari.io/opendata/feux.csv
+- JavaScript client (MIT): npm install kanari-fires —
+  https://www.npmjs.com/package/kanari-fires
 - RSS feed of latest fires: https://kanari.io/feed.xml
 - Attribution required on reuse: "Source: kanari.io" with a link.
 

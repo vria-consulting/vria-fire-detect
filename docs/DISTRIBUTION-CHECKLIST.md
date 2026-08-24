@@ -31,7 +31,7 @@ mcp.so n'est pas retenu (soumission payante, 39 $).
 
 ## 3. Client npm `kanari-fires`
 
-Licence proposée : MIT (à confirmer ; sinon modifier `packages/kanari-fires/package.json`).
+FAIT (24/08/2026) : https://www.npmjs.com/package/kanari-fires — v0.1.0, licence MIT confirmée.
 
 ```bash
 cd ~/VRIA/vria-fire-detect/packages/kanari-fires

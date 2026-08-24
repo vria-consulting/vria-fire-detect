@@ -37,7 +37,7 @@ Everything is free, without key or account. Attribution required: “Source: kan
 
   Tools: `active_fires`, `fire_archive_search`, `fire_details`, `wildfire_stats`, `firefighting_aircraft`, `earliness_cases`. Stdio-only clients: `npx -y mcp-remote https://kanari.io/api/mcp`. Registry manifest: [`server.json`](server.json).
 
-- **JavaScript client** — [`packages/kanari-fires`](packages/kanari-fires): a tiny, dependency-free wrapper around the public API.
+- **JavaScript client** — [`kanari-fires` on npm](https://www.npmjs.com/package/kanari-fires) (`npm install kanari-fires`, MIT): a tiny, dependency-free wrapper around the public API. Source: [`packages/kanari-fires`](packages/kanari-fires).
 - **For LLMs** — <https://kanari.io/llms.txt>.
 
 ## How it works (short version)

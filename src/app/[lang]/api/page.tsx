@@ -168,6 +168,11 @@ export default async function ApiPage({ params }: { params: Promise<{ lang: stri
               ? "Clients stdio uniquement : npx -y mcp-remote https://kanari.io/api/mcp. Lecture seule, mêmes données que l'API REST, même licence (CC BY 4.0, citer « kanari.io »)."
               : "Stdio-only clients: npx -y mcp-remote https://kanari.io/api/mcp. Read-only, same data as the REST API, same licence (CC BY 4.0, cite “kanari.io”)."}
           </p>
+          <p className="mt-2">
+            {fr ? "Développeurs JavaScript : un client sans dépendance est publié sur npm (licence MIT) : " : "JavaScript developers: a dependency-free client is published on npm (MIT licence): "}
+            <a href="https://www.npmjs.com/package/kanari-fires" style={{ color: "var(--link)", fontWeight: 600 }}>kanari-fires</a>
+            {" "}(<code>npm install kanari-fires</code>).
+          </p>
         </section>
 
         <section className="mb-8 text-[14.5px] leading-relaxed">
