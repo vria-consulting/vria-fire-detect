@@ -87,10 +87,25 @@ Compte gratuit Buttondown (https://buttondown.com, gratuit jusqu'à 100 abonnés
 Resend (https://resend.com, 3 000 e-mails/mois) ; fournir la clé API à Vercel
 (variable d'environnement) et Claude branche l'automatisation « bilan de la semaine ».
 
-## 6. Vidéos
+## 6. Vidéos — FAIT le 24/08/2026
 
-Chaîne YouTube « kanari » (compte Google) : Claude produit les vidéos explicatives
-(détection satellite, Canadair, comment lire la carte) et les descriptions liées au site.
+Chaîne YouTube : https://www.youtube.com/channel/UCbGPRoyCqUInu8t0WgriKIw
+(handle @kanari_io ; nom renommé « kanari », propagation Google en cours).
+Profil complet : bannière et photo charte, description, liens (carte, méthodologie,
+API), e-mail contact@kanari.io, filigrane vidéo, onglet Accueil activé.
+
+4 vidéos publiées (produites par Claude : captures du site en headless Chrome +
+cartons PIL/Jost + schémas des guides, assemblage ffmpeg, miniatures custom) :
+- Bande-annonce 14 s : https://youtu.be/-iv5_Dml9qM
+- Détection satellite : https://youtu.be/WhHJ73JoQdA
+- Canadair en direct : https://youtu.be/CFmz7iW-PIc
+- Lire la carte : https://youtu.be/0M0ovJBy-Jo
+Fichiers sources sur ~/Desktop (v1/v2/v3-*.mp4). La chaîne est référencée dans le
+JSON-LD Organization (sameAs) et llms.txt.
+
+Reste (Vincent) : « validation unique » de la chaîne (vérification téléphone) pour
+rendre les liens de description cliquables — bandeau dans Studio → Détails vidéo.
+Prochaines vidéos possibles : bilans mensuels auto, précocité, météo des forêts.
 
 ## 7. Partenaires d'intégration : statut au 22/08/2026
 

@@ -103,6 +103,10 @@ function jsonLd(l: Lang) {
         url: "https://kanari.io",
         logo: "https://kanari.io/icon-512.png",
         slogan: l === "fr" ? "Le canari chante avant la sirène." : "The canary sings before the siren.",
+        sameAs: [
+          "https://github.com/vria-consulting/vria-fire-detect",
+          "https://www.youtube.com/channel/UCbGPRoyCqUInu8t0WgriKIw",
+        ],
       },
     ],
   };
