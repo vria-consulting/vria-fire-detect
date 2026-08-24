@@ -83,6 +83,16 @@ Méthodologie : https://kanari.io/fr/methodologie. Carte : https://kanari.io.
 
 ## 5. Newsletter — FAIT (implémentation le 24/08/2026, commit fd55a53)
 
+Choix du prestataire, tarifs verifies le 24/08/2026 sur les pages officielles.
+Resend, offre **Marketing** gratuite : 1 000 contacts et broadcasts illimites (les plans
+marketing sont limites par le nombre de contacts, pas par le nombre d'e-mails). Ne pas
+confondre avec l'offre Transactional gratuite du meme compte, plafonnee a 3 000
+e-mails/mois et 100/jour : c'est pourquoi la masse passe par /broadcasts. Buttondown a
+ete ecarte, gratuit jusqu'a 100 abonnes seulement puis 9 $/mois, avec automatisations et
+archive sur domaine personnalise en options a 29 $. Argument decisif au-dela du prix :
+avec Resend le formulaire et l'archive restent sur kanari.io et produisent des pages
+indexables chez nous.
+
 Infra (conversation Référencement) : Resend offre Marketing gratuite (1 000 contacts),
 domaine d'envoi news.kanari.io vérifié (eu-west-1, DKIM chez Hostinger), audience
 « General » 61f9b271-be52-46cd-a423-46a7c7f1a494, RESEND_API_KEY sur Vercel

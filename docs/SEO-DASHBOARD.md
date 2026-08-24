@@ -54,7 +54,7 @@ canadair), la marque (kanari.io position 1,1), et un bloc olfactif inattendu
 | npm kanari-fires | 0.1.0 publie |
 | HDX | organisation en attente de validation |
 | YouTube | 4 videos, chaine a valider par telephone |
-| Newsletter | en attente d'une cle Buttondown ou Resend dans Vercel |
+| Newsletter | Resend retenu (offre Marketing gratuite, 1 000 contacts, envois illimites) ; en attente de RESEND_API_KEY dans Vercel |
 
 ## 5. Partenaires : dates de relance
 
@@ -85,3 +85,6 @@ meteo-paris, Climatempo.
   et sur les requetes olfactives, pas sur « carte des feux en direct ».
 - Aucune opportunite Qwoted pertinente ouverte (5 credits, pitch Trill Mag du
   22/08 en attente, deadline 25/08).
+- Tarifs newsletter verifies : Resend offre Marketing gratuite = 1 000 contacts et
+  broadcasts illimites ; Buttondown gratuit seulement jusqu'a 100 abonnes puis
+  9 $/mois. Resend retenu, l'archive restera sur kanari.io.
