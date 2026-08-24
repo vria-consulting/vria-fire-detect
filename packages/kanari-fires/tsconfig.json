@@ -5,8 +5,12 @@
     "moduleResolution": "Bundler",
     "declaration": true,
     "strict": true,
-    "lib": ["ES2020", "DOM"],
-    "outDir": "."
+    "lib": [
+      "ES2020",
+      "DOM"
+    ]
   },
-  "include": ["index.ts"]
+  "include": [
+    "index.ts"
+  ]
 }
