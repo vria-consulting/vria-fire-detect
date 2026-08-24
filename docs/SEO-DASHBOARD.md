@@ -53,7 +53,7 @@ canadair), la marque (kanari.io position 1,1), et un bloc olfactif inattendu
 | Kaggle | publie, badge Dataset Creator |
 | npm kanari-fires | 0.1.0 publie |
 | HDX | organisation en attente de validation |
-| YouTube | 4 videos, chaine a valider par telephone |
+| YouTube | 4 videos ; validation telephone FAITE le 24/08 (fonctionnalites intermediaires activees), mais les liens des descriptions ne sont pas encore cliquables : a recontroler |
 | Newsletter | **Pret** : Resend configure, news.kanari.io verifie, cle Full access en place (Vercel + local), audience General ; reste l'implementation |
 
 ## 5. Partenaires : dates de relance
@@ -94,3 +94,9 @@ meteo-paris, Climatempo.
 - Newsletter operationnelle cote infrastructure en fin de session : cle Full access
   validee par appel API, audience General id 61f9b271-be52-46cd-a423-46a7c7f1a494.
   Prochaine etape : implementation par la conversation Developpement.
+- YouTube : validation telephone effectuee par Vincent le 24/08. Studio > Parametres >
+  Acces aux fonctionnalites confirme le niveau 2 « Activees ». En revanche le bandeau
+  « validation unique » persiste sur la page de details des videos et les trois URL
+  kanari.io des descriptions sont toujours rendues en texte brut cote public. Delai de
+  propagation cote YouTube, a recontroler a la prochaine session ; si c'est toujours le
+  cas apres 24 h, forcer un re-enregistrement des descriptions.
