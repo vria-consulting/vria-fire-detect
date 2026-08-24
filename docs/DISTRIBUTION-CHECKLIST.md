@@ -112,9 +112,10 @@ Application (cette implémentation) :
   Sur la carte : encart e-mail proposé après interaction avec « M'alerter sur cette
   zone » (push accepté, refusé ou non supporté), bbox de la vue. Jamais de pop-up.
 - Premier envoi automatique : lundi 31/08/2026, 06:05 UTC (couvre 24→30/08).
+- Flux complet validé le 24/08/2026 par Vincent avec sa vraie boîte mail
+  (inscription → confirmation → contact dans l'audience) : premier abonné réel.
 - Reste à faire : page « ça sent le feu dehors » (attendre la copie 4 langues de la
-  conversation Référencement) ; segments par langue si l'audience non-FR grossit ;
-  test du lien de confirmation avec une vraie boîte mail (Vincent).
+  conversation Référencement) ; segments par langue si l'audience non-FR grossit.
 
 ## 6. Vidéos — FAIT le 24/08/2026
 
