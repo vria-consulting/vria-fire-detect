@@ -54,7 +54,7 @@ canadair), la marque (kanari.io position 1,1), et un bloc olfactif inattendu
 | npm kanari-fires | 0.1.0 publie |
 | HDX | organisation en attente de validation |
 | YouTube | 4 videos, chaine a valider par telephone |
-| Newsletter | Resend : domaine news.kanari.io **verifie** le 24/08 (DKIM + return-path chez Hostinger) ; reste la cle Full access a poser dans Vercel |
+| Newsletter | **Pret** : Resend configure, news.kanari.io verifie, cle Full access en place (Vercel + local), audience General ; reste l'implementation |
 
 ## 5. Partenaires : dates de relance
 
@@ -91,3 +91,6 @@ meteo-paris, Climatempo.
 - Newsletter : compte Resend cree, domaine d'envoi news.kanari.io verifie le 24/08
   (region Irlande, sans tracking). DNS pose chez Hostinger et non Vercel, point a
   retenir pour toute future manipulation DNS de kanari.io.
+- Newsletter operationnelle cote infrastructure en fin de session : cle Full access
+  validee par appel API, audience General id 61f9b271-be52-46cd-a423-46a7c7f1a494.
+  Prochaine etape : implementation par la conversation Developpement.
