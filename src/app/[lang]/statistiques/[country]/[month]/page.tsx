@@ -5,7 +5,6 @@ import { isValidLang, localize, type Lang } from "@/lib/i18n";
 import { ARCHIVE_START, MONTH_RE, archiveMonths, fireUrl, monthRange, periodStats } from "@/lib/observatory";
 import { LOCALE, OBS, allScopes, fmtDate, monthLabel, resolveScope } from "@/lib/observatory-i18n";
 import { SiteFooter } from "@/components/SiteFooter";
-import { Adsense } from "@/components/Adsense";
 
 // Observatoire citable : une page permanente par pays (ou monde) et par mois
 // — « combien de feux de forêt au Brésil en août 2026 ? ». Peu de pages,
@@ -144,7 +143,6 @@ export default async function ObservatoryMonthPage({
   return (
     <div className="k-scroll h-full overflow-y-auto" style={{ background: "var(--paper)" }}>
       {thin && <meta name="robots" content="noindex, follow" />}
-      <Adsense />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(datasetLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(crumbLd) }} />
       <div className="mx-auto max-w-2xl px-4 py-10 sm:py-14">

@@ -4,15 +4,16 @@ import { notFound } from "next/navigation";
 import { isValidLang, type Lang, localize } from "@/lib/i18n";
 import { SiteFooter } from "@/components/SiteFooter";
 
-// Politique de confidentialité : obligatoire pour AdSense (cookies tiers) et
-// saine de toute façon. Bilingue sur le même segment (modèle /canadair).
+// Politique de confidentialité : exigée à l'époque d'AdSense (retiré le
+// 24/08/2026, priorité au référencement), saine de toute façon. Bilingue sur
+// le même segment (modèle /canadair).
 export const revalidate = 86400;
 
 const T = {
   fr: {
     metaTitle: "Confidentialité et cookies | kanari",
     metaDesc:
-      "Ce que kanari collecte (très peu), ce que nous ne collectons pas, les cookies publicitaires et vos droits.",
+      "Ce que kanari collecte (très peu), ce que nous ne collectons pas, les cookies et vos droits.",
     h1: "Confidentialité et cookies",
     updated: "Dernière mise à jour : 14 août 2026.",
     sections: [
@@ -27,8 +28,7 @@ const T = {
       {
         h2: "Publicité et cookies tiers",
         paras: [
-          "Certaines pages de contenu (guides, statistiques, comparatif) affichent des annonces Google AdSense. Google et ses partenaires peuvent utiliser des cookies publicitaires pour personnaliser les annonces en fonction de vos visites sur ce site et d'autres sites. Vous pouvez désactiver la personnalisation des annonces sur adssettings.google.com, et en savoir plus sur l'utilisation des données par Google sur policies.google.com/technologies/partner-sites.",
-          "La carte en direct, les alertes et les pages consultées en situation d'urgence n'affichent aucune publicité.",
+          "kanari n'affiche actuellement aucune annonce publicitaire et ne charge aucun script publicitaire tiers : aucun cookie publicitaire n'est déposé par le site, sur aucune page.",
           "Certains guides contiennent des liens d'affiliation Amazon : en tant que Partenaire Amazon, kanari réalise un bénéfice sur les achats remplissant les conditions requises. Ces liens n'utilisent pas de cookie déposé par kanari.",
         ],
       },
@@ -45,7 +45,7 @@ const T = {
   en: {
     metaTitle: "Privacy and cookies | kanari",
     metaDesc:
-      "What kanari collects (very little), what we do not collect, advertising cookies and your rights.",
+      "What kanari collects (very little), what we do not collect, cookies and your rights.",
     h1: "Privacy and cookies",
     updated: "Last updated: August 14, 2026.",
     sections: [
@@ -60,8 +60,7 @@ const T = {
       {
         h2: "Advertising and third-party cookies",
         paras: [
-          "Some content pages (guides, statistics, comparison) display Google AdSense ads. Google and its partners may use advertising cookies to personalize ads based on your visits to this and other sites. You can disable ad personalization at adssettings.google.com and learn more about how Google uses data at policies.google.com/technologies/partner-sites.",
-          "The live map, alerts and pages used in emergency situations display no advertising.",
+          "kanari currently displays no advertising and loads no third-party ad script: no advertising cookie is set by the site, on any page.",
           "Some guides contain Amazon affiliate links: as an Amazon Associate, kanari earns from qualifying purchases. These links do not use cookies set by kanari.",
         ],
       },

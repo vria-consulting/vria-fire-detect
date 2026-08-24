@@ -11,7 +11,6 @@ import {
 import { getWaterBombers } from "@/lib/aircraft";
 import { DEPT_BY_SLUG } from "@/lib/departements";
 import { SiteFooter } from "@/components/SiteFooter";
-import { Adsense } from "@/components/Adsense";
 import { archiveMonths } from "@/lib/observatory";
 import { allScopes, monthLabel } from "@/lib/observatory-i18n";
 
@@ -397,7 +396,6 @@ export default async function StatsPage({ params }: { params: Promise<{ lang: st
 
   return (
     <div className="k-scroll h-full overflow-y-auto" style={{ background: "var(--paper)" }}>
-      <Adsense />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
       <div className="mx-auto max-w-2xl px-4 py-10 sm:py-14">

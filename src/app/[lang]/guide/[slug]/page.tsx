@@ -7,7 +7,6 @@ import { GUIDES_EN, GUIDE_EN_BY_SLUG } from "@/lib/guides-en";
 import { GUIDES_ES, GUIDE_ES_BY_SLUG } from "@/lib/guides-es";
 import { GUIDES_PT, GUIDE_PT_BY_SLUG } from "@/lib/guides-pt";
 import { countFires } from "@/lib/firearchive";
-import { Adsense } from "@/components/Adsense";
 import { SiteFooter } from "@/components/SiteFooter";
 
 // Équipement pertinent par guide (liens partenaires Amazon, FR uniquement) :
@@ -218,7 +217,6 @@ export default async function GuidePage({
 
   return (
     <div className="k-scroll h-full overflow-y-auto" style={{ background: "var(--paper)" }}>
-      <Adsense />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       {faqLd && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />

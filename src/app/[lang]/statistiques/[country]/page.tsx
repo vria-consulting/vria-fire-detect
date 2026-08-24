@@ -6,7 +6,6 @@ import { countFires } from "@/lib/firearchive";
 import { ARCHIVE_START, archiveMonths, monthRange, periodStats } from "@/lib/observatory";
 import { OBS, allScopes, monthLabel, resolveScope } from "@/lib/observatory-i18n";
 import { SiteFooter } from "@/components/SiteFooter";
-import { Adsense } from "@/components/Adsense";
 
 // Observatoire citable, niveau pays : le mois en cours en un coup d'œil et la
 // série mensuelle complète (un lien par mois vers la page permanente).
@@ -76,7 +75,6 @@ export default async function ObservatoryCountryPage({
 
   return (
     <div className="k-scroll h-full overflow-y-auto" style={{ background: "var(--paper)" }}>
-      <Adsense />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(crumbLd) }} />
       <div className="mx-auto max-w-2xl px-4 py-10 sm:py-14">
         <nav className="mb-3 text-[13px]" style={{ color: "var(--ink-3)" }} aria-label="breadcrumb">
