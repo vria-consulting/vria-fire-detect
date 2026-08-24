@@ -54,7 +54,7 @@ canadair), la marque (kanari.io position 1,1), et un bloc olfactif inattendu
 | npm kanari-fires | 0.1.0 publie |
 | HDX | organisation en attente de validation |
 | YouTube | 4 videos, chaine a valider par telephone |
-| Newsletter | Resend retenu (offre Marketing gratuite, 1 000 contacts, envois illimites) ; en attente de RESEND_API_KEY dans Vercel |
+| Newsletter | Resend : domaine news.kanari.io **verifie** le 24/08 (DKIM + return-path chez Hostinger) ; reste la cle Full access a poser dans Vercel |
 
 ## 5. Partenaires : dates de relance
 
@@ -88,3 +88,6 @@ meteo-paris, Climatempo.
 - Tarifs newsletter verifies : Resend offre Marketing gratuite = 1 000 contacts et
   broadcasts illimites ; Buttondown gratuit seulement jusqu'a 100 abonnes puis
   9 $/mois. Resend retenu, l'archive restera sur kanari.io.
+- Newsletter : compte Resend cree, domaine d'envoi news.kanari.io verifie le 24/08
+  (region Irlande, sans tracking). DNS pose chez Hostinger et non Vercel, point a
+  retenir pour toute future manipulation DNS de kanari.io.

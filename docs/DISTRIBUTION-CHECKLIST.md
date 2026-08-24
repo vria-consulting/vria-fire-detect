@@ -127,6 +127,18 @@ Application (cette implémentation) :
 - Reste à faire : page « ça sent le feu dehors » (attendre la copie 4 langues de la
   conversation Référencement) ; segments par langue si l'audience non-FR grossit.
 
+Detail des enregistrements DNS poses le 24/08/2026, **chez Hostinger et non chez Vercel**
+(serveurs artemis/hermes.dns-parking.com ; les MX et le SPF Hostinger servent
+contact@kanari.io, ne pas les casser) :
+- `TXT  resend._domainkey.news` = cle publique DKIM
+- `CNAME rsend.news` -> `rsend.forge.rmta.net`
+- `CNAME send.news`  -> `send.forge.rmta.net`
+Le MX de reception n'a volontairement pas ete pose : la newsletter n'a pas besoin de
+recevoir, d'ou le Reply-To sur contact@kanari.io. Region Ireland (eu-west-1) pour le
+RGPD, return-path `send`, sans tracking d'ouverture ni de clic. Domaine passe
+**Verified** le 24/08 vers 15h. Piege a retenir : `vercel env pull` ne restitue plus
+aucune valeur chiffree, un secret perdu doit etre recree chez le fournisseur.
+
 ## 6. Vidéos — FAIT le 24/08/2026
 
 Chaîne YouTube : https://www.youtube.com/channel/UCbGPRoyCqUInu8t0WgriKIw
