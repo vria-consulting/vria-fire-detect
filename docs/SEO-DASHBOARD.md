@@ -127,9 +127,10 @@ meteo-paris, Climatempo.
 - **Diagnostic majeur du 24/08** : bingbot n'a plus crawle kanari.io depuis le 14/08.
   Tous les correctifs des 21-22/08 sont donc invisibles pour Bing. Signale au support
   avec demande explicite de recrawl de l'hote.
-- AdSense : Vincent a decide le 24/08 de le **suspendre entierement** (priorite absolue
-  a Bing, revenu negligeable). Retrait du composant et de ads.txt confie a la
-  conversation Developpement. Le bouton de don et l'affiliation Amazon restent.
+- AdSense : **suspendu entierement, deploye et verifie en production le 24/08**. ads.txt
+  renvoie 404, zero occurrence du loader sur la home, l'observatoire (pays et pays x mois),
+  le comparatif et les guides, page /confidentialite reecrite. Affiliation Amazon et
+  bouton de don conserves comme decide. Signale au support Bing le jour meme.
 - Site Scan Bing lance le 24/08 (quota 10 pages), resultat a relever.
 - Sitemaps Bing : dernieres lectures le **4 aout 2026** pour les quatre (sitemap.xml,
   sitemap-events, sitemap-news, feed.xml). Confirme l'arret de fetch. `sitemap.xml`
