@@ -131,3 +131,16 @@ meteo-paris, Climatempo.
   a Bing, revenu negligeable). Retrait du composant et de ads.txt confie a la
   conversation Developpement. Le bouton de don et l'affiliation Amazon restent.
 - Site Scan Bing lance le 24/08 (quota 10 pages), resultat a relever.
+- Sitemaps Bing : dernieres lectures le **4 aout 2026** pour les quatre (sitemap.xml,
+  sitemap-events, sitemap-news, feed.xml). Confirme l'arret de fetch. `sitemap.xml`
+  resoumis le 24/08, statut « Processing ». Les deux autres volontairement pas
+  resoumis : pousser 1 700 pages de feux pendant qu'on demande une reevaluation
+  qualite repeterait l'erreur d'origine.
+- Site Scan Bing termine : **10 pages, 0 erreur, 0 avertissement**. Rien de technique
+  a corriger, ce qui renforce le diagnostic d'une decision au niveau de l'hote.
+- Escalade forum ecartee apres verification : Microsoft Q&A est un forum entre
+  utilisateurs, les moderateurs declarent explicitement ne pas pouvoir escalader
+  (« Contributors here cannot access back-end system or directly escalate your
+  thread »). Un cas quasi identique de janvier 2026 n'a produit aucune action. Le
+  ticket support reste le seul canal utile, et il repond.
+
