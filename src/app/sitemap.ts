@@ -7,9 +7,35 @@ import { COUNTRIES } from "@/lib/countries";
 import { US_STATES } from "@/lib/us-states";
 import { FRENCH_FLEET } from "@/lib/aircraft";
 import { archiveMonths } from "@/lib/observatory";
+import { listIssues } from "@/lib/newsletter";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = "https://kanari.io";
+  // Newsletter : la page d'inscription et chaque numéro publié (archive
+  // indexable — 52 numéros par an, autant de permaliens citables).
+  const LANGS4 = ["fr", "en", "es", "pt"] as const;
+  const newsAlt = (path: string) => ({
+    languages: Object.fromEntries(LANGS4.map((l) => [l, `${base}/${l}${path}`])),
+  });
+  const issues = await listIssues().catch(() => []);
+  const newsletterPages: MetadataRoute.Sitemap = [
+    ...LANGS4.map((l) => ({
+      url: `${base}/${l}/newsletter`,
+      lastModified: new Date(),
+      changeFrequency: "weekly" as const,
+      priority: 0.6,
+      alternates: newsAlt("/newsletter"),
+    })),
+    ...issues.flatMap((i) =>
+      LANGS4.map((l) => ({
+        url: `${base}/${l}/newsletter/${i.slug}`,
+        lastModified: new Date(i.sentAt),
+        changeFrequency: "monthly" as const,
+        priority: 0.5,
+        alternates: newsAlt(`/newsletter/${i.slug}`),
+      }))
+    ),
+  ];
   const langs = { fr: `${base}/fr`, en: `${base}/en`, es: `${base}/es`, pt: `${base}/pt` };
   // Pages locales « feux par département » (contenu FR, URL canonique unique).
   const deptPages: MetadataRoute.Sitemap = DEPARTEMENTS.map((d) => ({
@@ -295,6 +321,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.7,
     },
     ...deptPages,
+    ...newsletterPages,
     {
       url: `${base}/fr/canadair`,
       lastModified: new Date(),

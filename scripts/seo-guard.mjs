@@ -33,6 +33,19 @@ const PAGES = [
     jsonld: ["FAQPage", "Dataset"],
   },
   {
+    path: "/fr/newsletter",
+    title: /Newsletter des feux/i,
+    canonical: "/fr/newsletter",
+    hreflang: ["fr", "en", "es", "pt"],
+    noindexForbidden: true,
+  },
+  {
+    path: "/en/newsletter",
+    title: /Wildfire newsletter/i,
+    canonical: "/en/newsletter",
+    hreflang: ["fr", "en", "es", "pt"],
+  },
+  {
     path: "/en/statistiques",
     title: /Wildfire statistics/i,
     canonical: "/en/statistiques",

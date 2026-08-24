@@ -8,6 +8,7 @@ import { computeFireRisk, type FireRisk } from "@/lib/firerisk";
 import type { FireEvent } from "@/lib/cluster";
 import { listFiresByDept, type ArchivedFire } from "@/lib/firearchive";
 import { SiteFooter } from "@/components/SiteFooter";
+import { NewsletterSignup } from "@/components/NewsletterSignup";
 
 // Pages locales SEO « Incendie [département] aujourd'hui » : rendu dynamique
 // (les données feux vivent dans un cache d'instance + Blob, le rendu reste
@@ -280,6 +281,15 @@ export default async function DeptPage({
             </Link>
           </p>
         </section>
+
+        <div className="mt-8">
+          <NewsletterSignup
+            lang="fr"
+            variant="dept"
+            label={`${d.name} (${d.code})`}
+            bbox={[d.lon - 0.6, Math.max(-90, d.lat - 0.6), d.lon + 0.6, Math.min(90, d.lat + 0.6)]}
+          />
+        </div>
 
         <p className="mt-8 border-t pt-4 text-[12.5px]" style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}>
           kanari est un service d'information indépendant et gratuit, pas un canal d'alerte

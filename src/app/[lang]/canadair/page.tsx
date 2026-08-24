@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { isValidLang, type Lang, localize } from "@/lib/i18n";
 import { getWaterBombers, FRENCH_FLEET, type Plane } from "@/lib/aircraft";
 import { SiteFooter } from "@/components/SiteFooter";
+import { NewsletterSignup } from "@/components/NewsletterSignup";
 
 // Landing « Canadair en direct » : requête en forte croissance à chaque
 // épisode de feu, quasi sans concurrence. Rendu ISR court (2 min) : la page
@@ -344,6 +345,10 @@ export default async function CanadairPage({ params }: { params: Promise<{ lang:
             </details>
           ))}
         </section>
+
+        <div className="mb-2 mt-2">
+          <NewsletterSignup lang={lang} variant="canadair" />
+        </div>
 
         <p className="mt-8 border-t pt-4 text-[12.5px]" style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}>
           {lang === "fr" ? (

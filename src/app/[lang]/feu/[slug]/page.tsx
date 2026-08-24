@@ -7,6 +7,7 @@ import { DEPT_BY_SLUG } from "@/lib/departements";
 import { fetchStrategicPoints, type StrategicPoint } from "@/lib/strategic";
 import { fetchOfficialPerimeter, type OfficialPerimeter } from "@/lib/perimeters";
 import { SiteFooter } from "@/components/SiteFooter";
+import { NewsletterSignup } from "@/components/NewsletterSignup";
 
 // Page événement permanente : chaque feu significatif archivé a son URL à
 // vie (« incendie [lieu] [date] »). Mise à jour tant que le feu est actif,
@@ -408,6 +409,15 @@ export default async function FirePage({
             au moment où ils l'ont vu.
           </p>
         </section>
+
+        <div className="mt-8">
+          <NewsletterSignup
+            lang="fr"
+            variant="fire"
+            label={f.place ?? undefined}
+            bbox={[f.lon - 0.4, Math.max(-90, f.lat - 0.4), f.lon + 0.4, Math.min(90, f.lat + 0.4)]}
+          />
+        </div>
 
         <p className="mt-8 border-t pt-4 text-[12.5px]" style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}>
           kanari est un service d'information indépendant et gratuit, pas un canal d'alerte

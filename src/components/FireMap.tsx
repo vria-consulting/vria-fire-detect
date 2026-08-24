@@ -9,6 +9,7 @@ import type { SocialSignal } from "@/lib/socialscan";
 import { DICT, type Lang, type Dict } from "@/lib/i18n";
 import { countryName } from "@/lib/countries";
 import { InstallNudge } from "@/components/InstallNudge";
+import { NewsletterSignup } from "@/components/NewsletterSignup";
 import { dfciCode } from "@/lib/dfci";
 import type { FireRisk } from "@/lib/firerisk";
 import type { Plane } from "@/lib/aircraft";
@@ -608,6 +609,10 @@ export default function FireMap({ lang, hotspots = [] }: { lang: Lang; hotspots?
   const [wind, setWind] = useState<Wind | null>(null);
   const [alertState, setAlertState] = useState<"off" | "busy" | "on">("off");
   const [alertMsg, setAlertMsg] = useState<string | null>(null);
+  // Second canal après interaction avec le CTA push : proposer le bilan par
+  // e-mail sur la même zone (spec newsletter du 24/08/2026). La bbox est
+  // figée au moment du clic — c'est la zone que l'utilisateur regardait.
+  const [alertBbox, setAlertBbox] = useState<[number, number, number, number] | null>(null);
   const pendingSelectRef = useRef<string | null>(null);
   // Onglet du flux : « Tout » = vue globale, « Urgents » = départs de feu
   // (< 2 h) — l'onglet pilote aussi les filtres de la carte.
@@ -1557,8 +1562,13 @@ export default function FireMap({ lang, hotspots = [] }: { lang: Lang; hotspots?
 
   const toggleAlerts = async () => {
     setAlertMsg(null);
+    const bounds = mapRef.current?.getBounds();
+    const viewBbox: [number, number, number, number] | null = bounds
+      ? [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()]
+      : null;
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
       setAlertMsg(t.alertNotSupported);
+      setAlertBbox(viewBbox); // pas de push possible : l'e-mail comme relais
       return;
     }
     setAlertState("busy");
@@ -1580,6 +1590,7 @@ export default function FireMap({ lang, hotspots = [] }: { lang: Lang; hotspots?
         localStorage.removeItem("vigifire-alert-endpoint");
         setAlertState("off");
         setAlertMsg(t.alertOff);
+        setAlertBbox(null);
         return;
       }
       // Abonnement sur la vue courante
@@ -1587,6 +1598,7 @@ export default function FireMap({ lang, hotspots = [] }: { lang: Lang; hotspots?
       if (perm !== "granted") {
         setAlertState("off");
         setAlertMsg(t.alertAllow);
+        setAlertBbox(viewBbox); // notifications refusées : l'e-mail comme relais
         return;
       }
       const reg = await navigator.serviceWorker.register("/sw.js");
@@ -1607,6 +1619,7 @@ export default function FireMap({ lang, hotspots = [] }: { lang: Lang; hotspots?
       localStorage.setItem("vigifire-alert-endpoint", sub.endpoint);
       setAlertState("on");
       setAlertMsg(t.alertOn);
+      setAlertBbox(viewBbox); // push actif : proposer aussi le bilan e-mail
     } catch (e) {
       console.error(e);
       setAlertState(localStorage.getItem("vigifire-alert-endpoint") ? "on" : "off");
@@ -3362,6 +3375,11 @@ export default function FireMap({ lang, hotspots = [] }: { lang: Lang; hotspots?
             style={{ ...card, color: "var(--ink-2)" }}
           >
             {alertMsg}
+          </div>
+        )}
+        {alertMsg && alertBbox && alertState !== "busy" && (
+          <div className="k-rise w-[min(420px,calc(100vw-24px))] text-left">
+            <NewsletterSignup lang={lang} variant="map" compact bbox={alertBbox} />
           </div>
         )}
         {ALERTS_ENABLED && (

@@ -1,0 +1,20 @@
+# Newsletter : le cron tire tous les lundis à 06:05 UTC ; la route décide
+# elle-même s'il y a un numéro à envoyer (hebdomadaire de mai à octobre,
+# mensuel — premier lundi — de novembre à avril) et refuse de renvoyer deux
+# fois le même numéro. Même mécanique d'authentification que alert-cron.
+name: newsletter-cron
+
+on:
+  schedule:
+    - cron: "5 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Envoie le bilan périodique
+        run: |
+          curl -fsS --max-time 110 --retry 2 --retry-connrefused \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            "https://vria-fire-detect.vercel.app/api/cron/newsletter"
