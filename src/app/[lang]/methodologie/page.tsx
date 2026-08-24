@@ -48,7 +48,7 @@ const M = {
     citeIntro: "Format conseillé (texte) :",
     citeText: "kanari (2026). Mémoire des feux de forêt détectés par satellite et témoins vérifiés [jeu de données]. https://kanari.io. Consulté le JJ/MM/AAAA.",
     citeBib: "BibTeX :",
-    citeDoi: "Un identifiant pérenne (DOI) du jeu de données est en cours de dépôt ; cette page sera mise à jour.",
+    citeDoi: "Identifiant pérenne du jeu de données : DOI 10.5281/zenodo.22078610 (https://doi.org/10.5281/zenodo.22078610), dépôt daté sur Zenodo.",
     changelogTitle: "Historique",
     changelog: [
       "3 août 2026 : début de l'archive permanente des feux significatifs.",
@@ -93,7 +93,7 @@ const M = {
     citeIntro: "Suggested format (text):",
     citeText: "kanari (2026). Archive of wildfires detected by satellite and verified witnesses [dataset]. https://kanari.io. Accessed YYYY-MM-DD.",
     citeBib: "BibTeX:",
-    citeDoi: "A persistent identifier (DOI) for the dataset is being registered; this page will be updated.",
+    citeDoi: "Persistent identifier of the dataset: DOI 10.5281/zenodo.22078610 (https://doi.org/10.5281/zenodo.22078610), dated deposit on Zenodo.",
     changelogTitle: "Changelog",
     changelog: [
       "August 3, 2026: start of the permanent archive of significant fires.",
@@ -137,7 +137,7 @@ const M = {
     citeIntro: "Formato sugerido (texto):",
     citeText: "kanari (2026). Archivo de incendios forestales detectados por satélite y testigos verificados [conjunto de datos]. https://kanari.io. Consultado el DD/MM/AAAA.",
     citeBib: "BibTeX:",
-    citeDoi: "Se está registrando un identificador persistente (DOI) del conjunto de datos; esta página se actualizará.",
+    citeDoi: "Identificador persistente del conjunto de datos: DOI 10.5281/zenodo.22078610 (https://doi.org/10.5281/zenodo.22078610), depósito fechado en Zenodo.",
     changelogTitle: "Historial",
     changelog: [
       "3 de agosto de 2026: inicio del archivo permanente de incendios significativos.",
@@ -180,7 +180,7 @@ const M = {
     citeIntro: "Formato sugerido (texto):",
     citeText: "kanari (2026). Arquivo de incêndios florestais detectados por satélite e testemunhas verificadas [conjunto de dados]. https://kanari.io. Acessado em DD/MM/AAAA.",
     citeBib: "BibTeX:",
-    citeDoi: "Um identificador persistente (DOI) do conjunto de dados está sendo registrado; esta página será atualizada.",
+    citeDoi: "Identificador persistente do conjunto de dados: DOI 10.5281/zenodo.22078610 (https://doi.org/10.5281/zenodo.22078610), depósito datado no Zenodo.",
     changelogTitle: "Histórico",
     changelog: [
       "3 de agosto de 2026: início do arquivo permanente de incêndios significativos.",
@@ -195,6 +195,7 @@ const BIBTEX = `@misc{kanari2026,
   title  = {kanari: wildfire detections and archive (satellite + verified witnesses)},
   year   = {2026},
   url    = {https://kanari.io},
+  doi    = {10.5281/zenodo.22078610},
   note   = {CC BY 4.0. Open data: https://kanari.io/opendata/feux.csv}
 }`;
 

@@ -45,7 +45,7 @@ npm publish --access public
 Le texte de description (EN et FR) est ci-dessous ; le fichier est
 https://kanari.io/opendata/feux.csv (licence CC BY 4.0, mis à jour en continu).
 
-- **Zenodo** (DOI pérenne, citations académiques) : https://zenodo.org/uploads/new
+- **Zenodo** : FAIT (24/08/2026) : https://zenodo.org/records/22078611 — DOI toutes versions 10.5281/zenodo.22078610. Prochaines versions : bouton « New version » avec un CSV daté. Ancienne consigne : https://zenodo.org/uploads/new
   — connexion GitHub ou ORCID. Type « Dataset », titre « kanari wildfire archive:
   satellite-detected wildfires with verified witness reports », licence CC BY 4.0,
   mots-clés wildfire, remote sensing, NASA FIRMS, GOES, Meteosat, early warning.

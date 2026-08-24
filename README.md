@@ -76,7 +76,7 @@ Archive, witness signals and aircraft need Supabase and a few provider keys; eve
 
 > kanari (2026). Archive of wildfires detected by satellite and verified witnesses [dataset]. https://kanari.io. Accessed YYYY-MM-DD.
 
-Data licence: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). A DOI for the dataset is being registered.
+Data licence: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Dataset DOI: [10.5281/zenodo.22078610](https://doi.org/10.5281/zenodo.22078610) (Zenodo). Also on [data.gouv.fr](https://www.data.gouv.fr/datasets/feux-de-foret-detectes-par-satellite-et-temoins-verifies-kanari).
 
 ## Contributing
 
