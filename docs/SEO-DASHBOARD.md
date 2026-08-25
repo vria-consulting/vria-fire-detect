@@ -145,3 +145,18 @@ meteo-paris, Climatempo.
   thread »). Un cas quasi identique de janvier 2026 n'a produit aucune action. Le
   ticket support reste le seul canal utile, et il repond.
 
+### 25/08/2026, point du matin
+
+- **Premier signe de vie de bingbot depuis le 4 aout** : `sitemap.xml`, resoumis le
+  24/08, a ete **relu le 24/08** (statut Success) et Bing y a decouvert **738 URLs**
+  au lieu de 186. La resoumission de sitemap declenche donc bien un fetch : l'hote
+  n'est pas bloque au niveau reseau. `sitemap-news.xml` resoumis ce matin, en
+  traitement. `sitemap-events.xml` toujours pas resoumis, volontairement.
+- **Mais aucun recrawl de page** : Site Explorer affiche toujours 13 et 14 aout comme
+  dernieres dates de crawl.
+- `site:kanari.io` sur Bing : toujours 0 page kanari.
+- Citations Copilot : 84 le 16/08, 71 les 17 et 18, 21 le 19, puis **0 du 20 au 23**.
+- Aucune reponse du support Microsoft depuis les quatre messages du 24/08.
+- CI : la PR #1 (garde SEO) passe au vert, mergeable. `main` reste rouge tant qu'elle
+  n'est pas fusionnee.
+
