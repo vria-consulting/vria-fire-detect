@@ -126,7 +126,7 @@ export default async function About({ params }: { params: Promise<{ lang: string
                 général, pas la monétisation des données. Le code est ouvert et les sources de
                 données sont publiques. kanari est conçu et développé en France par{" "}
                 <a
-                  href="https://vria-consulting.fr/a-propos"
+                  href="https://ryckbosch.fr"
                   target="_blank"
                   rel="noreferrer"
                   style={{ color: "var(--link)" }}
@@ -211,7 +211,7 @@ export default async function About({ params }: { params: Promise<{ lang: string
                 monetization. The code is open and the data sources are public. kanari is designed
                 and built in France by{" "}
                 <a
-                  href="https://vria-consulting.fr/a-propos"
+                  href="https://ryckbosch.fr"
                   target="_blank"
                   rel="noreferrer"
                   style={{ color: "var(--link)" }}
