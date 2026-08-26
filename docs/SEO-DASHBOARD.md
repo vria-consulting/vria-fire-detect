@@ -77,7 +77,7 @@ canadair), la marque (kanari.io position 1,1), et un bloc olfactif inattendu
 | Kaggle | publie, badge Dataset Creator |
 | npm kanari-fires | 0.1.0 publie |
 | HDX | organisation en attente de validation |
-| YouTube | 4 videos ; validation telephone FAITE le 24/08 (fonctionnalites intermediaires activees), mais les liens des descriptions ne sont pas encore cliquables : a recontroler |
+| YouTube | 4 videos ; validation telephone faite (niveau 2 active) mais **insuffisante** : les liens cliquables exigent les **fonctionnalites avancees** (niveau 3), a debloquer par Vincent |
 | Newsletter | **Pret** : Resend configure, news.kanari.io verifie, cle Full access en place (Vercel + local), audience General ; reste l'implementation |
 
 ## 5. Partenaires : dates de relance
@@ -159,4 +159,12 @@ meteo-paris, Climatempo.
 - Aucune reponse du support Microsoft depuis les quatre messages du 24/08.
 - CI : la PR #1 (garde SEO) passe au vert, mergeable. `main` reste rouge tant qu'elle
   n'est pas fusionnee.
+- **YouTube, diagnostic corrige le 25/08** : la validation par telephone active le niveau 2
+  (videos > 15 min, miniatures, direct) mais **ne suffit pas** pour rendre les liens de
+  description cliquables. YouTube exige les **fonctionnalites avancees (niveau 3)**, au
+  choix : une video sur soi de 6 secondes, une photo de piece d'identite, ou environ deux
+  mois d'usage actif (deblocage automatique). Les 4 videos ont toujours 0 lien kanari.io
+  cliquable. Action pour Vincent, la video de 6 secondes est la voie la plus rapide et la
+  moins intrusive.
+- PR #1 (garde SEO) toujours ouverte le 25/08 au soir, `main` reste rouge.
 
