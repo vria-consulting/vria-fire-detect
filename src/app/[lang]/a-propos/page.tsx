@@ -124,7 +124,25 @@ export default async function About({ params }: { params: Promise<{ lang: string
               <p>
                 kanari est développé comme un projet à mission : l&apos;objectif est l&apos;intérêt
                 général, pas la monétisation des données. Le code est ouvert et les sources de
-                données sont publiques.
+                données sont publiques. kanari est conçu et développé en France par{" "}
+                <a
+                  href="https://vria-consulting.fr/a-propos"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: "var(--link)" }}
+                >
+                  Vincent Ryckbosch
+                </a>
+                , fondateur de{" "}
+                <a
+                  href="https://vria-consulting.fr"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: "var(--link)" }}
+                >
+                  VRIA Consulting
+                </a>
+                .
               </p>
             </section>
             <Link
@@ -190,7 +208,26 @@ export default async function About({ params }: { params: Promise<{ lang: string
               <H2>Who are we?</H2>
               <p>
                 kanari is built as a mission-driven project: the goal is public interest, not data
-                monetization. The code is open and the data sources are public.
+                monetization. The code is open and the data sources are public. kanari is designed
+                and built in France by{" "}
+                <a
+                  href="https://vria-consulting.fr/a-propos"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: "var(--link)" }}
+                >
+                  Vincent Ryckbosch
+                </a>
+                , founder of{" "}
+                <a
+                  href="https://vria-consulting.fr"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: "var(--link)" }}
+                >
+                  VRIA Consulting
+                </a>
+                .
               </p>
             </section>
             <Link

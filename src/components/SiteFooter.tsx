@@ -154,6 +154,15 @@ const TAGLINE: Record<Lang, string> = {
   pt: "kanari — o canário canta antes da sirene. Serviço de informação independente e gratuito; em emergência, ligue 193 (Brasil) ou 112 (Portugal).",
 };
 
+// Crédit auteur : qui construit kanari, avec liens vers vria-consulting.fr
+// (même auteur — Vincent tient les deux sites).
+const CREDIT: Record<Lang, { before: string; between: string; after: string }> = {
+  fr: { before: "Un projet conçu et développé par ", between: ", fondateur de ", after: "." },
+  en: { before: "Designed and built by ", between: ", founder of ", after: "." },
+  es: { before: "Un proyecto diseñado y desarrollado por ", between: ", fundador de ", after: "." },
+  pt: { before: "Um projeto concebido e desenvolvido por ", between: ", fundador da ", after: "." },
+};
+
 export function SiteFooter({ lang }: { lang: Lang }) {
   const cols = COLS[lang];
   return (
@@ -191,6 +200,27 @@ export function SiteFooter({ lang }: { lang: Lang }) {
       </p>
       <p className="mt-4 text-[12px]" style={{ color: "var(--ink-3)" }}>
         {TAGLINE[lang]}
+      </p>
+      <p className="mt-1.5 text-[12px]" style={{ color: "var(--ink-3)" }}>
+        {CREDIT[lang].before}
+        <a
+          href="https://vria-consulting.fr/a-propos"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: "var(--link)" }}
+        >
+          Vincent Ryckbosch
+        </a>
+        {CREDIT[lang].between}
+        <a
+          href="https://vria-consulting.fr"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: "var(--link)" }}
+        >
+          VRIA Consulting
+        </a>
+        {CREDIT[lang].after}
       </p>
     </footer>
   );
