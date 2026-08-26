@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { unstable_cache } from "next/cache";
 import { isValidLang, localize, type Lang } from "@/lib/i18n";
 import { ARCHIVE_START, MONTH_RE, archiveMonths, fireUrl, monthRange, periodStats } from "@/lib/observatory";
 import { LOCALE, OBS, allScopes, fmtDate, monthLabel, resolveScope } from "@/lib/observatory-i18n";
@@ -11,6 +12,30 @@ import { SiteFooter } from "@/components/SiteFooter";
 // toutes uniques (chiffres, série quotidienne, feux majeurs), les permaliens
 // que la presse et les assistants IA peuvent citer et relier.
 export const revalidate = 1800;
+// Neutralise les no-store internes (sinon la route restait dynamique et
+// jamais servie du CDN) ; le tableau vide active l'ISR à la volée : chaque
+// pays × mois est généré à sa première visite puis mis en cache 30 min.
+export const fetchCache = "force-cache";
+export function generateStaticParams() {
+  return [];
+}
+
+// Lectures Supabase via le Data Cache : sans lui, leurs fetch no-store
+// rendaient la route dynamique et le revalidate ci-dessus restait lettre
+// morte (constat du 26/08/2026). Clé auto : (cc, mois, mois précédent) —
+// une entrée par pays × mois, partagée par les quatre langues.
+const getMonthData = unstable_cache(
+  async (cc: string | null, month: string, older: string | null) => {
+    const range = monthRange(month)!;
+    const [stats, prevStats] = await Promise.all([
+      periodStats(range.fromIso, range.toIso, cc),
+      older ? periodStats(monthRange(older)!.fromIso, monthRange(older)!.toIso, cc) : Promise.resolve(null),
+    ]);
+    return { stats, prevStats };
+  },
+  ["obs-month-data"],
+  { revalidate: 1800 }
+);
 
 function hasArchive(): boolean {
   return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -75,10 +100,7 @@ export default async function ObservatoryMonthPage({
   const idx = months.indexOf(month);
   const newer = idx > 0 ? months[idx - 1] : null;
   const older = idx >= 0 && idx < months.length - 1 ? months[idx + 1] : null;
-  const [stats, prevStats] = await Promise.all([
-    periodStats(range.fromIso, range.toIso, scope.cc),
-    older ? periodStats(monthRange(older)!.fromIso, monthRange(older)!.toIso, scope.cc) : Promise.resolve(null),
-  ]);
+  const { stats, prevStats } = await getMonthData(scope.cc, month, older);
   // Résumé narratif : les phrases qu'un journaliste ou un assistant IA reprend
   // telles quelles (journée de pointe, pays dominant, feu le plus long, écart
   // avec le mois précédent).

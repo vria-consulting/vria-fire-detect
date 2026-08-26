@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { unstable_cache } from "next/cache";
 import { isValidLang, type Lang, localize } from "@/lib/i18n";
 import { GUIDES, GUIDE_BY_SLUG, type Guide } from "@/lib/guides";
 import { GUIDES_EN, GUIDE_EN_BY_SLUG } from "@/lib/guides-en";
@@ -31,14 +32,37 @@ const AFFILIATE: Record<string, { q: string; label: string }[]> = {
   ],
 };
 
-// Guides évergreens, rendus dynamiques depuis le 13/08 : chaque guide ouvre
-// sur un bloc CITABLE daté aux compteurs live (stats attribuées en début de
-// page = le motif le plus repris par les moteurs de réponse IA). countFires
-// est no-store, incompatible avec un shell statique.
+// Guides évergreens avec un bloc CITABLE daté aux compteurs quasi live (stats
+// attribuées en début de page = le motif le plus repris par les moteurs de
+// réponse IA). Depuis le 26/08 : ISR 30 min au lieu de force-dynamic — les
+// compteurs passent par le Data Cache (getGuideCounters), leur fraîcheur à la
+// minute ne justifiait pas de payer un rendu par requête ni de priver les
+// crawlers de réponses CDN en pleine reconquête bingbot.
 // Servis en FR et en EN sur les mêmes slugs (hreflang), contenu EN adapté
 // à l'international dans guides-en.ts.
-export const dynamic = "force-dynamic";
+export const revalidate = 1800;
 export const maxDuration = 30;
+// Neutralise le no-store des compteurs (sinon la route restait dynamique) ;
+// les slugs connus sont prerendus au build, le repli linguistique es/pt suit
+// la même mécanique en ISR.
+export const fetchCache = "force-cache";
+export function generateStaticParams() {
+  return GUIDES.map((g) => ({ slug: g.slug }));
+}
+
+// Mêmes compteurs pour tous les guides et toutes les langues : une seule
+// entrée de cache, régénérée au plus toutes les 30 minutes.
+const getGuideCounters = unstable_cache(
+  async () => {
+    const [total, france] = await Promise.all([
+      countFires("first_seen=gte.2026-08-03"),
+      countFires("country=eq.FR"),
+    ]);
+    return { total, france };
+  },
+  ["guide-counters"],
+  { revalidate: 1800 }
+);
 
 // Résolution par langue avec repli : es/pt n'ont que les guides les plus
 // cherchés — les autres sont servis en anglais avec canonical /en (la langue
@@ -178,11 +202,8 @@ export default async function GuidePage({
   const ui = localize(UI, eff);
   const locale = LOCALES[eff];
 
-  // Chiffres live pour le bloc citable (échec silencieux : bloc masqué).
-  const [total, france] = await Promise.all([
-    countFires("first_seen=gte.2026-08-03"),
-    countFires("country=eq.FR"),
-  ]);
+  // Chiffres quasi live pour le bloc citable (échec silencieux : bloc masqué).
+  const { total, france } = await getGuideCounters();
   const today = new Date().toLocaleDateString(locale, {
     day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Paris",
   });

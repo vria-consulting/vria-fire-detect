@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { unstable_cache } from "next/cache";
 import { isValidLang, localize, type Lang } from "@/lib/i18n";
 import { countFires } from "@/lib/firearchive";
 import { ARCHIVE_START, archiveMonths, monthRange, periodStats } from "@/lib/observatory";
@@ -10,6 +11,41 @@ import { SiteFooter } from "@/components/SiteFooter";
 // Observatoire citable, niveau pays : le mois en cours en un coup d'œil et la
 // série mensuelle complète (un lien par mois vers la page permanente).
 export const revalidate = 1800;
+// Neutralise les no-store internes (sinon la route restait dynamique et
+// jamais servie du CDN) ; le tableau vide active l'ISR à la volée : chaque
+// pays est généré à sa première visite puis mis en cache 30 min.
+export const fetchCache = "force-cache";
+export function generateStaticParams() {
+  return [];
+}
+
+// Les lectures Supabase passent par le Data Cache : sans lui, leurs fetch
+// no-store rendaient la route dynamique à chaque requête et le revalidate
+// ci-dessus restait lettre morte (aucun HIT CDN, constat du 26/08/2026).
+// Clé auto : (cc, mois courant, liste des mois) — une entrée par pays,
+// partagée par les quatre langues.
+const getCountryData = unstable_cache(
+  async (cc: string | null, current: string, months: string[]) => {
+    const range = monthRange(current)!;
+    const ccFilter = cc ? `&country=eq.${encodeURIComponent(cc)}` : "";
+    const [stats, counts, total] = await Promise.all([
+      periodStats(range.fromIso, range.toIso, cc),
+      Promise.all(
+        months.map(async (m) => {
+          const r = monthRange(m)!;
+          const n = await countFires(
+            `first_seen=gte.${encodeURIComponent(r.fromIso)}&first_seen=lt.${encodeURIComponent(r.toIso)}${ccFilter}`
+          );
+          return { month: m, n };
+        })
+      ),
+      countFires(`first_seen=gte.${encodeURIComponent(`${ARCHIVE_START}T00:00:00Z`)}${ccFilter}`),
+    ]);
+    return { stats, counts, total };
+  },
+  ["obs-country-data"],
+  { revalidate: 1800 }
+);
 
 export async function generateMetadata({
   params,
@@ -44,22 +80,7 @@ export default async function ObservatoryCountryPage({
   const t = localize(OBS, lang);
   const months = archiveMonths();
   const current = months[0];
-  const range = monthRange(current)!;
-  const ccFilter = scope.cc ? `&country=eq.${encodeURIComponent(scope.cc)}` : "";
-
-  const [stats, counts, total] = await Promise.all([
-    periodStats(range.fromIso, range.toIso, scope.cc),
-    Promise.all(
-      months.map(async (m) => {
-        const r = monthRange(m)!;
-        const n = await countFires(
-          `first_seen=gte.${encodeURIComponent(r.fromIso)}&first_seen=lt.${encodeURIComponent(r.toIso)}${ccFilter}`
-        );
-        return { month: m, n };
-      })
-    ),
-    countFires(`first_seen=gte.${encodeURIComponent(`${ARCHIVE_START}T00:00:00Z`)}${ccFilter}`),
-  ]);
+  const { stats, counts, total } = await getCountryData(scope.cc, current, months);
 
   const card = { background: "var(--white)", boxShadow: "var(--shadow-s)" } as const;
   const h2 = { fontFamily: "var(--font-display)", color: "var(--ink)" } as const;

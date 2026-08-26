@@ -80,13 +80,23 @@ export function middleware(req: NextRequest, event: NextFetchEvent) {
     return NextResponse.next();
   }
 
-  // Déjà préfixé (/fr, /en) : on laisse passer, en mémorisant la position du
-  // visiteur pour centrer la carte (cookie lisible côté client).
+  // Déjà préfixé (/fr, /en) : on laisse passer. Le cookie géo n'est posé que
+  // sur la home (seule page où il est critique : centrage initial de la
+  // carte). Le poser partout rendait CHAQUE réponse porteuse d'un Set-Cookie,
+  // donc non cacheable par le CDN : aucune page servie en HIT, TTFB de
+  // fonction sur tout le site et budget de crawl gaspillé (constat du
+  // 26/08/2026, en pleine reconquête bingbot). Dégradation assumée : un
+  // visiteur qui atterrit directement sur une page interne n'a pas le cookie,
+  // EmergencyButton retombe sur le numéro par défaut de la langue jusqu'à son
+  // premier passage par la home.
   const seg = pathname.split("/")[1];
   if (isValidLang(seg)) {
-    const res = NextResponse.next();
-    attachGeo(req, res);
-    return res;
+    if (pathname === `/${seg}`) {
+      const res = NextResponse.next();
+      attachGeo(req, res);
+      return res;
+    }
+    return NextResponse.next();
   }
 
   // Racine ou chemin non préfixé : redirection vers la langue détectée en
@@ -104,13 +114,16 @@ function attachGeo(req: NextRequest, res: NextResponse): void {
   const lat = req.headers.get("x-vercel-ip-latitude");
   const lon = req.headers.get("x-vercel-ip-longitude");
   const country = req.headers.get("x-vercel-ip-country") ?? "";
-  if (lat && lon) {
-    res.cookies.set("kanari-geo", `${lat},${lon},${country}`, {
-      path: "/",
-      maxAge: 3600,
-      sameSite: "lax",
-    });
-  }
+  if (!lat || !lon) return;
+  const value = `${lat},${lon},${country}`;
+  // Cookie déjà à jour : ne pas le reposer — une réponse sans Set-Cookie
+  // reste cacheable par le CDN.
+  if (req.cookies.get("kanari-geo")?.value === value) return;
+  res.cookies.set("kanari-geo", value, {
+    path: "/",
+    maxAge: 3600,
+    sameSite: "lax",
+  });
 }
 
 export const config = {
