@@ -204,7 +204,7 @@ export function SiteFooter({ lang }: { lang: Lang }) {
       <p className="mt-1.5 text-[12px]" style={{ color: "var(--ink-3)" }}>
         {CREDIT[lang].before}
         <a
-          href="https://vria-consulting.fr/a-propos"
+          href="https://ryckbosch.fr"
           target="_blank"
           rel="noopener noreferrer"
           style={{ color: "var(--link)" }}
