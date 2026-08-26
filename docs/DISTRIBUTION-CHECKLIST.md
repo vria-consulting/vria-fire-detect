@@ -83,6 +83,16 @@ Méthodologie : https://kanari.io/fr/methodologie. Carte : https://kanari.io.
 
 ## 5. Newsletter — FAIT (implémentation le 24/08/2026, commit fd55a53)
 
+Choix du prestataire, tarifs verifies le 24/08/2026 sur les pages officielles.
+Resend, offre **Marketing** gratuite : 1 000 contacts et broadcasts illimites (les plans
+marketing sont limites par le nombre de contacts, pas par le nombre d'e-mails). Ne pas
+confondre avec l'offre Transactional gratuite du meme compte, plafonnee a 3 000
+e-mails/mois et 100/jour : c'est pourquoi la masse passe par /broadcasts. Buttondown a
+ete ecarte, gratuit jusqu'a 100 abonnes seulement puis 9 $/mois, avec automatisations et
+archive sur domaine personnalise en options a 29 $. Argument decisif au-dela du prix :
+avec Resend le formulaire et l'archive restent sur kanari.io et produisent des pages
+indexables chez nous.
+
 Infra (conversation Référencement) : Resend offre Marketing gratuite (1 000 contacts),
 domaine d'envoi news.kanari.io vérifié (eu-west-1, DKIM chez Hostinger), audience
 « General » 61f9b271-be52-46cd-a423-46a7c7f1a494, RESEND_API_KEY sur Vercel
@@ -116,6 +126,18 @@ Application (cette implémentation) :
   (inscription → confirmation → contact dans l'audience) : premier abonné réel.
 - Reste à faire : page « ça sent le feu dehors » (attendre la copie 4 langues de la
   conversation Référencement) ; segments par langue si l'audience non-FR grossit.
+
+Detail des enregistrements DNS poses le 24/08/2026, **chez Hostinger et non chez Vercel**
+(serveurs artemis/hermes.dns-parking.com ; les MX et le SPF Hostinger servent
+contact@kanari.io, ne pas les casser) :
+- `TXT  resend._domainkey.news` = cle publique DKIM
+- `CNAME rsend.news` -> `rsend.forge.rmta.net`
+- `CNAME send.news`  -> `send.forge.rmta.net`
+Le MX de reception n'a volontairement pas ete pose : la newsletter n'a pas besoin de
+recevoir, d'ou le Reply-To sur contact@kanari.io. Region Ireland (eu-west-1) pour le
+RGPD, return-path `send`, sans tracking d'ouverture ni de clic. Domaine passe
+**Verified** le 24/08 vers 15h. Piege a retenir : `vercel env pull` ne restitue plus
+aucune valeur chiffree, un secret perdu doit etre recree chez le fournisseur.
 
 ## 6. Vidéos — FAIT le 24/08/2026
 

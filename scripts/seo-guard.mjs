@@ -222,8 +222,13 @@ const PAGES = [
   },
 ];
 
+// AdSense a ete retire integralement le 24/08/2026 (refus Google « contenu a
+// faible valeur informative » + filtre Bing en cours). Aucune page ne doit
+// recharger un script publicitaire tiers sans arbitrage explicite.
+const NO_ADS = [/adsbygoogle/i, /googlesyndication/i, /ca-pub-\d+/i];
+for (const p of PAGES) p.forbidden = [...(p.forbidden ?? []), ...NO_ADS];
+
 const STATIC_CHECKS = [
-  { path: "/ads.txt", contains: ["pub-9521453937448688"] },
   { path: "/llms.txt", contains: ["https://kanari.io/api/mcp", "/statistiques/"] },
   { path: "/server.json", contains: ["streamable-http", "https://kanari.io/api/mcp"] },
   { path: "/robots.txt", contains: ["Sitemap"], forbidden: [/^Disallow:\s*\/\s*$/m] },
@@ -329,6 +334,10 @@ for (const p of PAGES) {
     if (r.body.includes(s)) ok(`contient « ${s} »`);
     else ko(`« ${s} » manquant`);
   }
+
+  for (const re of p.forbidden ?? []) {
+    if (re.test(r.body)) ko(`motif interdit trouvé : ${re}`);
+  }
 }
 
 for (const c of STATIC_CHECKS) {
@@ -352,6 +361,22 @@ for (const c of STATIC_CHECKS) {
   for (const re of c.forbidden ?? []) {
     if (re.test(r.body)) ko(`motif interdit trouvé : ${re}`);
     else ok(`pas de ${re}`);
+  }
+}
+
+// Fichiers qui doivent rester absents. ads.txt a ete supprime avec AdSense le
+// 24/08/2026 : un ads.txt declarant un editeur sans annonce servie est une
+// incoherence que les crawlers lisent.
+const GONE_CHECKS = ["/ads.txt"];
+
+for (const path of GONE_CHECKS) {
+  console.log(`\n${path} (doit être absent)`);
+  try {
+    const r = await get(path);
+    if (r.status === 404) ok("HTTP 404, bien absent");
+    else ko(`HTTP ${r.status} (attendu 404, le fichier est revenu)`);
+  } catch (e) {
+    ko(`inaccessible: ${e.message}`);
   }
 }
 
