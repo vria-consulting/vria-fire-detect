@@ -163,6 +163,15 @@ const CREDIT: Record<Lang, { before: string; between: string; after: string }> =
   pt: { before: "Um projeto concebido e desenvolvido por ", between: ", fundador da ", after: "." },
 };
 
+// Du même studio : une ligne discrète, en bas, dans la même couleur que le
+// crédit. Les sites de l'éditeur se lient entre eux, sans rien cacher.
+const STUDIO: Record<Lang, { before: string; after: string }> = {
+  fr: { before: "Du même studio : ", after: ", la lecture des lignes de la main en ligne." },
+  en: { before: "From the same studio: ", after: ", palm reading online." },
+  es: { before: "Del mismo estudio: ", after: ", lectura de manos en línea." },
+  pt: { before: "Do mesmo estúdio: ", after: ", leitura das linhas da mão online." },
+};
+
 export function SiteFooter({ lang }: { lang: Lang }) {
   const cols = COLS[lang];
   return (
@@ -221,6 +230,13 @@ export function SiteFooter({ lang }: { lang: Lang }) {
           VRIA Consulting
         </a>
         {CREDIT[lang].after}
+      </p>
+      <p className="mt-1.5 text-[12px]" style={{ color: "var(--ink-3)" }}>
+        {STUDIO[lang].before}
+        <a href="https://lysea.io" target="_blank" rel="noopener noreferrer" style={{ color: "var(--link)" }}>
+          lysea.io
+        </a>
+        {STUDIO[lang].after}
       </p>
     </footer>
   );
