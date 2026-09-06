@@ -1,12 +1,20 @@
 #!/usr/bin/env bash
 # Photographie SEO de kanari.io en production (regle zero : avant / apres).
-# Usage : scripts/seo-baseline.sh [https://kanari.io] > docs/seo-baseline-<date>.txt
-# Enregistre : robots.txt, statut HTTP de chaque URL des sitemaps, et pour les
-# pages cles : title, description, canonical, hreflang, types JSON-LD, mots <main>.
+# Usage : scripts/seo-baseline.sh [https://kanari.io] [--key-only] > docs/seo-baseline-<date>.txt
+# Enregistre : robots.txt, statut HTTP des URL des sitemaps, et pour les pages
+# cles : title, description, canonical, hreflang, types JSON-LD, mots <main>.
+#
+# MENAGEMENT DU SERVEUR (lecon du 06/09/2026 : la premiere version, 6 requetes
+# en parallele sur 1 446 pages de feux dynamiques, a declenche une alerte Vercel
+# « Fluid function duration spike 5.58x »). Regles : concurrence 2, pause entre
+# requetes, et le sitemap des feux est ECHANTILLONNE (memes gabarits, inutile
+# de rendre 1 446 lambdas). --key-only ne touche que les pages cles.
 set -u
 BASE="${1:-https://kanari.io}"
+KEY_ONLY="${2:-}"
 UA="kanari-seo-baseline"
-CONC=6
+CONC=2
+EVENTS_SAMPLE=40
 
 echo "# kanari SEO baseline"
 echo "# base: $BASE"
@@ -81,11 +89,20 @@ PY
   rm -f "$tmp"
 done
 
-echo "## statut HTTP de chaque URL des sitemaps"
+[ "$KEY_ONLY" = "--key-only" ] && exit 0
+
+echo "## statut HTTP des URL des sitemaps (feux : echantillon de $EVENTS_SAMPLE)"
 for s in sitemap.xml sitemap-news.xml sitemap-events.xml; do
   echo "### $s"
-  curl -s -A "$UA" "$BASE/$s" | grep -oE '<loc>[^<]+</loc>' | sed 's/<[^>]*>//g' \
-  | xargs -P "$CONC" -I{} sh -c 'printf "%s %s\n" "$(curl -s -A kanari-seo-baseline -o /dev/null -I -w "%{http_code}" "{}")" "{}"' \
+  list=$(curl -s -A "$UA" "$BASE/$s" | grep -oE '<loc>[^<]+</loc>' | sed 's/<[^>]*>//g')
+  total=$(printf "%s\n" "$list" | grep -c .)
+  if [ "$s" = "sitemap-events.xml" ]; then
+    echo "# $total URL au total, $EVENTS_SAMPLE controlees (echantillon regulier)"
+    step=$(( total / EVENTS_SAMPLE )); [ "$step" -lt 1 ] && step=1
+    list=$(printf "%s\n" "$list" | awk -v s="$step" 'NR % s == 1')
+  fi
+  printf "%s\n" "$list" \
+  | xargs -P "$CONC" -I{} sh -c 'sleep 0.3; printf "%s %s\n" "$(curl -s -A kanari-seo-baseline -o /dev/null -I -w "%{http_code}" "{}")" "{}"' \
   | sort -k2
   echo
 done
