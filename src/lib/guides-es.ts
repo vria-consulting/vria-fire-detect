@@ -18,6 +18,7 @@ export const GUIDES_ES: Guide[] = [
     intro:
       "En un incendio forestal, los primeros minutos cuentan doble: un foco atacado en 10 minutos es un claro ennegrecido; el mismo fuego dos horas después puede superar las 1 000 hectáreas. Estos son los reflejos que salvan vidas, en orden.",
     updated: "2026-08-16",
+    published: "2026-08-16",
     sections: [
       {
         h2: "Eres testigo de un foco que se inicia",
@@ -74,6 +75,7 @@ export const GUIDES_ES: Guide[] = [
     intro:
       "Un incendio emite radiación infrarroja muy distinta de la de su entorno. Desde la órbita, sensores especializados detectan esas « anomalías térmicas », la columna vertebral de todo mapa de incendios en tiempo real, kanari incluido.",
     updated: "2026-08-16",
+    published: "2026-08-16",
     sections: [
       {
         h2: "Dos familias de satélites complementarias",
@@ -123,6 +125,7 @@ export const GUIDES_ES: Guide[] = [
     intro:
       "Un olor a humo o a quemado afuera, sin llama visible, es una de las situaciones más desconcertantes: el peligro puede estar a 500 metros o a 300 kilómetros. Así se identifica la causa en minutos, y así se sabe cuándo alertar a emergencias.",
     updated: "2026-08-16",
+    published: "2026-08-16",
     sections: [
       {
         h2: "¿De dónde puede venir ese olor a humo?",
