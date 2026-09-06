@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { isValidLang, type Lang } from "@/lib/i18n";
+import { isValidLang, type Lang, withXDefault } from "@/lib/i18n";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
   const { lang } = await params;
@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
         : "How kanari detects wildfire ignitions: NASA FIRMS and Meteosat MTG satellites, AI-verified citizen reports, limits and disclaimers.",
     alternates: {
       canonical: `/${l}/a-propos`,
-      languages: { fr: "/fr/a-propos", en: "/en/a-propos" },
+      languages: withXDefault({ fr: "/fr/a-propos", en: "/en/a-propos", es: "/es/a-propos", pt: "/pt/a-propos" }),
     },
   };
 }

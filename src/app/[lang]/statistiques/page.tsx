@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { unstable_cache } from "next/cache";
-import { isValidLang, type Lang, localize } from "@/lib/i18n";
+import { isValidLang, type Lang, localize, withXDefault } from "@/lib/i18n";
 import {
   countFires,
   listFiresBetween,
@@ -276,12 +276,12 @@ export async function generateMetadata({
     description: t.metaDesc,
     alternates: {
       canonical: `/${l}/statistiques`,
-      languages: {
+      languages: withXDefault({
         fr: "/fr/statistiques",
         en: "/en/statistiques",
         es: "/es/statistiques",
         pt: "/pt/statistiques",
-      },
+      }),
     },
   };
 }

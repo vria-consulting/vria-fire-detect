@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { isValidLang, type Lang, localize } from "@/lib/i18n";
+import { isValidLang, type Lang, localize, withXDefault } from "@/lib/i18n";
 import { SiteFooter } from "@/components/SiteFooter";
 
 // Politique de confidentialité : exigée à l'époque d'AdSense (retiré le
@@ -89,7 +89,7 @@ export async function generateMetadata({
     description: t.metaDesc,
     alternates: {
       canonical: `/${l === "fr" ? "fr" : "en"}/confidentialite`,
-      languages: { fr: "/fr/confidentialite", en: "/en/confidentialite" },
+      languages: withXDefault({ fr: "/fr/confidentialite", en: "/en/confidentialite" }),
     },
   };
 }

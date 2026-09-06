@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { isValidLang, type Lang, localize } from "@/lib/i18n";
+import { isValidLang, type Lang, localize, withXDefault } from "@/lib/i18n";
 import { SiteFooter } from "@/components/SiteFooter";
 
 // Comparatif honnête des cartes de feux : la page cible des requêtes
@@ -189,7 +189,7 @@ export async function generateMetadata({
     description: t.metaDesc,
     alternates: {
       canonical: `/${l === "fr" ? "fr" : "en"}/comparatif`,
-      languages: { fr: "/fr/comparatif", en: "/en/comparatif" },
+      languages: withXDefault({ fr: "/fr/comparatif", en: "/en/comparatif" }),
     },
   };
 }

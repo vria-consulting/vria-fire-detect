@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { isValidLang, type Lang } from "@/lib/i18n";
+import { isValidLang, type Lang, withXDefault } from "@/lib/i18n";
 import { listIssues, periodLabel, ISSUE_LOCALE } from "@/lib/newsletter";
 import { NewsletterSignup } from "@/components/NewsletterSignup";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -95,12 +95,12 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
     description: t.metaDesc,
     alternates: {
       canonical: `/${l}/newsletter`,
-      languages: {
+      languages: withXDefault({
         fr: "/fr/newsletter",
         en: "/en/newsletter",
         es: "/es/newsletter",
         pt: "/pt/newsletter",
-      },
+      }),
     },
   };
 }

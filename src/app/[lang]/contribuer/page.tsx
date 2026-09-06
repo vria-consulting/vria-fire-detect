@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { isValidLang, type Lang } from "@/lib/i18n";
+import { isValidLang, type Lang, withXDefault } from "@/lib/i18n";
 import { ContributeForm } from "@/components/ContributeForm";
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }) {
@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
         : "Help kanari see fires earlier: report a bug, suggest an idea, data or an API. Every contribution counts.",
     alternates: {
       canonical: `/${l}/contribuer`,
-      languages: { fr: "/fr/contribuer", en: "/en/contribuer" },
+      languages: withXDefault({ fr: "/fr/contribuer", en: "/en/contribuer" }),
     },
   };
 }

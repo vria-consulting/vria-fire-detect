@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { isValidLang, type Lang } from "@/lib/i18n";
+import { isValidLang, type Lang, withXDefault } from "@/lib/i18n";
 import { getIssue, periodLabel, ISSUE_LOCALE, fmtDeltaMin, type NewsletterIssue } from "@/lib/newsletter";
 import { NewsletterSignup } from "@/components/NewsletterSignup";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -109,7 +109,7 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
     ),
     alternates: {
       canonical: `/${l}${path}`,
-      languages: Object.fromEntries((["fr", "en", "es", "pt"] as const).map((x) => [x, `/${x}${path}`])),
+      languages: withXDefault(Object.fromEntries((["fr", "en", "es", "pt"] as const).map((x) => [x, `/${x}${path}`]))),
     },
   };
 }

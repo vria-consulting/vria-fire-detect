@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { isValidLang, localize, type Lang } from "@/lib/i18n";
+import { isValidLang, localize, type Lang, withXDefault } from "@/lib/i18n";
 import { WidgetBuilder } from "@/components/WidgetBuilder";
 import { SiteFooter } from "@/components/SiteFooter";
 import { KIT, BADGE_HTML } from "@/lib/widget-kit-i18n";
@@ -142,12 +142,12 @@ export async function generateMetadata({
     description: t.metaDesc,
     alternates: {
       canonical: `/${l}/widget`,
-      languages: {
+      languages: withXDefault({
         fr: "/fr/widget",
         en: "/en/widget",
         es: "/es/widget",
         pt: "/pt/widget",
-      },
+      }),
     },
   };
 }

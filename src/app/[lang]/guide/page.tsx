@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { isValidLang, type Lang, localize } from "@/lib/i18n";
+import { isValidLang, type Lang, localize, withXDefault } from "@/lib/i18n";
 import { GUIDES } from "@/lib/guides";
 import { GUIDES_EN } from "@/lib/guides-en";
 import { GUIDES_ES } from "@/lib/guides-es";
@@ -63,7 +63,7 @@ export async function generateMetadata({
     description: t.metaDesc,
     alternates: {
       canonical: `/${l}/guide`,
-      languages: { fr: "/fr/guide", en: "/en/guide", es: "/es/guide", pt: "/pt/guide" },
+      languages: withXDefault({ fr: "/fr/guide", en: "/en/guide", es: "/es/guide", pt: "/pt/guide" }),
     },
   };
 }

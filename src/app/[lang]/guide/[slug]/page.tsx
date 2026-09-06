@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { unstable_cache } from "next/cache";
-import { isValidLang, type Lang, localize } from "@/lib/i18n";
+import { isValidLang, type Lang, localize, withXDefault } from "@/lib/i18n";
 import { GUIDES, GUIDE_BY_SLUG, type Guide } from "@/lib/guides";
 import { GUIDES_EN, GUIDE_EN_BY_SLUG } from "@/lib/guides-en";
 import { GUIDES_ES, GUIDE_ES_BY_SLUG } from "@/lib/guides-es";
@@ -178,7 +178,7 @@ export async function generateMetadata({
     description: g.metaDesc,
     alternates: {
       canonical: `/${eff}/guide/${g.slug}`,
-      languages: guideLanguages(g.slug),
+      languages: withXDefault(guideLanguages(g.slug)),
     },
     openGraph: {
       type: "article",

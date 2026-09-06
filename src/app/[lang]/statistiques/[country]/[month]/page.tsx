@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { unstable_cache } from "next/cache";
-import { isValidLang, localize, type Lang } from "@/lib/i18n";
+import { isValidLang, localize, type Lang, withXDefault } from "@/lib/i18n";
 import { ARCHIVE_START, MONTH_RE, archiveMonths, fireUrl, monthRange, periodStats } from "@/lib/observatory";
 import { LOCALE, OBS, allScopes, fmtDate, monthLabel, resolveScope } from "@/lib/observatory-i18n";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -70,7 +70,7 @@ export async function generateMetadata({
     description: t.descMonth(scope.name, label),
     alternates: {
       canonical: `/${l}${path}`,
-      languages: { fr: `/fr${path}`, en: `/en${path}`, es: `/es${path}`, pt: `/pt${path}` },
+      languages: withXDefault({ fr: `/fr${path}`, en: `/en${path}`, es: `/es${path}`, pt: `/pt${path}` }),
     },
     openGraph: {
       type: "article",
