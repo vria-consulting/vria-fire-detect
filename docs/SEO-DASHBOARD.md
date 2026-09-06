@@ -168,3 +168,19 @@ meteo-paris, Climatempo.
   moins intrusive.
 - PR #1 (garde SEO) toujours ouverte le 25/08 au soir, `main` reste rouge.
 
+### Performance, releve du 26/08/2026
+
+- `/[lang]/statistiques` repond en **4 a 5,5 s de TTFB**, sur les 4 langues, de facon
+  reproductible (3 mesures par page). Ses sous-pages pays et pays x mois repondent en
+  0,35 a 0,58 s. Seule la page d'index est touchee : elle liste 46 pays et pese 95 Ko,
+  vraisemblablement un agregat calcule a chaque requete.
+- **Aucune page du site n'est mise en cache** : toutes renvoient
+  `cache-control: private, no-cache, no-store, max-age=0, must-revalidate` et
+  `x-vercel-cache: MISS`, y compris le contenu froid (observatoire, guides,
+  methodologie, comparatif, FAQ, bilans passes, feux archives). Legitime pour la carte
+  et les alertes, couteux pour le reste.
+- Enjeu SEO : un crawler qui parcourt des milliers de pages non cachees a 0,5 a 5 s
+  chacune epuise son budget de crawl et peut se brider. A corriger avant le retour de
+  bingbot. Transmis a la conversation Developpement le 26/08, avec la question de
+  savoir si le `no-store` global est deliberé.
+
