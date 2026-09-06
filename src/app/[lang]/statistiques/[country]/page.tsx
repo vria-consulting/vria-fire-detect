@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { unstable_cache } from "next/cache";
-import { isValidLang, localize, type Lang } from "@/lib/i18n";
+import { isValidLang, localize, type Lang, withXDefault } from "@/lib/i18n";
 import { countFires } from "@/lib/firearchive";
 import { ARCHIVE_START, archiveMonths, monthRange, periodStats } from "@/lib/observatory";
 import { OBS, allScopes, monthLabel, resolveScope } from "@/lib/observatory-i18n";
@@ -63,7 +63,7 @@ export async function generateMetadata({
     description: t.descCountry(scope.name),
     alternates: {
       canonical: `/${l}${path}`,
-      languages: { fr: `/fr${path}`, en: `/en${path}`, es: `/es${path}`, pt: `/pt${path}` },
+      languages: withXDefault({ fr: `/fr${path}`, en: `/en${path}`, es: `/es${path}`, pt: `/pt${path}` }),
     },
   };
 }

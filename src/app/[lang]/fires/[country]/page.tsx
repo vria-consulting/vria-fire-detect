@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { isValidLang } from "@/lib/i18n";
+import { isValidLang, withXDefault } from "@/lib/i18n";
 import { COUNTRY_BY_SLUG, countryName } from "@/lib/countries";
 import { STATE_BY_SLUG, US_STATES, stateOf, type UsState } from "@/lib/us-states";
 import { listFiresByCountry, type ArchivedFire } from "@/lib/firearchive";
@@ -119,11 +119,11 @@ export async function generateMetadata({
       description: t.metaDesc(name),
       alternates: {
         canonical: `/${l}/fires/${c.slug}`,
-        languages: {
+        languages: withXDefault({
           en: `/en/fires/${c.slug}`,
           es: `/es/fires/${c.slug}`,
           pt: `/pt/fires/${c.slug}`,
-        },
+        }),
       },
     };
   }

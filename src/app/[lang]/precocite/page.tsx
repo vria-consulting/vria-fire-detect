@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { isValidLang, type Lang } from "@/lib/i18n";
+import { isValidLang, type Lang, withXDefault } from "@/lib/i18n";
 import { measuredEarliness, type EarlinessCase } from "@/lib/precocity";
 
 // Page « Précocité mesurée » : la réponse rigoureuse aux questions « plus
@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
         : "How early is kanari really? Methodology and timestamped measurements: first satellite signal vs first press article, over the last 72 hours.",
     alternates: {
       canonical: `/${l}/precocite`,
-      languages: { fr: "/fr/precocite", en: "/en/precocite" },
+      languages: withXDefault({ fr: "/fr/precocite", en: "/en/precocite" }),
     },
   };
 }

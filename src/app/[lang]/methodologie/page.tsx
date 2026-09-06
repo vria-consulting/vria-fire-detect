@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { isValidLang, localize, type Lang } from "@/lib/i18n";
+import { isValidLang, localize, type Lang, withXDefault } from "@/lib/i18n";
 import { SiteFooter } from "@/components/SiteFooter";
 
 // Méthodologie et citation : la page de référence (E-E-A-T) que la presse,
@@ -208,7 +208,7 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
     description: t.desc,
     alternates: {
       canonical: `/${l}/methodologie`,
-      languages: { fr: "/fr/methodologie", en: "/en/methodologie", es: "/es/methodologie", pt: "/pt/methodologie" },
+      languages: withXDefault({ fr: "/fr/methodologie", en: "/en/methodologie", es: "/es/methodologie", pt: "/pt/methodologie" }),
     },
   };
 }

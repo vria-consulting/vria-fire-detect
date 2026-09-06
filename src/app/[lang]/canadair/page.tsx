@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { isValidLang, type Lang, localize } from "@/lib/i18n";
+import { isValidLang, type Lang, localize, withXDefault } from "@/lib/i18n";
 import { getWaterBombers, FRENCH_FLEET, type Plane } from "@/lib/aircraft";
 import { SiteFooter } from "@/components/SiteFooter";
 import { NewsletterSignup } from "@/components/NewsletterSignup";
@@ -226,12 +226,12 @@ export async function generateMetadata({
     description: t.metaDesc,
     alternates: {
       canonical: `/${l}/canadair`,
-      languages: {
+      languages: withXDefault({
         fr: "/fr/canadair",
         en: "/en/canadair",
         es: "/es/canadair",
         pt: "/pt/canadair",
-      },
+      }),
     },
   };
 }

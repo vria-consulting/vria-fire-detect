@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { isValidLang, type Lang } from "@/lib/i18n";
+import { isValidLang, type Lang, withXDefault } from "@/lib/i18n";
 import { SiteFooter } from "@/components/SiteFooter";
 
 // Documentation publique de l'API et de l'open data : la transparence comme
@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
       l === "fr"
         ? "API gratuite des feux de forêt détectés dans le monde : foyers en temps réel (JSON), signalements vérifiés, archive complète en CSV (CC BY 4.0) et flux RSS. Sans clé, sans compte."
         : "Free worldwide wildfire API: real-time fire clusters (JSON), verified witness signals, full archive as CSV (CC BY 4.0) and RSS feed. No key, no account.",
-    alternates: { canonical: `/${l}/api`, languages: { fr: "/fr/api", en: "/en/api" } },
+    alternates: { canonical: `/${l}/api`, languages: withXDefault({ fr: "/fr/api", en: "/en/api" }) },
   };
 }
 

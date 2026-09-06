@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { isValidLang, type Lang, localize } from "@/lib/i18n";
+import { isValidLang, type Lang, localize, withXDefault } from "@/lib/i18n";
 
 // FAQ SEO/AEO : répond mot pour mot aux questions réellement tapées dans
 // Google et posées aux assistants IA. Balisage schema.org FAQPage : éligible
@@ -230,7 +230,7 @@ export async function generateMetadata({
     ...META[l],
     alternates: {
       canonical: `/${l}/faq`,
-      languages: { fr: "/fr/faq", en: "/en/faq", es: "/es/faq", pt: "/pt/faq" },
+      languages: withXDefault({ fr: "/fr/faq", en: "/en/faq", es: "/es/faq", pt: "/pt/faq" }),
     },
   };
 }

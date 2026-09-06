@@ -21,6 +21,14 @@ export const HISPANOPHONE = new Set([
 ]);
 export const LUSOPHONE = new Set(["BR", "PT", "AO", "MZ", "CV", "GW", "ST", "TL"]);
 
+// hreflang : ajoute la cle x-default (page servie aux visiteurs dont la langue
+// ne correspond a aucune des notres). Repli = version anglaise quand elle
+// existe, sinon francaise ; toujours une URL en 200, jamais une redirection.
+export function withXDefault<T extends Record<string, string>>(languages: T): T & { "x-default": string } {
+  const fallback = languages.en ?? languages.fr ?? Object.values(languages)[0];
+  return { ...languages, "x-default": fallback };
+}
+
 export function isValidLang(x: string | undefined): x is Lang {
   return x === "fr" || x === "en" || x === "es" || x === "pt";
 }
