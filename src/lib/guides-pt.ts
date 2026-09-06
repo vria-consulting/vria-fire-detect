@@ -18,6 +18,7 @@ export const GUIDES_PT: Guide[] = [
     intro:
       "Num incêndio florestal, os primeiros minutos contam em dobro: um foco atacado em 10 minutos é uma clareira enegrecida; o mesmo fogo duas horas depois pode passar de 1 000 hectares. Estes são os reflexos que salvam vidas, em ordem.",
     updated: "2026-08-16",
+    published: "2026-08-16",
     sections: [
       {
         h2: "Você presencia um foco começando",
@@ -74,6 +75,7 @@ export const GUIDES_PT: Guide[] = [
     intro:
       "Um incêndio emite radiação infravermelha muito diferente da do entorno. Da órbita, sensores especializados flagram essas « anomalias térmicas », a espinha dorsal de todo mapa de incêndios em tempo real — o kanari incluído.",
     updated: "2026-08-16",
+    published: "2026-08-16",
     sections: [
       {
         h2: "Duas famílias de satélites complementares",
@@ -123,6 +125,7 @@ export const GUIDES_PT: Guide[] = [
     intro:
       "Cheiro de fumaça ou de queimado lá fora, sem chama à vista, é uma das situações mais desconcertantes: o perigo pode estar a 500 metros ou a 300 quilômetros. Veja como identificar a causa em minutos — e quando acionar os bombeiros.",
     updated: "2026-08-16",
+    published: "2026-08-16",
     sections: [
       {
         h2: "De onde pode vir esse cheiro de fumaça?",

@@ -17,6 +17,7 @@ export const GUIDES_EN: Guide[] = [
     intro:
       "In a wildfire, the first minutes count double: a fire caught within 10 minutes is a blackened clearing, the same fire two hours later can exceed 1,000 hectares. Here are the reflexes that save lives, in order.",
     updated: "2026-08-14",
+    published: "2026-08-14",
     sections: [
       {
         h2: "You witness an ignition",
@@ -73,6 +74,7 @@ export const GUIDES_EN: Guide[] = [
     intro:
       "The Canadair has become the symbol of aerial firefighting. Behind the yellow and red aircraft lies precision mechanics: scooping, rotation loops, and drops in support of crews on the ground.",
     updated: "2026-08-14",
+    published: "2026-08-14",
     sections: [
       {
         h2: "Scooping: 6,000 litres in 12 seconds",
@@ -128,6 +130,7 @@ export const GUIDES_EN: Guide[] = [
     intro:
       "A fire emits infrared radiation very different from its surroundings. From orbit, specialized sensors spot these “thermal anomalies”, the backbone of every real-time fire map, kanari included.",
     updated: "2026-08-14",
+    published: "2026-08-14",
     sections: [
       {
         h2: "Two complementary satellite families",
@@ -177,6 +180,7 @@ export const GUIDES_EN: Guide[] = [
     intro:
       "The “fire triangle” has three sides: dry fuel, oxygen, a heat source. Weather drives the first two, which is why a few weather indicators estimate the day's danger remarkably well.",
     updated: "2026-08-14",
+    published: "2026-08-14",
     sections: [
       {
         h2: "The three factors that make the danger",
@@ -226,6 +230,7 @@ export const GUIDES_EN: Guide[] = [
     intro:
       "A smell of smoke or burning outside, with no visible flame, is one of the most puzzling situations: the danger could be 500 metres away or 300 kilometres. Here is how to identify the cause in minutes, and when to alert emergency services.",
     updated: "2026-08-14",
+    published: "2026-08-14",
     sections: [
       {
         h2: "Where can that smoke smell come from?",

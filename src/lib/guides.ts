@@ -10,7 +10,8 @@ export type Guide = {
   metaDesc: string;
   intro: string;
   sections: GuideSection[];
-  updated: string; // ISO date (affichée + JSON-LD)
+  updated: string; // ISO date (affichée + JSON-LD dateModified)
+  published?: string; // ISO date de premiere publication (JSON-LD datePublished)
   // Questions fréquentes : affichées en bas de guide ET émises en FAQPage
   // JSON-LD — le format que les moteurs de réponse IA citent le plus
   // (mesuré : +40 % ChatGPT, +73 % AI Overviews sur les pages avec FAQ).
@@ -31,6 +32,7 @@ export const GUIDES: Guide[] = [
     intro:
       "Face à un feu de forêt, les premières minutes comptent double : un feu attrapé à 10 minutes est une clairière noircie, le même feu deux heures plus tard peut dépasser 1 000 hectares. Voici les réflexes qui sauvent, dans l'ordre.",
     updated: "2026-08-03",
+    published: "2026-08-03",
     sections: [
       {
         h2: "Vous êtes témoin d'un départ de feu",
@@ -87,6 +89,7 @@ export const GUIDES: Guide[] = [
     intro:
       "Le Canadair est devenu le symbole de la lutte aérienne contre les feux de forêt. Derrière l'avion jaune et rouge, une mécanique de précision : écopage, noria, largage en appui des pompiers au sol.",
     updated: "2026-08-03",
+    published: "2026-08-03",
     sections: [
       {
         h2: "L'écopage : 6 000 litres en 12 secondes",
@@ -142,6 +145,7 @@ export const GUIDES: Guide[] = [
     intro:
       "Un feu émet un rayonnement infrarouge très différent de son environnement. Depuis l'orbite, des capteurs spécialisés repèrent ces « anomalies thermiques » — c'est la colonne vertébrale de toute carte de feux en temps réel, kanari compris.",
     updated: "2026-08-03",
+    published: "2026-08-03",
     sections: [
       {
         h2: "Deux familles de satellites complémentaires",
@@ -191,6 +195,7 @@ export const GUIDES: Guide[] = [
     intro:
       "Le « triangle du feu » a trois côtés : un combustible sec, de l'oxygène, une source de chaleur. La météo pilote les deux premiers — c'est pourquoi quelques indicateurs météo suffisent à estimer remarquablement bien le danger du jour.",
     updated: "2026-08-03",
+    published: "2026-08-03",
     sections: [
       {
         h2: "Les trois facteurs qui font le danger",
@@ -240,6 +245,7 @@ export const GUIDES: Guide[] = [
     intro:
       "Une odeur de fumée ou de brûlé dehors, sans flamme visible, est l'une des situations les plus déroutantes : le danger peut être à 500 mètres comme à 300 kilomètres. Voici comment identifier la cause en quelques minutes, et quand il faut alerter les secours.",
     updated: "2026-08-13",
+    published: "2026-08-13",
     sections: [
       {
         h2: "D'où peut venir cette odeur de fumée ?",

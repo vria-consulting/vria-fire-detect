@@ -214,9 +214,10 @@ export default async function GuidePage({
     headline: g.title,
     description: g.metaDesc,
     image: [`https://kanari.io/guides/${g.slug}.png`],
+    datePublished: g.published ?? g.updated,
     dateModified: g.updated,
     inLanguage: eff,
-    author: { "@type": "Organization", name: "kanari", url: "https://kanari.io" },
+    author: { "@id": "https://kanari.io/#vincent", "@type": "Person", name: "Vincent Ryckbosch", url: "https://ryckbosch.fr" },
     publisher: { "@id": "https://kanari.io/#org" },
     mainEntityOfPage: `https://kanari.io/${eff}/guide/${g.slug}`,
   };
