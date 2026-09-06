@@ -1,6 +1,6 @@
 # kanari SEO baseline
 # base: https://kanari.io
-# date: 2026-09-06T22:42:45Z
+# date: 2026-09-06T22:54:16Z
 
 ## robots.txt
 User-Agent: *
@@ -81,7 +81,7 @@ og:image=https://kanari.io/og.png
 jsonld=['Answer', 'FAQPage', 'ImageObject', 'Offer', 'Organization', 'Person', 'PropertyValue', 'Question', 'WebApplication', 'WebSite']
 
 ### /fr/methodologie
-http=200 words_main=837 title_len=56 desc_len=222 h1_count=1 hreflang_count=4 jsonld_bad=0
+http=200 words_main=852 title_len=56 desc_len=222 h1_count=1 hreflang_count=4 jsonld_bad=0
 title=Méthodologie kanari : sources, seuils, limites, citation
 desc=Comment kanari détecte, vérifie et archive les feux de forêt : satellites NASA FIRMS, GOES et Meteosat MTG, témoins vérifiés par IA, seuils d'archivage, précocité mesurée, limites, licence CC BY 4.0 et formats de citation.
 canonical=https://kanari.io/fr/methodologie
@@ -92,7 +92,7 @@ og:image=https://kanari.io/og.png
 jsonld=['BreadcrumbList', 'DataDownload', 'Dataset', 'ImageObject', 'ListItem', 'Offer', 'Organization', 'Person', 'PropertyValue', 'TechArticle', 'WebApplication', 'WebSite']
 
 ### /fr/canadair
-http=200 words_main=768 title_len=63 desc_len=221 h1_count=1 hreflang_count=4 jsonld_bad=0
+http=200 words_main=769 title_len=63 desc_len=221 h1_count=1 hreflang_count=4 jsonld_bad=0
 title=Suivi Canadair en direct : carte des bombardiers d'eau | kanari
 desc=Suivi en direct des Canadair : position temps réel des bombardiers d'eau et hélicoptères anti-incendie du monde entier. CL-415, Pélican de la Sécurité Civile, Dash 8 Milan, Fire Boss, Air Crane. Gratuit, sans inscription.
 canonical=https://kanari.io/fr/canadair
@@ -114,7 +114,7 @@ og:image=https://kanari.io/og.png
 jsonld=['ImageObject', 'Offer', 'Organization', 'Person', 'PropertyValue', 'WebApplication', 'WebSite']
 
 ### /fr/statistiques
-http=200 words_main=708 title_len=68 desc_len=188 h1_count=1 hreflang_count=4 jsonld_bad=0
+http=200 words_main=723 title_len=68 desc_len=188 h1_count=1 hreflang_count=4 jsonld_bad=0
 title=Statistiques des feux de forêt en temps réel : l'observatoire kanari
 desc=Combien de feux de forêt aujourd'hui, cette semaine, dans le monde et en France ? Chiffres en temps réel, pays et départements les plus touchés, moyens aériens — et données ouvertes (CSV).
 canonical=https://kanari.io/fr/statistiques
@@ -125,7 +125,7 @@ og:image=https://kanari.io/og.png
 jsonld=['Answer', 'DataDownload', 'Dataset', 'FAQPage', 'ImageObject', 'Offer', 'Organization', 'Person', 'PropertyValue', 'Question', 'WebApplication', 'WebSite']
 
 ### /fr/statistiques/france
-http=200 words_main=316 title_len=45 desc_len=180 h1_count=1 hreflang_count=4 jsonld_bad=0
+http=200 words_main=331 title_len=45 desc_len=180 h1_count=1 hreflang_count=4 jsonld_bad=0
 title=France : feux de forêt mois par mois | kanari
 desc=Nombre de feux de forêt significatifs détectés chaque mois (France) par kanari : satellites NASA FIRMS, GOES, Meteosat MTG et témoins vérifiés. Chiffres citables, données ouvertes.
 canonical=https://kanari.io/fr/statistiques/france
@@ -136,7 +136,7 @@ og:image=https://kanari.io/og.png
 jsonld=['BreadcrumbList', 'ImageObject', 'ListItem', 'Offer', 'Organization', 'Person', 'PropertyValue', 'WebApplication', 'WebSite']
 
 ### /fr/statistiques/france/2026-08
-http=200 words_main=647 title_len=51 desc_len=207 h1_count=1 hreflang_count=4 jsonld_bad=0
+http=200 words_main=662 title_len=51 desc_len=207 h1_count=1 hreflang_count=4 jsonld_bad=0
 title=France, août 2026 : feux de forêt détectés | kanari
 desc=Combien de feux de forêt en août 2026 (France) ? Nombre de départs significatifs détectés par satellite, feux les plus puissants, jours les plus actifs. Chiffres kanari, citables, données ouvertes CC BY 4.0.
 canonical=https://kanari.io/fr/statistiques/france/2026-08
@@ -147,7 +147,7 @@ og:image=https://kanari.io/ogobs/france/2026-08.png?lang=fr
 jsonld=['BreadcrumbList', 'DataDownload', 'Dataset', 'ImageObject', 'ListItem', 'Offer', 'Organization', 'Person', 'Place', 'PostalAddress', 'PropertyValue', 'WebApplication', 'WebSite']
 
 ### /fr/feux
-http=200 words_main=425 title_len=60 desc_len=181 h1_count=1 hreflang_count=0 jsonld_bad=0
+http=200 words_main=440 title_len=60 desc_len=181 h1_count=1 hreflang_count=0 jsonld_bad=0
 title=Feux de forêt en France aujourd'hui par département | kanari
 desc=Où sont les feux de forêt en France en ce moment ? Carte des départs de feu en temps réel, département par département : détections satellites, témoins vérifiés, Canadair en direct.
 canonical=https://kanari.io/fr/feux
@@ -158,7 +158,7 @@ og:image=https://kanari.io/og.png
 jsonld=['ImageObject', 'Offer', 'Organization', 'Person', 'PropertyValue', 'WebApplication', 'WebSite']
 
 ### /fr/feux/savoie
-http=200 words_main=575 title_len=54 desc_len=150 h1_count=1 hreflang_count=0 jsonld_bad=0
+http=200 words_main=590 title_len=54 desc_len=150 h1_count=1 hreflang_count=0 jsonld_bad=0
 title=Incendie Savoie aujourd'hui : carte en direct | kanari
 desc=Y a-t-il un feu de forêt en Savoie (73) en ce moment ? Carte des départs de feu en temps réel, risque incendie du jour et Canadair en direct. Gratuit.
 canonical=https://kanari.io/fr/feux/savoie
@@ -169,7 +169,7 @@ og:image=https://kanari.io/og.png
 jsonld=['BreadcrumbList', 'ImageObject', 'ListItem', 'Offer', 'Organization', 'Person', 'PropertyValue', 'WebApplication', 'WebSite']
 
 ### /en/fires
-http=200 words_main=318 title_len=56 desc_len=185 h1_count=1 hreflang_count=3 jsonld_bad=0
+http=200 words_main=327 title_len=56 desc_len=185 h1_count=1 hreflang_count=3 jsonld_bad=0
 title=Wildfires today by country: live world fire map | kanari
 desc=Where are the wildfires right now? Live country-by-country view of fire ignitions detected by satellite and verified witnesses: United States, Canada, Greece, Spain, Australia and more.
 canonical=https://kanari.io/en/fires
@@ -180,7 +180,7 @@ og:image=https://kanari.io/og.png
 jsonld=['ImageObject', 'Offer', 'Organization', 'Person', 'PropertyValue', 'WebApplication', 'WebSite']
 
 ### /en/fires/germany
-http=200 words_main=505 title_len=50 desc_len=162 h1_count=1 hreflang_count=3 jsonld_bad=0
+http=200 words_main=514 title_len=50 desc_len=162 h1_count=1 hreflang_count=3 jsonld_bad=0
 title=Wildfires in Germany today: live fire map | kanari
 desc=Is there a wildfire in Germany right now? Live map of fire ignitions detected by satellite (NASA FIRMS, GOES, MTG) and verified witness reports. Free, no account.
 canonical=https://kanari.io/en/fires/germany
@@ -202,7 +202,7 @@ og:image=https://kanari.io/og.png
 jsonld=['ImageObject', 'Offer', 'Organization', 'Person', 'PropertyValue', 'WebApplication', 'WebSite']
 
 ### /fr/guide/odeur-de-fumee-que-faire
-http=200 words_main=1042 title_len=67 desc_len=172 h1_count=1 hreflang_count=4 jsonld_bad=0
+http=200 words_main=1057 title_len=67 desc_len=172 h1_count=1 hreflang_count=4 jsonld_bad=0
 title=Odeur de fumée dehors : y a-t-il un feu près de chez moi ? | kanari
 desc=Ça sent la fumée ou le brûlé dehors ? Les causes possibles, comment vérifier en 2 minutes s'il y a un feu autour de vous (carte satellite gratuite), et quand appeler le 18.
 canonical=https://kanari.io/fr/guide/odeur-de-fumee-que-faire
@@ -213,7 +213,7 @@ og:image=https://kanari.io/guides/odeur-de-fumee-que-faire.png
 jsonld=['Answer', 'Article', 'FAQPage', 'ImageObject', 'Offer', 'Organization', 'Person', 'PropertyValue', 'Question', 'WebApplication', 'WebSite']
 
 ### /fr/guide/comment-fonctionne-un-canadair
-http=200 words_main=788 title_len=66 desc_len=158 h1_count=1 hreflang_count=2 jsonld_bad=0
+http=200 words_main=803 title_len=66 desc_len=158 h1_count=1 hreflang_count=2 jsonld_bad=0
 title=Comment fonctionne un Canadair ? Écopage, largage, flotte | kanari
 desc=6 000 litres écopés en 12 secondes, largage à 30 mètres du sol : comment le Canadair CL-415 combat les feux, et comment suivre les Pélican français en direct.
 canonical=https://kanari.io/fr/guide/comment-fonctionne-un-canadair
@@ -224,7 +224,7 @@ og:image=https://kanari.io/guides/comment-fonctionne-un-canadair.png
 jsonld=['Answer', 'Article', 'FAQPage', 'ImageObject', 'Offer', 'Organization', 'Person', 'PropertyValue', 'Question', 'WebApplication', 'WebSite']
 
 ### /fr/feux-en-cours
-http=200 words_main=1091 title_len=69 desc_len=212 h1_count=1 hreflang_count=0 jsonld_bad=0
+http=200 words_main=1106 title_len=69 desc_len=212 h1_count=1 hreflang_count=0 jsonld_bad=0
 title=Incendies en cours en France aujourd'hui : aucun foyer actif | kanari
 desc=La liste des feux de forêt en cours en France, mise à jour en continu : lieu, département, heure de première détection satellite, dernier signal. Détections NASA FIRMS, GOES et Meteosat MTG, témoignages vérifiés.
 canonical=https://kanari.io/fr/feux-en-cours
@@ -235,7 +235,7 @@ og:image=https://kanari.io/og.png
 jsonld=['Answer', 'BreadcrumbList', 'FAQPage', 'ImageObject', 'ItemList', 'ListItem', 'Offer', 'Organization', 'Person', 'PropertyValue', 'Question', 'WebApplication', 'WebSite']
 
 ### /fr/feu
-http=200 words_main=962 title_len=63 desc_len=170 h1_count=1 hreflang_count=0 jsonld_bad=0
+http=200 words_main=977 title_len=63 desc_len=170 h1_count=1 hreflang_count=0 jsonld_bad=0
 title=Historique des feux de forêt : chaque incendie détecté | kanari
 desc=La mémoire publique des feux de forêt : chaque incendie significatif détecté par kanari a sa page permanente — chronologie, détections satellites, moyens aériens engagés.
 canonical=https://kanari.io/fr/feu
@@ -246,7 +246,7 @@ og:image=https://kanari.io/og.png
 jsonld=['ImageObject', 'Offer', 'Organization', 'Person', 'PropertyValue', 'WebApplication', 'WebSite']
 
 ### /fr/newsletter
-http=200 words_main=236 title_len=37 desc_len=172 h1_count=1 hreflang_count=4 jsonld_bad=0
+http=200 words_main=251 title_len=37 desc_len=172 h1_count=1 hreflang_count=4 jsonld_bad=0
 title=Newsletter des feux de forêt — kanari
 desc=Le bilan kanari des départs de feu par e-mail : hebdomadaire en saison, mensuel l'hiver. Chiffres de la période, feu marquant, précocité mesurée. Gratuit, archive publique.
 canonical=https://kanari.io/fr/newsletter
@@ -257,7 +257,7 @@ og:image=https://kanari.io/og.png
 jsonld=['ImageObject', 'Offer', 'Organization', 'Person', 'PropertyValue', 'WebApplication', 'WebSite']
 
 ### /fr/api
-http=200 words_main=708 title_len=70 desc_len=179 h1_count=1 hreflang_count=2 jsonld_bad=0
+http=200 words_main=723 title_len=70 desc_len=179 h1_count=1 hreflang_count=2 jsonld_bad=0
 title=API feux de forêt : détections satellite JSON + open data CSV | kanari
 desc=API gratuite des feux de forêt détectés dans le monde : foyers en temps réel (JSON), signalements vérifiés, archive complète en CSV (CC BY 4.0) et flux RSS. Sans clé, sans compte.
 canonical=https://kanari.io/fr/api
@@ -268,7 +268,7 @@ og:image=https://kanari.io/og.png
 jsonld=['BreadcrumbList', 'ImageObject', 'ListItem', 'Offer', 'Organization', 'Person', 'PropertyValue', 'WebAPI', 'WebApplication', 'WebSite']
 
 ### /fr/widget
-http=200 words_main=978 title_len=65 desc_len=193 h1_count=1 hreflang_count=4 jsonld_bad=0
+http=200 words_main=993 title_len=65 desc_len=193 h1_count=1 hreflang_count=4 jsonld_bad=0
 title=Intégrer la carte des feux kanari sur votre site (widget gratuit)
 desc=Médias, mairies, sites météo : intégrez gratuitement la carte des feux en temps réel de kanari, centrée sur votre département ou votre pays. Générateur de code, 4 langues, mise à jour continue.
 canonical=https://kanari.io/fr/widget
@@ -290,7 +290,7 @@ og:image=https://kanari.io/og.png
 jsonld=['Answer', 'FAQPage', 'ImageObject', 'Offer', 'Organization', 'Person', 'PropertyValue', 'Question', 'WebApplication', 'WebSite']
 
 ### /fr/confidentialite
-http=200 words_main=362 title_len=35 desc_len=92 h1_count=1 hreflang_count=2 jsonld_bad=0
+http=200 words_main=377 title_len=35 desc_len=92 h1_count=1 hreflang_count=2 jsonld_bad=0
 title=Confidentialité et cookies | kanari
 desc=Ce que kanari collecte (très peu), ce que nous ne collectons pas, les cookies et vos droits.
 canonical=https://kanari.io/fr/confidentialite
@@ -312,7 +312,7 @@ og:image=https://kanari.io/og.png
 jsonld=['ImageObject', 'Offer', 'Organization', 'Person', 'PropertyValue', 'WebApplication', 'WebSite']
 
 ### /fr/bilan
-http=200 words_main=379 title_len=54 desc_len=161 h1_count=1 hreflang_count=0 jsonld_bad=0
+http=200 words_main=394 title_len=54 desc_len=161 h1_count=1 hreflang_count=0 jsonld_bad=0
 title=Bilans quotidiens des feux de forêt en France | kanari
 desc=Jour par jour, le bilan automatique des feux de forêt détectés dans le monde et en France : nombre de départs, foyers les plus puissants, moyens aériens engagés.
 canonical=https://kanari.io/fr/bilan
