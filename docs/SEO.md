@@ -1,6 +1,6 @@
 # Référencement kanari.io : état de l'art, audit, corrections, plan
 
-Tenu par la conversation Référencement et croissance. Dernière mise à jour : 7 septembre 2026.
+Tenu par la conversation Référencement et croissance. Dernière mise à jour : 7 septembre 2026, 9 h 30 (lots 1 à 7 en production).
 Méthode : règle zéro (photographie avant et après dans `docs/seo-baseline-<date>.txt`,
 changements additifs, un lot par déploiement). Toute mesure ci-dessous vient de la
 production, de la Search Console, de Bing Webmaster Tools ou de Lighthouse local, jamais
@@ -80,9 +80,9 @@ Chaque lot est un commit et un déploiement, vérifié en production par rejeu d
 | 2. hreflang | `x-default` sur toutes les pages internes ; `/a-propos` complété en es et pt | [fait] PR #7, vérifié en prod (+1 hreflang partout, `/a-propos` de 2 à 5) |
 | 3. Hubs | `CollectionPage` + `ItemList` + `BreadcrumbList` sur `/feux`, `/fires`, `/guide`, `/feu`, `/bilan`, `/newsletter` (helper `src/lib/seo-jsonld.ts`) | [fait] PR #10, vérifié en prod sur les 6 hubs, photographie `post-lot3` |
 | 4. Maillage | lien newsletter dans le pied de page (4 langues) ; À propos localisé en es et pt (Confidentialité reste en canonique EN) | [fait] PR #9, vérifié en prod ; pages voisines sur les pages pays : à faire |
-| 5. FAQ | gabarit de FAQ courte, datée et chiffrée (3 questions en `<details>` + `FAQPage`) sur les 101 pages département, même modèle que les États US | en cours (PR à venir) ; l'accueil est une carte plein écran sans zone de texte : ajouter une FAQ visible y est une décision de fond, non prise ; pages pays hors US : lot suivant |
+| 5. FAQ | gabarit de FAQ courte, datée et chiffrée (3 questions en `<details>` + `FAQPage`, réponses de 54 à 60 mots) sur les 101 pages département, même modèle que les États US | [fait] PR #12 et #13, vérifié en prod (Gironde, Var, Paris) ; l'accueil est une carte plein écran sans zone de texte : y ajouter une FAQ visible est une décision de fond, non prise ; pages pays hors US : à faire |
 | 6. `llms.txt` | six sections ajoutées en fin de fichier : éditeur et responsabilité, confidentialité, newsletter et alertes, open data (DOI, miroirs, citation), guides par langue, fraîcheur ; toutes les URL vérifiées en 200 | [fait] PR #11 |
-| 7. Métadonnées | descriptions ramenées à 140 à 160 caractères sur les pages qui dépassent 190 ; titres trop courts enrichis sur `/a-propos` et `/precocite` (pages sans trafic) | à faire, titres soumis à accord |
+| 7. Métadonnées | 14 descriptions ramenées à 142 à 160 caractères (canadair, feux-en-cours, widget, méthodologie, statistiques mensuelles, 4 langues), début de phrase conservé ; accueil non touché (voir section 5) ; titres courts non touchés | [fait] PR #14 ; titres et accueil soumis à accord |
 | 8. Performance | polices en `preload`, polyfills retirés via `browserslist`, LCP de l'accueil | à faire |
 
 ## 4. Ce qui reste, par ordre d'effet
@@ -95,7 +95,12 @@ Chaque lot est un commit et un déploiement, vérifié en production par rejeu d
 
 ## 5. Gestes qui ne dépendent que de Vincent (cinq minutes chacun)
 
-- Les PR des lots 1 à 4 et 6 sont fusionnées et vérifiées en production (07/09) ; restent les lots 5, 7 et 8.
+- Les lots 1 à 7 sont fusionnés et vérifiés en production le 07/09 (PR #5 à #14). Reste le lot 8 (performance), qui touche le chargement de la carte et passe par la conversation Développement.
+- Décision à prendre, accueil : les descriptions de `/fr`, `/es`, `/pt` font 208, 223 et 227 caractères (coupées vers 155 dans les résultats). Proposition, à valider avant que je l'applique, qui garde le début de chaque phrase :
+  - fr : « Carte mondiale en temps quasi réel des départs de feu de forêt : détection satellite (NASA, Meteosat), témoignages vérifiés par IA, alertes gratuites par zone. » (159)
+  - es : « Mapa mundial casi en tiempo real de los focos de incendio forestal: detección satelital (NASA, Meteosat), reportes verificados por IA, alertas gratuitas por zona. » (162)
+  - pt : « Mapa mundial quase em tempo real dos focos de incêndio florestal: detecção por satélite (NASA, Meteosat), relatos verificados por IA, alertas gratuitos por zona. » (161)
+- Décision à prendre, titres courts : `/fr/a-propos` (17 caractères) et `/fr/precocite` (26). Proposition : « À propos de kanari : qui, comment, avec quelles données » et « Précocité mesurée : les feux vus avant la presse | kanari ».
 - Validation vidéo YouTube niveau 3 pour rendre les liens de description cliquables.
 - Demander l'indexation dans Search Console des pages piliers modifiées (dix par jour au plus) : `/fr`, `/en`, `/fr/statistiques`, `/fr/canadair`, `/fr/guide/odeur-de-fumee-que-faire`, `/fr/feux`, `/en/fires`.
 - Propriété de domaine `kanari.io` : faite le 06/09.
