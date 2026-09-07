@@ -76,12 +76,12 @@ Chaque lot est un commit et un déploiement, vérifié en production par rejeu d
 
 | Lot | Contenu | État |
 | --- | --- | --- |
-| 1. Schéma | `WebSite` en `@graph` ; `Organization` : logo `ImageObject`, description, e-mail, fondateur, éditeur VRIA Consulting (SIREN), `sameAs` de 2 à 7 profils ; `Person` fondateur ; `datePublished` réel (git) et auteur `Person` sur les articles des guides | [fait] commit 5213975, PR ouverte |
-| 2. hreflang | `x-default` sur toutes les pages internes ; `/a-propos` complété en es et pt | à faire |
-| 3. Hubs | `CollectionPage` + `ItemList` + `BreadcrumbList` sur `/feux`, `/fires`, `/guide`, `/feu`, `/bilan`, `/newsletter` | à faire |
-| 4. Maillage | lien newsletter dans le pied de page (4 langues) ; À propos et Confidentialité localisés en es et pt ; pages voisines sur les pages pays | à faire |
-| 5. FAQ | 5 à 8 questions en `<details>` natifs + `FAQPage` sur l'accueil (4 langues) et gabarit de FAQ courte sur pages pays et département | à faire |
-| 6. `llms.txt` | éditeur, règles de confidentialité, données ouvertes et licence, pages clés par langue | à faire |
+| 1. Schéma | `WebSite` en `@graph` ; `Organization` : logo `ImageObject`, description, e-mail, fondateur, éditeur VRIA Consulting (SIREN), `sameAs` de 2 à 7 profils ; `Person` fondateur ; `datePublished` réel (git) et auteur `Person` sur les articles des guides | [fait] PR #5, vérifié en prod (27 pages, 0 erreur JSON-LD) |
+| 2. hreflang | `x-default` sur toutes les pages internes ; `/a-propos` complété en es et pt | [fait] PR #7, vérifié en prod (+1 hreflang partout, `/a-propos` de 2 à 5) |
+| 3. Hubs | `CollectionPage` + `ItemList` + `BreadcrumbList` sur `/feux`, `/fires`, `/guide`, `/feu`, `/bilan`, `/newsletter` (helper `src/lib/seo-jsonld.ts`) | [fait] PR #10, vérifié en prod sur les 6 hubs, photographie `post-lot3` |
+| 4. Maillage | lien newsletter dans le pied de page (4 langues) ; À propos localisé en es et pt (Confidentialité reste en canonique EN) | [fait] PR #9, vérifié en prod ; pages voisines sur les pages pays : à faire |
+| 5. FAQ | gabarit de FAQ courte, datée et chiffrée (3 questions en `<details>` + `FAQPage`) sur les 101 pages département, même modèle que les États US | en cours (PR à venir) ; l'accueil est une carte plein écran sans zone de texte : ajouter une FAQ visible y est une décision de fond, non prise ; pages pays hors US : lot suivant |
+| 6. `llms.txt` | six sections ajoutées en fin de fichier : éditeur et responsabilité, confidentialité, newsletter et alertes, open data (DOI, miroirs, citation), guides par langue, fraîcheur ; toutes les URL vérifiées en 200 | [fait] PR #11 |
 | 7. Métadonnées | descriptions ramenées à 140 à 160 caractères sur les pages qui dépassent 190 ; titres trop courts enrichis sur `/a-propos` et `/precocite` (pages sans trafic) | à faire, titres soumis à accord |
 | 8. Performance | polices en `preload`, polyfills retirés via `browserslist`, LCP de l'accueil | à faire |
 
@@ -95,7 +95,7 @@ Chaque lot est un commit et un déploiement, vérifié en production par rejeu d
 
 ## 5. Gestes qui ne dépendent que de Vincent (cinq minutes chacun)
 
-- Fusionner la PR du lot 1, puis les suivantes, une par une (CI vert).
+- Les PR des lots 1 à 4 et 6 sont fusionnées et vérifiées en production (07/09) ; restent les lots 5, 7 et 8.
 - Validation vidéo YouTube niveau 3 pour rendre les liens de description cliquables.
 - Demander l'indexation dans Search Console des pages piliers modifiées (dix par jour au plus) : `/fr`, `/en`, `/fr/statistiques`, `/fr/canadair`, `/fr/guide/odeur-de-fumee-que-faire`, `/fr/feux`, `/en/fires`.
 - Propriété de domaine `kanari.io` : faite le 06/09.
