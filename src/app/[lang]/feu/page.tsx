@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { hubJsonLd, jsonLdScript } from "@/lib/seo-jsonld";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { isValidLang } from "@/lib/i18n";
@@ -39,6 +40,7 @@ export default async function FireIndex({ params }: { params: Promise<{ lang: st
   return (
     <div className="k-scroll h-full overflow-y-auto" style={{ background: "var(--paper)" }}>
       <div className="mx-auto max-w-2xl px-4 py-10 sm:py-14">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(hubJsonLd({ lang: "fr", path: "/fr/feu", name: "Historique des feux de forêt : chaque incendie détecté", description: "Les derniers feux significatifs détectés par satellite dans le monde, chacun avec sa page permanente et sa chronologie.", items: fires.map((f) => ({ name: `${f.place ?? "Détection satellite"} (${f.first_seen.slice(0, 10)})`, url: `/fr/feu/${f.slug}` })) })) }} />
         <h1 className="mb-3" style={{ fontFamily: "var(--font-display)", fontSize: "var(--text-h2)", color: "var(--ink)" }}>
           Historique des feux de forêt
         </h1>

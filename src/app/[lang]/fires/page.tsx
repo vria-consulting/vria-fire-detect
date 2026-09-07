@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { hubJsonLd, jsonLdScript } from "@/lib/seo-jsonld";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { isValidLang, withXDefault } from "@/lib/i18n";
@@ -104,6 +105,7 @@ export default async function FiresHub({ params }: { params: Promise<{ lang: str
   return (
     <div className="k-scroll h-full overflow-y-auto" style={{ background: "var(--paper)" }}>
       <div className="mx-auto max-w-2xl px-4 py-10 sm:py-14">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(hubJsonLd({ lang, path: `/${lang}/fires`, name: t.metaTitle.replace(/\s*\|\s*kanari$/, ""), description: t.metaDesc, items: [...COUNTRIES.map((c) => ({ name: countryName(c.cc, lang, c.name), url: `/${lang}/fires/${c.slug}` })), ...(lang === "en" ? US_STATES.map((s) => ({ name: s.name, url: `/en/fires/${s.slug}` })) : [])] })) }} />
         <h1 className="mb-3" style={{ fontFamily: "var(--font-display)", fontSize: "var(--text-h2)", color: "var(--ink)" }}>
           {t.h1}
         </h1>
