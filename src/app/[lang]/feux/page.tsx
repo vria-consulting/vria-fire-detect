@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { hubJsonLd, jsonLdScript } from "@/lib/seo-jsonld";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { isValidLang } from "@/lib/i18n";
@@ -69,6 +70,7 @@ export default async function FeuxHub({ params }: { params: Promise<{ lang: stri
   return (
     <div className="k-scroll h-full overflow-y-auto" style={{ background: "var(--paper)" }}>
       <div className="mx-auto max-w-2xl px-4 py-10 sm:py-14">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(hubJsonLd({ lang: "fr", path: "/fr/feux", name: "Feux de forêt en France aujourd'hui par département", description: "Situation de chaque département : départs de feu détectés par satellite dans les dernières 24 heures, risque du jour et Canadair en direct.", items: DEPARTEMENTS.map((d) => ({ name: `${d.name} (${d.code})`, url: `/fr/feux/${d.slug}` })) })) }} />
         <h1 className="mb-3" style={{ fontFamily: "var(--font-display)", fontSize: "var(--text-h2)", color: "var(--ink)" }}>
           Feux de forêt en France : la situation en temps réel
         </h1>

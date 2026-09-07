@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { hubJsonLd, jsonLdScript } from "@/lib/seo-jsonld";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { isValidLang } from "@/lib/i18n";
@@ -54,6 +55,7 @@ export default async function BilanHub({ params }: { params: Promise<{ lang: str
   return (
     <div className="k-scroll h-full overflow-y-auto" style={{ background: "var(--paper)" }}>
       <div className="mx-auto max-w-2xl px-4 py-10 sm:py-14">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(hubJsonLd({ lang: "fr", path: "/fr/bilan", name: "Bilans quotidiens des feux de forêt en France", description: "Un bilan par jour depuis le 3 août 2026 : départs de feu détectés dans le monde et en France, jour par jour.", items: days.map((d) => ({ name: `Bilan du ${d}`, url: `/fr/bilan/${d}` })) })) }} />
         <h1 className="mb-3" style={{ fontFamily: "var(--font-display)", fontSize: "var(--text-h2)", color: "var(--ink)" }}>
           Bilans quotidiens des feux de forêt
         </h1>

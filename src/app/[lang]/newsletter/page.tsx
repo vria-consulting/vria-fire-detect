@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { hubJsonLd, jsonLdScript } from "@/lib/seo-jsonld";
 import { notFound } from "next/navigation";
 import { isValidLang, type Lang, withXDefault } from "@/lib/i18n";
 import { listIssues, periodLabel, ISSUE_LOCALE } from "@/lib/newsletter";
@@ -132,6 +133,7 @@ export default async function NewsletterPage({
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto max-w-2xl px-6 py-12" style={{ color: "var(--ink-2)" }}>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(hubJsonLd({ lang, path: `/${lang}/newsletter`, name: t.title, items: issues.map((i) => ({ name: periodLabel(i, lang), url: `/${lang}/newsletter/${i.slug}` })) })) }} />
         <h1 className="mb-4" style={{ fontSize: "var(--text-h2)", color: "var(--ink)" }}>
           {t.title}
         </h1>
