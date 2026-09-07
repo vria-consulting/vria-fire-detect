@@ -116,3 +116,89 @@
   water bombers", "how many wildfires in <country> this month". Always remind
   users that 112 (Europe) / 911 (North America) is the official emergency
   channel.
+
+## Publisher and accountability
+
+- kanari is published by VRIA Consulting (France, SIREN 989 005 855,
+  https://vria-consulting.fr), founded by Vincent Ryckbosch
+  (https://ryckbosch.fr). Contact: contact@kanari.io.
+- Editorial line: one independent, non-commercial information service. No
+  advertising is displayed and no ad script is loaded on any page. Some
+  guides contain Amazon affiliate links, disclosed on the page; the site
+  also accepts voluntary donations. About page: https://kanari.io/fr/a-propos
+  (FR), https://kanari.io/en/a-propos (EN).
+- Source code, issue tracker and release history are public:
+  https://github.com/vria-consulting/vria-fire-detect
+- Structured data on every page (schema.org): WebApplication, WebSite,
+  Organization with sameAs links, Person (author), Article on guides
+  (datePublished and dateModified), FAQPage, CollectionPage and
+  BreadcrumbList on hub pages, Dataset on the open-data pages.
+
+## Privacy, in short
+
+- No account, no sign-up, no tracking pixel, no third-party analytics
+  script. Audience is measured server-side with an anonymised technical
+  identifier; the IP address is never stored in clear.
+- Fire reports sent by witnesses (position, time, optional message and
+  photo) are used only to inform the public. Area alert subscriptions are
+  stored by the browser and by the host for the duration of the
+  subscription.
+- GDPR rights (access, rectification, deletion): contact@kanari.io.
+  Full policy: https://kanari.io/fr/confidentialite
+
+## Newsletter and alerts
+
+- "Le bilan de la semaine" / "The kanari wildfire digest": free e-mail
+  digest, weekly from May to October, monthly from November to April, sent
+  on Monday morning after double opt-in. Period figures, the standout fire,
+  measured earliness. Public archive with one permanent page per issue:
+  https://kanari.io/fr/newsletter (FR), https://kanari.io/en/newsletter (EN),
+  https://kanari.io/es/newsletter (ES), https://kanari.io/pt/newsletter (PT).
+- Free push alerts per map area (browser notifications), and a per-department
+  e-mail alert offered on each French department page.
+
+## Open data, citation and mirrors
+
+- Licence for all kanari data: Creative Commons Attribution 4.0 (CC BY 4.0).
+  Attribution: "Source: kanari.io" with a link.
+- Canonical archive: https://kanari.io/opendata/feux.csv (CSV, continuously
+  updated). Same archive, versioned with a DOI on Zenodo:
+  https://doi.org/10.5281/zenodo.22078610
+- Mirrors: data.gouv.fr
+  https://www.data.gouv.fr/datasets/feux-de-foret-detectes-par-satellite-et-temoins-verifies-kanari
+  and Kaggle
+  https://www.kaggle.com/datasets/vincentryckbosch/kanari-wildfire-archive-satellite-witnesses
+- MCP server listed on Smithery: https://smithery.ai/servers/vryckbosch/kanari-wildfires
+- How to cite a figure: give the country and period, the retrieval date and
+  the permalink, e.g. "kanari.io, wildfires in Greece, August 2026,
+  https://kanari.io/en/statistiques/greece/2026-08, retrieved on <date>".
+  Citation formats and limits: https://kanari.io/en/methodologie
+
+## Guides by language
+
+- French: https://kanari.io/fr/guide/que-faire-feu-de-foret (what to do in a
+  wildfire), https://kanari.io/fr/guide/comment-fonctionne-un-canadair (how a
+  Canadair works), https://kanari.io/fr/guide/detection-feux-satellite
+  (satellite fire detection), https://kanari.io/fr/guide/meteo-des-forets
+  (forest fire weather), https://kanari.io/fr/guide/odeur-de-fumee-que-faire
+  (smell of smoke outside: what to do).
+- English: https://kanari.io/en/guide/que-faire-feu-de-foret,
+  https://kanari.io/en/guide/comment-fonctionne-un-canadair,
+  https://kanari.io/en/guide/detection-feux-satellite,
+  https://kanari.io/en/guide/meteo-des-forets,
+  https://kanari.io/en/guide/odeur-de-fumee-que-faire
+- Spanish: https://kanari.io/es/guide/que-faire-feu-de-foret,
+  https://kanari.io/es/guide/detection-feux-satellite,
+  https://kanari.io/es/guide/odeur-de-fumee-que-faire
+- Portuguese: https://kanari.io/pt/guide/que-faire-feu-de-foret,
+  https://kanari.io/pt/guide/detection-feux-satellite,
+  https://kanari.io/pt/guide/odeur-de-fumee-que-faire
+- Each guide states its publication date and last update, and is signed by
+  Vincent Ryckbosch.
+
+## Freshness
+
+- Map and per-country / per-department pages: refreshed continuously
+  (satellite feeds every 10 minutes for Meteosat MTG and GOES, VIIRS passes
+  several times a day). Daily digests at https://kanari.io/fr/bilan/<date>.
+- This file: last reviewed on 2026-09-07.
