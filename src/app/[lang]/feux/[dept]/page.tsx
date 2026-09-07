@@ -113,6 +113,39 @@ export default async function DeptPage({
     ],
   };
 
+  // FAQ courte, datée et chiffrée (le format que les moteurs de réponse
+  // citent le plus volontiers), même gabarit que les pages d'États US.
+  const nbActive = fires === null ? null : active.length;
+  const nbArch = archived.length;
+  const faq = [
+    {
+      q: `Y a-t-il un feu de forêt en ${d.name} en ce moment ?`,
+      a:
+        nbActive === null
+          ? `Au ${now} (heure de Paris), les données satellites sont momentanément indisponibles pour ${d.name} (${d.code}). Depuis le 3 août 2026, kanari y a archivé ${nbArch} feu${nbArch > 1 ? "x" : ""} significatif${nbArch > 1 ? "s" : ""}. Les chiffres se mettent à jour en continu sur la carte gratuite kanari.io.`
+          : `Au ${now} (heure de Paris), kanari détecte ${nbActive} foyer${nbActive > 1 ? "s" : ""} actif${nbActive > 1 ? "s" : ""} sur les dernières 24 h dans un rayon de ${DEPT_RADIUS_KM} km autour de ${d.name} (${d.code}). Depuis le 3 août 2026, ${nbArch} feu${nbArch > 1 ? "x" : ""} significatif${nbArch > 1 ? "s" : ""} y ${nbArch > 1 ? "ont" : "a"} été archivé${nbArch > 1 ? "s" : ""}. Ces chiffres se mettent à jour en continu sur la carte gratuite kanari.io.`,
+    },
+    {
+      q: `Quel est le risque d'incendie en ${d.name} aujourd'hui ?`,
+      a: meteo
+        ? `Le risque météo de feu estimé aujourd'hui en ${d.name} est ${RISK_LABELS[meteo.risk.level - 1]}, avec un vent de ${meteo.windKmh} km/h. kanari le calcule à partir de la température, de l'humidité de l'air, du vent et des pluies des trois derniers jours (données Open-Meteo). Il ne remplace pas la carte de vigilance officielle de Météo-France ni les arrêtés préfectoraux.`
+        : `kanari estime chaque jour un risque météo de feu pour ${d.name} à partir de la température, de l'humidité de l'air, du vent et des pluies des trois derniers jours (données Open-Meteo). Il est momentanément indisponible. Il ne remplace pas la carte de vigilance officielle de Météo-France ni les arrêtés préfectoraux.`,
+    },
+    {
+      q: `En combien de temps un départ de feu en ${d.name} apparaît-il sur la carte ?`,
+      a: `Le satellite Meteosat MTG rescanne l'Europe toutes les 10 minutes et une détection apparaît généralement sur kanari dans le quart d'heure qui suit le passage. Les satellites VIIRS (375 m) ajoutent plusieurs passages par jour, et un témoignage citoyen vérifié par IA peut faire apparaître le feu encore plus tôt. En cas d'urgence, appelez d'abord le 18 ou le 112.`,
+    },
+  ];
+  const faqLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faq.map((it) => ({
+      "@type": "Question",
+      name: it.q,
+      acceptedAnswer: { "@type": "Answer", text: it.a },
+    })),
+  };
+
   // Départements voisins (les 6 plus proches) : maillage interne.
   const neighbors = DEPARTEMENTS
     .filter((x) => x.slug !== d.slug)
@@ -124,6 +157,7 @@ export default async function DeptPage({
   return (
     <div className="k-scroll h-full overflow-y-auto" style={{ background: "var(--paper)" }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
       <div className="mx-auto max-w-2xl px-4 py-10 sm:py-14">
         <p className="mb-1 text-[13px]" style={{ color: "var(--ink-3)" }}>
           <Link href="/fr/feux" style={{ color: "var(--link)" }}>Feux en France</Link> · {d.name} ({d.code})
@@ -264,6 +298,19 @@ export default async function DeptPage({
             </div>
           </section>
         )}
+
+        {/* Questions fréquentes : réponses datées, visibles, reprises en FAQPage */}
+        <section className="mb-8">
+          <h2 className="mb-3 text-[19px] font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>
+            Questions fréquentes sur les feux en {d.name}
+          </h2>
+          {faq.map((it) => (
+            <details key={it.q} className="mb-2 rounded-[14px] px-4 py-3" style={{ background: "var(--white)", boxShadow: "var(--shadow-s)" }}>
+              <summary className="cursor-pointer text-[14.5px] font-semibold" style={{ color: "var(--ink)" }}>{it.q}</summary>
+              <p className="mt-2 text-[14px] leading-relaxed" style={{ color: "var(--ink-2)" }}>{it.a}</p>
+            </details>
+          ))}
+        </section>
 
         {/* Maillage interne */}
         <section className="mb-4">
