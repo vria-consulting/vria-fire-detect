@@ -117,13 +117,15 @@ export default async function DeptPage({
   // citent le plus volontiers), même gabarit que les pages d'États US.
   const nbActive = fires === null ? null : active.length;
   const nbArch = archived.length;
+  // listFiresByDept plafonne a 12 : au-dela, dire « au moins 12 » comme le texte visible.
+  const archTxt = `${nbArch >= 12 ? "au moins " : ""}${nbArch} feu${nbArch > 1 ? "x" : ""} significatif${nbArch > 1 ? "s" : ""}`;
   const faq = [
     {
       q: `Y a-t-il un feu de forêt en ${d.name} en ce moment ?`,
       a:
         nbActive === null
-          ? `Au ${now} (heure de Paris), les données satellites sont momentanément indisponibles pour ${d.name} (${d.code}). Depuis le 3 août 2026, kanari y a archivé ${nbArch} feu${nbArch > 1 ? "x" : ""} significatif${nbArch > 1 ? "s" : ""}. Les chiffres se mettent à jour en continu sur la carte gratuite kanari.io.`
-          : `Au ${now} (heure de Paris), kanari détecte ${nbActive} foyer${nbActive > 1 ? "s" : ""} actif${nbActive > 1 ? "s" : ""} sur les dernières 24 h dans un rayon de ${DEPT_RADIUS_KM} km autour de ${d.name} (${d.code}). Depuis le 3 août 2026, ${nbArch} feu${nbArch > 1 ? "x" : ""} significatif${nbArch > 1 ? "s" : ""} y ${nbArch > 1 ? "ont" : "a"} été archivé${nbArch > 1 ? "s" : ""}. Ces chiffres se mettent à jour en continu sur la carte gratuite kanari.io.`,
+          ? `Au ${now} (heure de Paris), les données satellites sont momentanément indisponibles pour ${d.name} (${d.code}). Depuis le 3 août 2026, kanari y a archivé ${archTxt}. Les chiffres se mettent à jour en continu sur la carte gratuite kanari.io.`
+          : `Au ${now} (heure de Paris), kanari détecte ${nbActive} foyer${nbActive > 1 ? "s" : ""} actif${nbActive > 1 ? "s" : ""} sur les dernières 24 h dans un rayon de ${DEPT_RADIUS_KM} km autour de ${d.name} (${d.code}). Depuis le 3 août 2026, ${archTxt} y ${nbArch > 1 ? "ont" : "a"} été archivé${nbArch > 1 ? "s" : ""}. Ces chiffres se mettent à jour en continu sur la carte gratuite kanari.io.`,
     },
     {
       q: `Quel est le risque d'incendie en ${d.name} aujourd'hui ?`,
