@@ -23,6 +23,7 @@ const FR: { title: string; items: Item[] }[] = [
     items: [
       { href: "/fr/feu", label: "Historique feu par feu" },
       { href: "/fr/bilan", label: "Bilans quotidiens" },
+      { href: "/fr/newsletter", label: "Newsletter : le bilan de la semaine par e-mail" },
       { href: "/opendata/feux.csv", label: "Open data (CSV, CC BY 4.0)" },
       { href: "/fr/api", label: "API publique (JSON)" },
       { href: "/feed.xml", label: "Flux RSS des feux" },
@@ -57,6 +58,7 @@ const EN: { title: string; items: Item[] }[] = [
     title: "Data",
     items: [
       { href: "/en/statistiques", label: "Wildfire statistics (live)" },
+      { href: "/en/newsletter", label: "Newsletter: the week's wildfires by e-mail" },
       { href: "/opendata/feux.csv", label: "Open data (CSV, CC BY 4.0)" },
       { href: "/en/api", label: "Public API (JSON)" },
       { href: "/feed.xml", label: "RSS feed" },
@@ -91,6 +93,7 @@ const ES: { title: string; items: Item[] }[] = [
     title: "Datos",
     items: [
       { href: "/es/statistiques", label: "Estadísticas en tiempo real" },
+      { href: "/es/newsletter", label: "Boletín: los incendios de la semana por correo" },
       { href: "/opendata/feux.csv", label: "Datos abiertos (CSV, CC BY 4.0)" },
       { href: "/en/api", label: "API pública (JSON)" },
     ],
@@ -101,7 +104,7 @@ const ES: { title: string; items: Item[] }[] = [
       { href: "/es/guide", label: "Guías sobre incendios" },
       { href: "/es/faq", label: "Preguntas frecuentes" },
       { href: "/es/methodologie", label: "Metodología y cita" },
-      { href: "/en/a-propos", label: "Sobre kanari" },
+      { href: "/es/a-propos", label: "Sobre kanari" },
       { href: "/es/widget", label: "Widget para tu sitio" },
       { href: "/en/confidentialite", label: "Privacidad y cookies" },
     ],
@@ -121,6 +124,7 @@ const PT: { title: string; items: Item[] }[] = [
     title: "Dados",
     items: [
       { href: "/pt/statistiques", label: "Estatísticas em tempo real" },
+      { href: "/pt/newsletter", label: "Boletim: os incêndios da semana por e-mail" },
       { href: "/opendata/feux.csv", label: "Dados abertos (CSV, CC BY 4.0)" },
       { href: "/en/api", label: "API pública (JSON)" },
     ],
@@ -131,7 +135,7 @@ const PT: { title: string; items: Item[] }[] = [
       { href: "/pt/guide", label: "Guias sobre incêndios" },
       { href: "/pt/faq", label: "Perguntas frequentes" },
       { href: "/pt/methodologie", label: "Metodologia e citação" },
-      { href: "/en/a-propos", label: "Sobre o kanari" },
+      { href: "/pt/a-propos", label: "Sobre o kanari" },
       { href: "/pt/widget", label: "Widget para seu site" },
       { href: "/en/confidentialite", label: "Privacidade e cookies" },
     ],
