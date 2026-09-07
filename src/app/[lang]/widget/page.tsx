@@ -14,7 +14,7 @@ const T = {
   fr: {
     metaTitle: "Intégrer la carte des feux kanari sur votre site (widget gratuit)",
     metaDesc:
-      "Médias, mairies, sites météo : intégrez gratuitement la carte des feux en temps réel de kanari, centrée sur votre département ou votre pays. Générateur de code, 4 langues, mise à jour continue.",
+      "Médias, mairies, sites météo : intégrez gratuitement la carte des feux en temps réel de kanari, centrée sur votre département ou pays. Code prêt, 4 langues.",
     h1: "Intégrez la carte des feux sur votre site",
     intro:
       "Média, mairie, site météo, blog : la carte kanari (feux en temps réel, Canadair en direct, fumée) est intégrable gratuitement, centrée sur la zone de votre choix. Une seule condition : conserver le lien d'attribution vers kanari.io.",

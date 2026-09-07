@@ -98,7 +98,7 @@ export async function generateMetadata({
   return {
     title: `${lead} | kanari`,
     description:
-      "La liste des feux de forêt en cours en France, mise à jour en continu : lieu, département, heure de première détection satellite, dernier signal. Détections NASA FIRMS, GOES et Meteosat MTG, témoignages vérifiés.",
+      "La liste des feux de forêt en cours en France, mise à jour en continu : lieu, département, première détection satellite, dernier signal. Données NASA, Meteosat.",
     alternates: { canonical: "/fr/feux-en-cours" },
   };
 }

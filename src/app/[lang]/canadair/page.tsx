@@ -23,7 +23,7 @@ const T = {
     title: "Suivi des Canadair en direct : où sont les bombardiers d'eau ?",
     metaTitle: "Suivi Canadair en direct : carte des bombardiers d'eau | kanari",
     metaDesc:
-      "Suivi en direct des Canadair : position temps réel des bombardiers d'eau et hélicoptères anti-incendie du monde entier. CL-415, Pélican de la Sécurité Civile, Dash 8 Milan, Fire Boss, Air Crane. Gratuit, sans inscription.",
+      "Suivi en direct des Canadair : position temps réel des bombardiers d'eau et hélicoptères anti-incendie du monde entier. CL-415, Pélican, Dash 8 Milan. Gratuit.",
     updated: "Situation mise à jour en continu",
     inFlight: (n: number) =>
       n === 0
@@ -71,7 +71,7 @@ const T = {
     title: "Water bombers live: track firefighting aircraft in real time",
     metaTitle: "Track Canadair water bombers live: firefighting aircraft map | kanari",
     metaDesc:
-      "Where are the water bombers right now? Real-time positions of firefighting aircraft worldwide: Canadair CL-415, French Sécurité Civile fleet, Fire Boss, DC-10 tankers, Air Crane helicopters. Free.",
+      "Where are the water bombers right now? Real-time positions of firefighting aircraft worldwide: Canadair CL-415, Sécurité Civile fleet, Fire Boss, DC-10. Free.",
     updated: "Continuously updated",
     inFlight: (n: number) =>
       n === 0
@@ -119,7 +119,7 @@ const T = {
     title: "Aviones cisterna en vivo: medios aéreos contra incendios | kanari",
     metaTitle: "Aviones cisterna en vivo: posición en tiempo real | kanari",
     metaDesc:
-      "¿Dónde están los aviones contra incendios ahora mismo? Posición en tiempo real de los medios aéreos del mundo entero: Canadair CL-415, Air Tractor Fire Boss, tanqueros DC-10, helicópteros Air Crane. Gratis, sin registro.",
+      "¿Dónde están los aviones contra incendios ahora mismo? Posición en tiempo real de los medios aéreos del mundo: Canadair CL-415, Fire Boss, DC-10. Gratis.",
     updated: "Situación actualizada de forma continua",
     inFlight: (n: number) =>
       n === 0
@@ -167,7 +167,7 @@ const T = {
     title: "Aviões-tanque ao vivo: meios aéreos de combate a incêndios | kanari",
     metaTitle: "Aviões-tanque ao vivo: posição em tempo real | kanari",
     metaDesc:
-      "Onde estão os aviões de combate a incêndios agora? Posição em tempo real dos meios aéreos do mundo inteiro: Canadair CL-415, Air Tractor Fire Boss, tanqueiros DC-10, helicópteros Air Crane. Grátis, sem cadastro.",
+      "Onde estão os aviões de combate a incêndios agora? Posição em tempo real dos meios aéreos do mundo: Canadair CL-415, Fire Boss, DC-10. Grátis.",
     updated: "Situação atualizada continuamente",
     inFlight: (n: number) =>
       n === 0
