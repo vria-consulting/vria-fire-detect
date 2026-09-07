@@ -52,7 +52,7 @@ export const OBS = {
     crumbObs: "Observatoire",
     titleMonth: (name: string, month: string) => `${name}, ${month} : feux de forêt détectés | kanari`,
     descMonth: (name: string, month: string) =>
-      `Combien de feux de forêt en ${month} (${name}) ? Nombre de départs significatifs détectés par satellite, feux les plus puissants, jours les plus actifs. Chiffres kanari, citables, données ouvertes CC BY 4.0.`,
+      `Combien de feux de forêt en ${month} (${name}) ? Départs significatifs détectés par satellite, feux les plus puissants, jours actifs. Chiffres citables.`,
     h1Month: (name: string, month: string) => `${name} : feux de forêt en ${month}`,
     titleCountry: (name: string) => `${name} : feux de forêt mois par mois | kanari`,
     descCountry: (name: string) =>
@@ -99,7 +99,7 @@ export const OBS = {
     crumbObs: "Observatory",
     titleMonth: (name: string, month: string) => `${name}, ${month}: wildfires detected | kanari`,
     descMonth: (name: string, month: string) =>
-      `How many wildfires in ${name} in ${month}? Number of significant ignitions detected by satellite, most powerful fires, busiest days. kanari figures, citable, open data CC BY 4.0.`,
+      `How many wildfires in ${name} in ${month}? Significant ignitions detected by satellite, most powerful fires, busiest days. Citable kanari figures.`,
     h1Month: (name: string, month: string) => `${name}: wildfires in ${month}`,
     titleCountry: (name: string) => `${name}: wildfires month by month | kanari`,
     descCountry: (name: string) =>
@@ -146,7 +146,7 @@ export const OBS = {
     crumbObs: "Observatorio",
     titleMonth: (name: string, month: string) => `${name}, ${month}: incendios detectados | kanari`,
     descMonth: (name: string, month: string) =>
-      `¿Cuántos incendios forestales en ${name} en ${month}? Número de focos significativos detectados por satélite, incendios más potentes, días más activos. Cifras kanari, citables, datos abiertos CC BY 4.0.`,
+      `¿Cuántos incendios forestales en ${name} en ${month}? Focos significativos detectados por satélite, incendios más potentes, días más activos. Cifras citables.`,
     h1Month: (name: string, month: string) => `${name}: incendios forestales en ${month}`,
     titleCountry: (name: string) => `${name}: incendios forestales mes a mes | kanari`,
     descCountry: (name: string) =>
@@ -193,7 +193,7 @@ export const OBS = {
     crumbObs: "Observatório",
     titleMonth: (name: string, month: string) => `${name}, ${month}: incêndios detectados | kanari`,
     descMonth: (name: string, month: string) =>
-      `Quantos incêndios florestais em ${name} em ${month}? Número de focos significativos detectados por satélite, incêndios mais potentes, dias mais ativos. Números kanari, citáveis, dados abertos CC BY 4.0.`,
+      `Quantos incêndios florestais em ${name} em ${month}? Focos significativos detectados por satélite, incêndios mais potentes, dias mais ativos. Números citáveis.`,
     h1Month: (name: string, month: string) => `${name}: incêndios florestais em ${month}`,
     titleCountry: (name: string) => `${name}: incêndios florestais mês a mês | kanari`,
     descCountry: (name: string) =>

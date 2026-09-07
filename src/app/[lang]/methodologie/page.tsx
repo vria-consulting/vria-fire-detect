@@ -14,7 +14,7 @@ type Section = { h: string; p: string[] };
 const M = {
   fr: {
     title: "Méthodologie kanari : sources, seuils, limites, citation",
-    desc: "Comment kanari détecte, vérifie et archive les feux de forêt : satellites NASA FIRMS, GOES et Meteosat MTG, témoins vérifiés par IA, seuils d'archivage, précocité mesurée, limites, licence CC BY 4.0 et formats de citation.",
+    desc: "Comment kanari détecte, vérifie et archive les feux de forêt : satellites NASA FIRMS, GOES, Meteosat MTG, témoins vérifiés par IA, seuils, limites, licence.",
     h1: "Méthodologie, sources et citation",
     intro: "Cette page décrit précisément ce que mesure kanari, comment, avec quelles limites, et comment réutiliser ou citer ses chiffres. Elle fait foi pour toute donnée publiée sur kanari.io, dans l'API, le serveur MCP et l'open data.",
     sections: [
@@ -59,7 +59,7 @@ const M = {
   },
   en: {
     title: "kanari methodology: sources, thresholds, limits, how to cite",
-    desc: "How kanari detects, verifies and archives wildfires: NASA FIRMS, GOES and Meteosat MTG satellites, AI-verified witnesses, archiving thresholds, measured earliness, limits, CC BY 4.0 licence and citation formats.",
+    desc: "How kanari detects, verifies and archives wildfires: NASA FIRMS, GOES and Meteosat MTG satellites, AI-verified witnesses, thresholds, limits, licence.",
     h1: "Methodology, sources and citation",
     intro: "This page states precisely what kanari measures, how, with which limits, and how to reuse or cite its figures. It is the reference for every number published on kanari.io, in the API, the MCP server and the open data.",
     sections: [
@@ -104,7 +104,7 @@ const M = {
   },
   es: {
     title: "Metodología kanari: fuentes, umbrales, límites, cómo citar",
-    desc: "Cómo kanari detecta, verifica y archiva los incendios forestales: satélites NASA FIRMS, GOES y Meteosat MTG, testigos verificados por IA, umbrales de archivo, precocidad medida, límites, licencia CC BY 4.0 y formatos de cita.",
+    desc: "Cómo kanari detecta, verifica y archiva los incendios forestales: satélites NASA FIRMS, GOES y Meteosat MTG, testigos verificados por IA, umbrales, límites.",
     h1: "Metodología, fuentes y cita",
     intro: "Esta página describe con precisión qué mide kanari, cómo, con qué límites y cómo reutilizar o citar sus cifras. Es la referencia para todo dato publicado en kanari.io, en la API, el servidor MCP y los datos abiertos.",
     sections: [
@@ -147,7 +147,7 @@ const M = {
   },
   pt: {
     title: "Metodologia kanari: fontes, limiares, limites, como citar",
-    desc: "Como o kanari detecta, verifica e arquiva incêndios florestais: satélites NASA FIRMS, GOES e Meteosat MTG, testemunhas verificadas por IA, limiares de arquivamento, precocidade medida, limites, licença CC BY 4.0 e formatos de citação.",
+    desc: "Como o kanari detecta, verifica e arquiva incêndios florestais: satélites NASA FIRMS, GOES e Meteosat MTG, testemunhas verificadas por IA, limiares, limites.",
     h1: "Metodologia, fontes e citação",
     intro: "Esta página descreve com precisão o que o kanari mede, como, com quais limites e como reutilizar ou citar seus números. É a referência para todo dado publicado em kanari.io, na API, no servidor MCP e nos dados abertos.",
     sections: [
