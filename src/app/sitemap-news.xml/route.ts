@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listFiresBetween, type ArchivedFire } from "@/lib/firearchive";
+import { listFiresBetween, isFireIndexable, type ArchivedFire } from "@/lib/firearchive";
 import { DEPT_BY_SLUG } from "@/lib/departements";
 
 export const runtime = "nodejs";
@@ -38,7 +38,7 @@ export async function GET() {
       )
     );
   }
-  for (const f of fires) {
+  for (const f of fires.filter(isFireIndexable)) {
     items.push(entry(`https://kanari.io/fr/feu/${f.slug}`, f.first_seen, titleOf(f)));
   }
 

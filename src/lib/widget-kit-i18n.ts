@@ -88,4 +88,4 @@ export const KIT = {
 } as const;
 
 export const BADGE_HTML = (lang: "fr" | "en" | "es" | "pt") =>
-  `<a href="https://kanari.io/${lang}" title="kanari"><img src="https://kanari.io/brand/badge-kanari-${lang === "fr" ? "fr" : "en"}.svg" alt="${lang === "fr" ? "Données : kanari.io" : "Data: kanari.io"}" height="28" /></a>`;
+  `<a rel="nofollow" href="https://kanari.io/${lang}" title="kanari"><img src="https://kanari.io/brand/badge-kanari-${lang === "fr" ? "fr" : "en"}.svg" alt="${lang === "fr" ? "Données : kanari.io" : "Data: kanari.io"}" height="28" /></a>`;

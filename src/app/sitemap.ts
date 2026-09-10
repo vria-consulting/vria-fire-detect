@@ -1,3 +1,4 @@
+import { archiveCoverage } from "@/lib/archive-coverage";
 import type { MetadataRoute } from "next";
 import { DEPARTEMENTS } from "@/lib/departements";
 import { GUIDES } from "@/lib/guides";
@@ -8,6 +9,9 @@ import { US_STATES } from "@/lib/us-states";
 import { FRENCH_FLEET } from "@/lib/aircraft";
 import { archiveMonths } from "@/lib/observatory";
 import { listIssues } from "@/lib/newsletter";
+
+export const revalidate = 1800;
+export const maxDuration = 60;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = "https://kanari.io";
@@ -21,7 +25,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const newsletterPages: MetadataRoute.Sitemap = [
     ...LANGS4.map((l) => ({
       url: `${base}/${l}/newsletter`,
-      lastModified: new Date(),
       changeFrequency: "weekly" as const,
       priority: 0.6,
       alternates: newsAlt("/newsletter"),
@@ -40,7 +43,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Pages locales « feux par département » (contenu FR, URL canonique unique).
   const deptPages: MetadataRoute.Sitemap = DEPARTEMENTS.map((d) => ({
     url: `${base}/fr/feux/${d.slug}`,
-    lastModified: new Date(),
     changeFrequency: "hourly" as const,
     priority: 0.7,
   }));
@@ -50,21 +52,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const LANGS = ["fr", "en", "es", "pt"] as const;
   const scopes = ["world", ...COUNTRIES.map((c) => c.slug)];
   const months = archiveMonths();
+  const coverage = await archiveCoverage();
   const obsAlt = (path: string) => ({
     languages: Object.fromEntries(LANGS.map((l) => [l, `${base}/${l}${path}`])),
   });
   const observatoryPages: MetadataRoute.Sitemap = scopes.flatMap((slug) => [
     ...LANGS.map((l) => ({
       url: `${base}/${l}/statistiques/${slug}`,
-      lastModified: new Date(),
       changeFrequency: "daily" as const,
       priority: 0.6,
       alternates: obsAlt(`/statistiques/${slug}`),
     })),
-    ...months.flatMap((m) =>
+    ...months.filter((m) => {
+      if (!coverage) return true; // offline CI; never substitute this for an upstream failure
+      const cc = COUNTRIES.find((c) => c.slug === slug)?.cc;
+      return (slug === "world" ? coverage[m]?.total ?? 0 : coverage[m]?.countries[cc ?? ""] ?? 0) >= 10;
+    }).flatMap((m) =>
       LANGS.map((l) => ({
         url: `${base}/${l}/statistiques/${slug}/${m}`,
-        lastModified: new Date(),
         changeFrequency: (m === months[0] ? "daily" : "monthly") as "daily" | "monthly",
         priority: m === months[0] ? 0.7 : 0.5,
         alternates: obsAlt(`/statistiques/${slug}/${m}`),
@@ -73,7 +78,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]);
   const methodologyPages: MetadataRoute.Sitemap = LANGS.map((l) => ({
     url: `${base}/${l}/methodologie`,
-    lastModified: new Date("2026-08-22"),
+    lastModified: new Date("2026-09-10"),
     changeFrequency: "monthly" as const,
     priority: 0.7,
     alternates: obsAlt("/methodologie"),
@@ -98,7 +103,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       },
       {
         url: `${base}/en/guide/${g.slug}`,
-        lastModified: new Date(),
         changeFrequency: "monthly" as const,
         priority: 0.6,
         alternates,
@@ -106,7 +110,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ...(languages.es
         ? [{
             url: languages.es,
-            lastModified: new Date(),
             changeFrequency: "monthly" as const,
             priority: 0.6,
             alternates,
@@ -115,7 +118,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ...(languages.pt
         ? [{
             url: languages.pt,
-            lastModified: new Date(),
             changeFrequency: "monthly" as const,
             priority: 0.6,
             alternates,
@@ -134,7 +136,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     };
     return (["en", "es", "pt"] as const).map((l) => ({
       url: `${base}/${l}/fires/${c.slug}`,
-      lastModified: new Date(),
       changeFrequency: "hourly" as const,
       priority: l === "en" ? 0.7 : 0.65,
       alternates,
@@ -146,34 +147,29 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 50 US states + DC : le plus gros marché de recherche feux au monde.
   const statePages: MetadataRoute.Sitemap = US_STATES.map((s) => ({
     url: `${base}/en/fires/${s.slug}`,
-    lastModified: new Date(),
     changeFrequency: "hourly" as const,
     priority: 0.75,
   }));
   const aircraftPages: MetadataRoute.Sitemap = Object.values(FRENCH_FLEET).map((a) => ({
     url: `${base}/fr/canadair/${a.reg.toLowerCase()}`,
-    lastModified: new Date(),
     changeFrequency: "daily" as const,
     priority: 0.6,
   }));
   return [
     {
       url: `${base}/en/fires`,
-      lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.9,
       alternates: firesHubAlt,
     },
     {
       url: `${base}/es/fires`,
-      lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.85,
       alternates: firesHubAlt,
     },
     {
       url: `${base}/pt/fires`,
-      lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.85,
       alternates: firesHubAlt,
@@ -183,111 +179,95 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...aircraftPages,
     {
       url: `${base}/fr/widget`,
-      lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.6,
       alternates: { languages: { fr: `${base}/fr/widget`, en: `${base}/en/widget`, es: `${base}/es/widget`, pt: `${base}/pt/widget` } },
     },
     {
       url: `${base}/en/widget`,
-      lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.6,
       alternates: { languages: { fr: `${base}/fr/widget`, en: `${base}/en/widget`, es: `${base}/es/widget`, pt: `${base}/pt/widget` } },
     },
     {
       url: `${base}/es/widget`,
-      lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.6,
       alternates: { languages: { fr: `${base}/fr/widget`, en: `${base}/en/widget`, es: `${base}/es/widget`, pt: `${base}/pt/widget` } },
     },
     {
       url: `${base}/pt/widget`,
-      lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.6,
       alternates: { languages: { fr: `${base}/fr/widget`, en: `${base}/en/widget`, es: `${base}/es/widget`, pt: `${base}/pt/widget` } },
     },
     {
       url: `${base}/fr/bilan`,
-      lastModified: new Date(),
       changeFrequency: "daily",
       priority: 0.8,
     },
     {
       url: `${base}/fr/statistiques`,
-      lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.8,
       alternates: { languages: { fr: `${base}/fr/statistiques`, en: `${base}/en/statistiques`, es: `${base}/es/statistiques`, pt: `${base}/pt/statistiques` } },
     },
     {
       url: `${base}/en/statistiques`,
-      lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.7,
       alternates: { languages: { fr: `${base}/fr/statistiques`, en: `${base}/en/statistiques`, es: `${base}/es/statistiques`, pt: `${base}/pt/statistiques` } },
     },
     {
       url: `${base}/es/statistiques`,
-      lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.7,
       alternates: { languages: { fr: `${base}/fr/statistiques`, en: `${base}/en/statistiques`, es: `${base}/es/statistiques`, pt: `${base}/pt/statistiques` } },
     },
     {
       url: `${base}/pt/statistiques`,
-      lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.7,
       alternates: { languages: { fr: `${base}/fr/statistiques`, en: `${base}/en/statistiques`, es: `${base}/es/statistiques`, pt: `${base}/pt/statistiques` } },
     },
     {
       url: `${base}/fr/comparatif`,
-      lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.7,
       alternates: { languages: { fr: `${base}/fr/comparatif`, en: `${base}/en/comparatif` } },
     },
     {
       url: `${base}/fr/confidentialite`,
-      lastModified: new Date(),
       changeFrequency: "yearly",
       priority: 0.2,
       alternates: { languages: { fr: `${base}/fr/confidentialite`, en: `${base}/en/confidentialite` } },
     },
     {
       url: `${base}/en/comparatif`,
-      lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.7,
       alternates: { languages: { fr: `${base}/fr/comparatif`, en: `${base}/en/comparatif` } },
     },
     {
       url: `${base}/fr/guide`,
-      lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.7,
       alternates: { languages: { fr: `${base}/fr/guide`, en: `${base}/en/guide`, es: `${base}/es/guide`, pt: `${base}/pt/guide` } },
     },
     {
       url: `${base}/en/guide`,
-      lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.6,
       alternates: { languages: { fr: `${base}/fr/guide`, en: `${base}/en/guide`, es: `${base}/es/guide`, pt: `${base}/pt/guide` } },
     },
     {
       url: `${base}/es/guide`,
-      lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.6,
       alternates: { languages: { fr: `${base}/fr/guide`, en: `${base}/en/guide`, es: `${base}/es/guide`, pt: `${base}/pt/guide` } },
     },
     {
       url: `${base}/pt/guide`,
-      lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.6,
       alternates: { languages: { fr: `${base}/fr/guide`, en: `${base}/en/guide`, es: `${base}/es/guide`, pt: `${base}/pt/guide` } },
@@ -297,26 +277,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...observatoryPages,
     {
       url: `${base}/fr/feux`,
-      lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.9,
     },
     {
       url: `${base}/fr/feux-en-cours`,
-      lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.9,
     },
     {
       url: `${base}/fr/api`,
-      lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.6,
       alternates: { languages: { fr: `${base}/fr/api`, en: `${base}/en/api` } },
     },
     {
       url: `${base}/fr/sdis`,
-      lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.7,
     },
@@ -324,126 +300,108 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...newsletterPages,
     {
       url: `${base}/fr/canadair`,
-      lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.9,
       alternates: { languages: { fr: `${base}/fr/canadair`, en: `${base}/en/canadair`, es: `${base}/es/canadair`, pt: `${base}/pt/canadair` } },
     },
     {
       url: `${base}/en/canadair`,
-      lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.8,
       alternates: { languages: { fr: `${base}/fr/canadair`, en: `${base}/en/canadair`, es: `${base}/es/canadair`, pt: `${base}/pt/canadair` } },
     },
     {
       url: `${base}/es/canadair`,
-      lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.8,
       alternates: { languages: { fr: `${base}/fr/canadair`, en: `${base}/en/canadair`, es: `${base}/es/canadair`, pt: `${base}/pt/canadair` } },
     },
     {
       url: `${base}/pt/canadair`,
-      lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.8,
       alternates: { languages: { fr: `${base}/fr/canadair`, en: `${base}/en/canadair`, es: `${base}/es/canadair`, pt: `${base}/pt/canadair` } },
     },
     {
       url: `${base}/fr`,
-      lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 1,
       alternates: { languages: langs },
     },
     {
       url: `${base}/en`,
-      lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 1,
       alternates: { languages: langs },
     },
     {
       url: `${base}/es`,
-      lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.9,
       alternates: { languages: langs },
     },
     {
       url: `${base}/pt`,
-      lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.9,
       alternates: { languages: langs },
     },
     {
       url: `${base}/fr/a-propos`,
-      lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.7,
       alternates: { languages: { fr: `${base}/fr/a-propos`, en: `${base}/en/a-propos` } },
     },
     {
       url: `${base}/en/a-propos`,
-      lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.7,
       alternates: { languages: { fr: `${base}/fr/a-propos`, en: `${base}/en/a-propos` } },
     },
     {
       url: `${base}/fr/precocite`,
-      lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.8,
       alternates: { languages: { fr: `${base}/fr/precocite`, en: `${base}/en/precocite` } },
     },
     {
       url: `${base}/en/precocite`,
-      lastModified: new Date(),
       changeFrequency: "hourly",
       priority: 0.8,
       alternates: { languages: { fr: `${base}/fr/precocite`, en: `${base}/en/precocite` } },
     },
     {
       url: `${base}/fr/faq`,
-      lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.8,
       alternates: { languages: { fr: `${base}/fr/faq`, en: `${base}/en/faq`, es: `${base}/es/faq`, pt: `${base}/pt/faq` } },
     },
     {
       url: `${base}/en/faq`,
-      lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.8,
       alternates: { languages: { fr: `${base}/fr/faq`, en: `${base}/en/faq`, es: `${base}/es/faq`, pt: `${base}/pt/faq` } },
     },
     {
       url: `${base}/es/faq`,
-      lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.8,
       alternates: { languages: { fr: `${base}/fr/faq`, en: `${base}/en/faq`, es: `${base}/es/faq`, pt: `${base}/pt/faq` } },
     },
     {
       url: `${base}/pt/faq`,
-      lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.8,
       alternates: { languages: { fr: `${base}/fr/faq`, en: `${base}/en/faq`, es: `${base}/es/faq`, pt: `${base}/pt/faq` } },
     },
     {
       url: `${base}/fr/contribuer`,
-      lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.6,
       alternates: { languages: { fr: `${base}/fr/contribuer`, en: `${base}/en/contribuer` } },
     },
     {
       url: `${base}/en/contribuer`,
-      lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.6,
       alternates: { languages: { fr: `${base}/fr/contribuer`, en: `${base}/en/contribuer` } },

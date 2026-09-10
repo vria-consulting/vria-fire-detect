@@ -7,7 +7,7 @@ import { localize, type Lang } from "@/lib/i18n";
 
 // Générateur de widget : une rédaction girondine repart avec une carte
 // centrée sur la Gironde en 20 secondes — et kanari repart avec un backlink
-// d'ancre riche. Tout est côté client, le snippet est du HTML pur.
+// attribué à la marque. Tout est côté client, le snippet est du HTML pur.
 
 const T = {
   fr: {
@@ -23,7 +23,7 @@ const T = {
     copy: "Copier le code",
     copied: "Copié ✓",
     attribution:
-      "Le lien d'attribution sous la carte fait partie des conditions d'utilisation : merci de le conserver tel quel.",
+      "Le lien d'attribution sous la carte fait partie des conditions d'utilisation : conservez le crédit kanari.io ; vous pouvez qualifier le lien avec l’attribut nofollow.",
     anchorText: "carte des feux de forêt en temps réel",
     caption: "Carte :",
   },
@@ -40,7 +40,7 @@ const T = {
     copy: "Copy the code",
     copied: "Copied ✓",
     attribution:
-      "The attribution link below the map is part of the terms of use: please keep it as is.",
+      "The attribution link below the map is part of the terms of use: keep the kanari.io credit; you may qualify the link with the nofollow attribute.",
     anchorText: "live wildfire map",
     caption: "Map:",
   },
@@ -116,7 +116,7 @@ export function WidgetBuilder({ lang }: { lang: Lang }) {
   width="100%" height="${height}" frameborder="0"
   title="kanari.io"
   loading="lazy" allow="geolocation"></iframe>
-<p>${anchor.caption} <a href="https://kanari.io/${wlang}">kanari.io — ${anchor.anchorText}</a></p>`;
+<p>${anchor.caption} <a rel="nofollow" href="https://kanari.io/${wlang}">kanari.io</a></p>`;
   }, [src, height, wlang]);
 
   const copy = async () => {

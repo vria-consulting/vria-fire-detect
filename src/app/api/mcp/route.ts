@@ -1,3 +1,4 @@
+import { OBSERVATION_NOTE } from "@/lib/observation-note";
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import { staleBlobEvents, lightenEvents, type EventsPayload } from "@/lib/eventscache";
@@ -270,7 +271,7 @@ const handler = createMcpHandler(
           truncated: stats.truncated,
           citation,
           statisticsPage: "https://kanari.io/en/statistiques",
-          methodology: "Only significant fires are archived (corroborated by witnesses, or above detection/power thresholds): totals are not comparable to exhaustive official tallies.",
+          methodology: OBSERVATION_NOTE.en,
           ...SOURCES,
         });
       }
@@ -280,7 +281,7 @@ const handler = createMcpHandler(
       "firefighting_aircraft",
       {
         title: "Firefighting aircraft in flight",
-        description: "Near real-time ADS-B positions of water bombers and firefighting helicopters worldwide (Canadair CL-415/CL-215, Air Tractor Fire Boss, DC-10 / BAe 146 tankers, S-64 Air Crane, Firehawk…). Optional ISO-2 filter on the aircraft's country of registration. Aircraft fly in daylight: expect few results at night.",
+        description: "Near real-time ADS-B positions of water bombers and firefighting helicopters worldwide (Canadair CL-415/CL-215, Air Tractor Fire Boss, DC-10 / BAe 146 tankers, S-64 Air Crane, Firehawk…). Optional ISO-2 filter on the aircraft's country of registration. Coverage and aircraft identification are incomplete; some equipped helicopters also operate at night.",
         inputSchema: z.object({ country: ISO2.optional(), limit: z.number().int().min(1).max(300).default(100) }),
         annotations: { readOnlyHint: true, openWorldHint: true },
       },
@@ -307,7 +308,7 @@ const handler = createMcpHandler(
       "earliness_cases",
       {
         title: "Measured lead over press coverage",
-        description: "Documented cases (rolling 72 h) where kanari's first satellite signal preceded the first press article about the same fire: place, both UTC timestamps and the lead in minutes, plus the median. This is the measured basis for 'kanari sees fires before the media'. It says nothing about a lead over emergency services.",
+        description: "Automatic geographic matches between satellite and press timestamps over 72 h. Includes positive and negative gaps; median over all valid matches. Not kanari alert publication time, not proof of distinct fires or a lead over emergency services. Source article links when available.",
         inputSchema: z.object({ limit: z.number().int().min(1).max(50).default(20) }),
         annotations: { readOnlyHint: true },
       },
@@ -317,6 +318,8 @@ const handler = createMcpHandler(
           fetchedAt: r.fetchedAt,
           clustersInWindow: r.total,
           medianLeadMinutes: r.medianMin,
+          matched: r.matched, satelliteFirst: r.satelliteFirst, pressFirst: r.pressFirst, simultaneous: r.simultaneous,
+          measurement: "Matched press publication time minus satellite acquisition time, not kanari publication latency. Positive gap: satellite first. Geographic association is not independent incident verification.",
           cases: r.cases,
           methodologyPage: "https://kanari.io/en/precocite",
           ...SOURCES,
@@ -351,7 +354,7 @@ const handler = createMcpHandler(
               "- Witness reports: public posts (Bluesky, Telegram, press via GDELT) are geoparsed and verified twice by AI before being attached to a cluster; a cluster with verified witnesses is 'corrobore'.",
               "- Archive: a fire gets a permanent page when it is corroborated, or (France) has at least 2 detections or 20 MW, or (elsewhere) at least 8 detections or 100 MW. Totals are therefore not comparable to exhaustive official tallies.",
               "- Earliness: for each corroborated fire we compare the first satellite pass with the first press article (GDELT); see https://kanari.io/en/precocite.",
-              "- Aircraft: ADS-B positions of known firefighting aircraft (registration and ICAO-type based), daylight operations.",
+              "- Aircraft: ADS-B positions of known firefighting aircraft (registration and ICAO-type based), coverage is incomplete and night operations are possible.",
               "- Limits: a satellite hotspot can be a controlled burn, an industrial flare or a false alarm; cloud cover hides fires; kanari is not an official alert channel (call 112 / 911).",
               "- Licence: data CC BY 4.0, attribution 'kanari.io'. Open data CSV: https://kanari.io/opendata/feux.csv. API: https://kanari.io/en/api.",
               "- Cite as: kanari (2026). kanari wildfire archive and live detections. https://kanari.io (accessed <date>).",

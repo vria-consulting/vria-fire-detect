@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache";
+import { AIRCRAFT_EDITORIAL } from "@/lib/aircraft-editorial";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -10,6 +12,10 @@ import { NewsletterSignup } from "@/components/NewsletterSignup";
 // épisode de feu, quasi sans concurrence. Rendu ISR court (2 min) : la page
 // arrive déjà remplie avec les appareils en vol (SEO + partage).
 export const revalidate = 120;
+export const fetchCache = "force-cache";
+const getAircraftSnapshot = unstable_cache(async () => ({
+  planes: await getWaterBombers(), checkedAt: new Date().toISOString(),
+}), ["aircraft-landing-v2"], { revalidate: 120 });
 
 function flag(cc: string): string {
   if (!/^[A-Za-z]{2}$/.test(cc)) return "";
@@ -239,11 +245,16 @@ export async function generateMetadata({
 export default async function CanadairPage({ params }: { params: Promise<{ lang: string }> }) {
   const { lang } = await params;
   if (!isValidLang(lang)) notFound();
-  const t = localize(T, lang);
+  const original = localize(T, lang);
+  const editorial = AIRCRAFT_EDITORIAL[lang];
+  const t = { ...original, nightNote: editorial.night, howText: editorial.how, whyText: editorial.why,
+    fleetText: ({ fr: "Le répertoire kanari identifie les Pélican (Canadair), Milan (Dash 8) et Dragon (hélicoptères de secours). Ce répertoire technique ne décrit ni la disponibilité opérationnelle ni les affectations du jour. Une position apparaît seulement si le flux reçu permet de l’identifier.", en: "The kanari directory identifies Pélican Canadairs, Milan Dash 8s and Dragon rescue helicopters. It does not describe operational availability or daily assignments. A position appears only when the received feed allows identification.", es: "El directorio de kanari identifica Canadair Pélican, Dash 8 Milan y helicópteros de rescate Dragon. No describe disponibilidad operativa ni asignaciones diarias. Una posición aparece cuando los datos recibidos permiten identificarla.", pt: "O diretório do kanari identifica Canadair Pélican, Dash 8 Milan e helicópteros de resgate Dragon. Não descreve disponibilidade operacional nem missões do dia. A posição aparece quando os dados recebidos permitem a identificação." })[lang],
+    faq: original.faq.map((item, i) => ({ ...item, a: i === 1 || i === 3 ? editorial.how : i === 2 ? editorial.why : item.a })) };
 
+  let checkedAt: string | null = null;
   let planes: Plane[] = [];
   try {
-    planes = await getWaterBombers();
+    ({ planes, checkedAt } = await getAircraftSnapshot());
   } catch {
     /* section live vide : le contenu de fond reste servi */
   }
@@ -270,7 +281,7 @@ export default async function CanadairPage({ params }: { params: Promise<{ lang:
             className="mr-2 inline-block h-[8px] w-[8px] rounded-full align-middle"
             style={{ background: "var(--canary-strong)" }}
           />
-          {t.updated} · <strong style={{ color: "var(--ink)" }}>{t.inFlight(planes.length)}</strong>
+          {checkedAt ? `${t.updated} · ${checkedAt.slice(0, 16).replace("T", " ")} UTC` : t.updated} · <strong style={{ color: "var(--ink)" }}>{t.inFlight(planes.length)}</strong>
         </p>
 
         <Link
@@ -337,6 +348,13 @@ export default async function CanadairPage({ params }: { params: Promise<{ lang:
           <p>{t.whyText}</p>
         </section>
 
+        <section className="mb-7 text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>
+          <h2 className="mb-3 text-lg font-semibold">{editorial.title}</h2>
+          <ol className="list-decimal space-y-2 pl-5">{editorial.steps.map((step) => <li key={step}>{step}</li>)}</ol>
+          <p className="mt-3">{editorial.sources} <a className="underline" href="https://www.adsb.lol/docs/open-data/">ADSB.lol</a> · <a className="underline" href="https://www.fire.ca.gov/what-we-do/fire-protection/aviation-program/cal-fire-s-70">CAL FIRE HAWK</a></p>
+          <p className="mt-3"><Link className="underline" href={`/${lang === "fr" ? "fr" : "en"}/guide/comment-fonctionne-un-canadair`}>{editorial.guide}</Link> · <Link className="underline" href={`/${lang}/methodologie`}>{editorial.methods}</Link></p>
+        </section>
+
         <section className="mb-4">
           {t.faq.map((it) => (
             <details key={it.q} className="mb-2 rounded-[14px] px-4 py-3" style={{ background: "var(--white)", boxShadow: "var(--shadow-s)" }}>
@@ -352,7 +370,7 @@ export default async function CanadairPage({ params }: { params: Promise<{ lang:
 
         <p className="mt-8 border-t pt-4 text-[12.5px]" style={{ borderColor: "var(--line)", color: "var(--ink-3)" }}>
           {lang === "fr" ? (
-            <>Voir aussi : <Link href="/fr/feux-en-cours" style={{ color: "var(--link)" }}>Incendies en cours en France</Link> · <Link href="/fr/feux" style={{ color: "var(--link)" }}>Feux par département</Link> · <Link href="/fr/faq" style={{ color: "var(--link)" }}>FAQ</Link>. Données : réseaux ADS-B communautaires. En cas d'urgence : 18 ou 112.</>
+            <>Voir aussi : <Link href="/fr/feux-en-cours" style={{ color: "var(--link)" }}>Incendies en cours en France</Link> · <Link href="/fr/feux" style={{ color: "var(--link)" }}>Feux par département</Link> · <Link href="/fr/faq" style={{ color: "var(--link)" }}>FAQ</Link>. Données : réseaux ADS-B communautaires. En cas d’urgence : 18 ou 112.</>
           ) : lang === "es" ? (
             <>Ver también: <Link href="/es/statistiques" style={{ color: "var(--link)" }}>estadísticas en vivo</Link> · <Link href="/es/faq" style={{ color: "var(--link)" }}>preguntas frecuentes</Link>. Datos: redes ADS-B comunitarias. En una emergencia llama al 911 o al 112.</>
           ) : lang === "pt" ? (

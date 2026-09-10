@@ -1,3 +1,5 @@
+export const maxDuration = 60;
+import { OBSERVATION_NOTE } from "@/lib/observation-note";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -33,7 +35,7 @@ const getMonthData = unstable_cache(
     ]);
     return { stats, prevStats };
   },
-  ["obs-month-data"],
+  ["obs-month-data-complete-v2"],
   { revalidate: 1800 }
 );
 
@@ -66,6 +68,7 @@ export async function generateMetadata({
   const path = `/statistiques/${country}/${month}`;
   const og = `https://kanari.io/ogobs/${country}/${month}.png?lang=${l}`;
   return {
+    robots: { index: !hasArchive() || (await getMonthData(scope.cc, month, archiveMonths()[archiveMonths().indexOf(month) + 1] ?? null)).stats.total >= 10, follow: true },
     title: t.titleMonth(scope.name, label),
     description: t.descMonth(scope.name, label),
     alternates: {
@@ -145,11 +148,11 @@ export default async function ObservatoryMonthPage({
     temporalCoverage: `${range.fromIso.slice(0, 10)}/${new Date(Date.parse(range.toIso) - 1).toISOString().slice(0, 10)}`,
     spatialCoverage: scope.cc ? { "@type": "Place", name: scope.name, address: { "@type": "PostalAddress", addressCountry: scope.cc } } : { "@type": "Place", name: "World" },
     variableMeasured: [
-      { "@type": "PropertyValue", name: "significant wildfires detected", value: stats.total },
+      { "@type": "PropertyValue", name: "archived satellite detection events", value: stats.total, description: OBSERVATION_NOTE[lang] },
       { "@type": "PropertyValue", name: "fires still active", value: stats.active },
       { "@type": "PropertyValue", name: "peak fire radiative power", value: Math.round(stats.maxFrp), unitText: "MW" },
     ],
-    distribution: [{ "@type": "DataDownload", encodingFormat: "text/csv", contentUrl: "https://kanari.io/opendata/feux.csv" }],
+    distribution: [{ "@type": "DataDownload", encodingFormat: "text/csv", contentUrl: `https://kanari.io/opendata/feux.csv?month=${month}${scope.cc ? `&country=${scope.cc}` : ""}` }],
   };
   const crumbLd = {
     "@context": "https://schema.org",
@@ -164,7 +167,6 @@ export default async function ObservatoryMonthPage({
 
   return (
     <div className="k-scroll h-full overflow-y-auto" style={{ background: "var(--paper)" }}>
-      {thin && <meta name="robots" content="noindex, follow" />}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(datasetLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(crumbLd) }} />
       <div className="mx-auto max-w-2xl px-4 py-10 sm:py-14">
@@ -178,6 +180,7 @@ export default async function ObservatoryMonthPage({
         <h1 className="mb-3" style={{ fontFamily: "var(--font-display)", fontSize: "var(--text-h2)", color: "var(--ink)" }}>
           {scope.flag} {t.h1Month(scope.name, label)}
         </h1>
+        <p className="my-4 text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>{OBSERVATION_NOTE[lang]}</p>
         <p className="mb-3 text-[15px] leading-relaxed" style={{ color: "var(--ink-2)" }}>
           {stats.total > 0 ? t.introMonth(scope.name, label, stats.total, updated) : t.noData}
         </p>
@@ -315,7 +318,7 @@ export default async function ObservatoryMonthPage({
             <Link href={`/${lang}/methodologie`} style={{ color: "var(--link)" }}>{t.methodoLink}</Link>.
           </p>
           <p>
-            <a href="/opendata/feux.csv" style={{ color: "var(--link)" }}>{t.openData}</a>
+            <a href={`/opendata/feux.csv?month=${month}${scope.cc ? `&country=${scope.cc}` : ""}`} style={{ color: "var(--link)" }}>{t.openData}</a>
             {" · "}
             <Link href={scope.cc === "FR" ? "/fr/feux" : `/${lang === "fr" ? "en" : lang}/fires`} style={{ color: "var(--link)" }}>{t.seeLive}</Link>
           </p>

@@ -4,15 +4,16 @@ import { notFound, redirect } from "next/navigation";
 import { isValidLang } from "@/lib/i18n";
 import { getFireBySlug, isFireIndexable, type ArchivedFire } from "@/lib/firearchive";
 import { DEPT_BY_SLUG } from "@/lib/departements";
-import { fetchStrategicPoints, type StrategicPoint } from "@/lib/strategic";
-import { fetchOfficialPerimeter, type OfficialPerimeter } from "@/lib/perimeters";
+import { FireContext } from "@/components/FireContext";
 import { SiteFooter } from "@/components/SiteFooter";
 import { NewsletterSignup } from "@/components/NewsletterSignup";
 
 // Page événement permanente : chaque feu significatif archivé a son URL à
 // vie (« incendie [lieu] [date] »). Mise à jour tant que le feu est actif,
 // puis figée en archive.
-export const dynamic = "force-dynamic";
+export const revalidate = 120;
+export const fetchCache = "force-cache";
+export function generateStaticParams() { return []; }
 
 function flag(cc: string | null): string {
   if (!cc || !/^[A-Za-z]{2}$/.test(cc)) return "";
@@ -85,25 +86,6 @@ export default async function FirePage({
 
   const deptName = f.dept_slug ? DEPT_BY_SLUG.get(f.dept_slug)?.name : null;
   const active = f.status === "active";
-  // Points stratégiques (OSM) et périmètre officiel (NIFC US, CWFIS Canada,
-  // EFFIS Europe — dispatch par pays dans lib/perimeters) : seulement pour
-  // les feux en cours — les pages archivées, massivement crawlées, ne
-  // doivent solliciter aucun service externe.
-  const [strategic, nifc]: [StrategicPoint[], OfficialPerimeter | null] = active
-    ? await Promise.all([
-        fetchStrategicPoints(f.lat, f.lon),
-        fetchOfficialPerimeter(f.lat, f.lon, f.country, f.first_seen),
-      ])
-    : [[], null];
-  // Libellés selon la source du périmètre (le nom de variable historique
-  // « nifc » couvre désormais les trois agences).
-  const perimLabel = nifc
-    ? nifc.source === "NIFC"
-      ? `périmètre officiel${nifc.name ? ` « ${nifc.name} »` : ""} (NIFC)`
-      : nifc.source === "CWFIS"
-        ? "périmètre estimé (CWFIS, Canada)"
-        : `surface brûlée cartographiée (EFFIS${nifc.name ? ` · ${nifc.name}` : ""})`
-    : null;
   // Statuts automatiques : ce que les données disent de la situation, sans
   // rédaction manuelle (nourrit aussi le LiveBlog des gros feux).
   const today = new Date().toISOString().slice(0, 10);
@@ -184,13 +166,6 @@ export default async function FirePage({
                 datePublished: f.aircraft[0].day,
               }]
             : []),
-          ...(nifc
-            ? [{
-                "@type": "BlogPosting",
-                headline: `${nifc.source === "EFFIS" ? "Surface brûlée cartographiée par EFFIS" : nifc.source === "CWFIS" ? "Périmètre estimé CWFIS" : `Périmètre officiel NIFC${nifc.name ? ` « ${nifc.name} »` : ""}`} : ${nifc.hectares.toLocaleString("fr-FR")} ha${nifc.containedPct !== null ? `, contenu à ${nifc.containedPct} %` : ""}`,
-                datePublished: f.updated_at ?? f.last_seen,
-              }]
-            : []),
           {
             "@type": "BlogPosting",
             headline: `Dernier signal satellite (${f.detections} détections cumulées)`,
@@ -253,14 +228,7 @@ export default async function FirePage({
               signal en baisse · aucune détection depuis {Math.round(lastAgeH)} h
             </span>
           )}
-          {nifc && nifc.containedPct !== null && (
-            <span
-              className="flex h-[24px] items-center rounded-full px-3 text-[12px] font-bold"
-              style={nifc.containedPct >= 50 ? { background: "var(--safe-soft)", color: "#22684A" } : { background: "var(--paper-2)", color: "var(--ink-2)" }}
-            >
-              containment {nifc.containedPct} % (NIFC)
-            </span>
-          )}
+
         </div>
         <h1 className="mb-2" style={{ fontFamily: "var(--font-display)", fontSize: "var(--text-h2)", color: "var(--ink)" }}>
           {flag(f.country)} {title}
@@ -298,16 +266,7 @@ export default async function FirePage({
               <div className="text-[12.5px]" style={{ color: "var(--ink-2)" }}>témoignages publics</div>
             </div>
           )}
-          {nifc && perimLabel && (
-            <div className="rounded-[18px] px-5 py-3.5" style={{ background: "var(--white)", boxShadow: "var(--shadow-s)" }}>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 600, color: "var(--ink)" }}>
-                {nifc.hectares.toLocaleString("fr-FR")} ha
-              </div>
-              <div className="text-[12.5px]" style={{ color: "var(--ink-2)" }}>
-                {perimLabel}
-              </div>
-            </div>
-          )}
+
         </div>
 
         <Link
@@ -361,41 +320,7 @@ export default async function FirePage({
           </section>
         )}
 
-        {/* Points stratégiques (feux actifs) : l'information opérationnelle
-            de proximité — points d'eau, casernes, héli-surfaces (OSM). */}
-        {strategic.length > 0 && (
-          <section className="mb-7">
-            <h2 className="mb-3 text-[19px] font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>
-              Points stratégiques à proximité
-            </h2>
-            <div className="flex flex-col gap-2">
-              {strategic.map((p, i) => (
-                <Link
-                  key={`${p.kind}-${i}`}
-                  href={`/fr?lat=${p.lat.toFixed(4)}&lon=${p.lon.toFixed(4)}&z=13`}
-                  className="flex items-center gap-3 rounded-[14px] px-4 py-3"
-                  style={{ background: "var(--white)", boxShadow: "var(--shadow-s)" }}
-                >
-                  <span style={{ fontSize: 16 }}>
-                    {p.kind === "water" ? "💧" : p.kind === "station" ? "🚒" : "🚁"}
-                  </span>
-                  <span className="flex-1 text-[14px]" style={{ color: "var(--ink)" }}>
-                    {p.label}
-                    {p.name ? ` — ${p.name}` : ""}
-                  </span>
-                  <span className="whitespace-nowrap text-[12.5px]" style={{ color: "var(--ink-2)" }}>
-                    {p.dist} km {p.bearing}
-                  </span>
-                </Link>
-              ))}
-            </div>
-            <p className="mt-2 text-[12.5px]" style={{ color: "var(--ink-3)" }}>
-              Données OpenStreetMap (ODbL), indicatives et non vérifiées sur le terrain : elles ne
-              remplacent en aucun cas les référentiels opérationnels (DECI/DFCI) des services
-              d&apos;incendie et de secours.
-            </p>
-          </section>
-        )}
+        {active && <FireContext slug={f.slug} />}
 
         <section className="mb-7 text-[14.5px] leading-relaxed" style={{ color: "var(--ink-2)" }}>
           <h2 className="mb-2 text-[19px] font-semibold" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>
