@@ -200,7 +200,7 @@
 - Map and per-country / per-department pages: refreshed continuously
   (satellite feeds every 10 minutes for Meteosat MTG and GOES, VIIRS passes
   several times a day). Daily digests at https://kanari.io/fr/bilan/<date>.
-- This file: last reviewed on 2026-09-07.
+- This file: last reviewed on 2026-09-10.
 
 ## Measurement boundaries
 

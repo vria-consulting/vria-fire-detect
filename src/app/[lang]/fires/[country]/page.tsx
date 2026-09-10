@@ -1,3 +1,4 @@
+import { LocalFireSources } from "@/components/LocalFireSources";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -172,6 +173,8 @@ export default async function CountryFires({
         <p className="mb-6 text-[15px] leading-relaxed" style={{ color: "var(--ink-2)" }}>
           {t.asOf(now)}
         </p>
+
+        <LocalFireSources place={c.slug} lang={lang} />
 
         <div className="mb-6 flex flex-wrap gap-3">
           <div className="rounded-[18px] px-5 py-4" style={{ background: "var(--white)", boxShadow: "var(--shadow-s)" }}>
