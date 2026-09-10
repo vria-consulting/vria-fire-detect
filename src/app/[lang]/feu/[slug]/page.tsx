@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -11,9 +12,11 @@ import { NewsletterSignup } from "@/components/NewsletterSignup";
 // Page événement permanente : chaque feu significatif archivé a son URL à
 // vie (« incendie [lieu] [date] »). Mise à jour tant que le feu est actif,
 // puis figée en archive.
-export const revalidate = 120;
-export const fetchCache = "force-cache";
-export function generateStaticParams() { return []; }
+// Full-route ISR stalls on Vercel for this route. Keep HTML dynamic and cache
+// the strict archive lookup instead; optional enrichments remain client-side.
+export const dynamic = "force-dynamic";
+export const maxDuration = 30;
+const getFire = unstable_cache(getFireBySlug, ["fire-detail-v1"], { revalidate: 120 });
 
 function flag(cc: string | null): string {
   if (!cc || !/^[A-Za-z]{2}$/.test(cc)) return "";
@@ -43,7 +46,7 @@ export async function generateMetadata({
   params: Promise<{ lang: string; slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const f = await getFireBySlug(slug);
+  const f = await getFire(slug);
   if (!f) return {};
   const t = titleOf(f);
   // Titre façon Discover : un chiffre précis + l'enjeu, 90-105 caractères,
@@ -81,7 +84,7 @@ export default async function FirePage({
   const { lang, slug } = await params;
   if (!isValidLang(lang)) notFound();
   if (lang !== "fr") redirect(`/fr/feu/${slug}`);
-  const f = await getFireBySlug(slug);
+  const f = await getFire(slug);
   if (!f) notFound();
 
   const deptName = f.dept_slug ? DEPT_BY_SLUG.get(f.dept_slug)?.name : null;
