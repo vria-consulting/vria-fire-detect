@@ -39,7 +39,7 @@ const T = {
     cardTotal: "depuis le début de l'archive",
     cardBombers: "bombardiers d'eau en vol",
     quote: (updated: string, active: number, today: number, total: number) =>
-      `« Au ${updated}, kanari suit ${active} feux actifs dans le monde ; ${today} départ${today > 1 ? "s" : ""} significatif${today > 1 ? "s" : ""} ont été détectés aujourd'hui et ${total} archivés depuis le 3 août 2026. »`,
+      `« Au ${updated}, l’archive kanari contient ${total} événements de détection, dont ${active} encore actifs et ${today} observés pour la première fois aujourd’hui. Ces enregistrements ne sont pas un recensement d’incendies distincts confirmés. »`,
     quoteSource:
       "Source : kanari.io — satellites NASA FIRMS, GOES, Meteosat MTG et témoins vérifiés par IA. Chiffres librement citables (CC BY 4.0).",
     topCountries: "Pays les plus touchés",
@@ -98,7 +98,7 @@ const T = {
     cardTotal: "since the archive began",
     cardBombers: "water bombers in flight",
     quote: (updated: string, active: number, today: number, total: number) =>
-      `"As of ${updated}, kanari tracks ${active} active fires worldwide; ${today} significant ignition${today > 1 ? "s were" : " was"} detected today and ${total} archived since August 3, 2026."`,
+      `"As of ${updated}, the kanari archive contains ${total} detection events, including ${active} still active and ${today} first observed today. These records are not a census of distinct confirmed wildfires."`,
     quoteSource:
       "Source: kanari.io — NASA FIRMS, GOES and Meteosat MTG satellites plus AI-verified witness reports. Figures freely citable (CC BY 4.0).",
     topCountries: "Most affected countries",
@@ -156,7 +156,7 @@ const T = {
     cardTotal: "desde el inicio del archivo",
     cardBombers: "aviones cisterna en vuelo",
     quote: (updated: string, active: number, today: number, total: number) =>
-      `« Al ${updated}, kanari sigue ${active} incendios activos en el mundo; ${today} foco${today > 1 ? "s" : ""} significativo${today > 1 ? "s" : ""} ${today > 1 ? "fueron detectados" : "fue detectado"} hoy y ${total} archivados desde el 3 de agosto de 2026. »`,
+      `« A fecha de ${updated}, el archivo de kanari contiene ${total} eventos de detección: ${active} todavía activos y ${today} observados por primera vez hoy. No es un censo de incendios distintos confirmados. »`,
     quoteSource:
       "Fuente: kanari.io — satélites NASA FIRMS, GOES y Meteosat MTG más testigos verificados por IA. Cifras libremente citables (CC BY 4.0).",
     topCountries: "Países más afectados",
@@ -216,7 +216,7 @@ const T = {
     cardTotal: "desde o início do arquivo",
     cardBombers: "aviões-tanque em voo",
     quote: (updated: string, active: number, today: number, total: number) =>
-      `« Em ${updated}, o kanari acompanha ${active} incêndios ativos no mundo; ${today} foco${today > 1 ? "s" : ""} significativo${today > 1 ? "s" : ""} ${today > 1 ? "foram detectados" : "foi detectado"} hoje e ${total} arquivados desde 3 de agosto de 2026. »`,
+      `« Em ${updated}, o arquivo do kanari contém ${total} eventos de detecção: ${active} ainda ativos e ${today} observados pela primeira vez hoje. Não é um censo de incêndios distintos confirmados. »`,
     quoteSource:
       "Fonte: kanari.io — satélites NASA FIRMS, GOES e Meteosat MTG mais testemunhas verificadas por IA. Números livremente citáveis (CC BY 4.0).",
     topCountries: "Países mais afetados",

@@ -1,3 +1,4 @@
+import { LocalFireSources } from "@/components/LocalFireSources";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -300,6 +301,8 @@ export default async function DeptPage({
             </div>
           </section>
         )}
+
+        <LocalFireSources place={dept} lang="fr" />
 
         {/* Questions fréquentes : réponses datées, visibles, reprises en FAQPage */}
         <section className="mb-8">

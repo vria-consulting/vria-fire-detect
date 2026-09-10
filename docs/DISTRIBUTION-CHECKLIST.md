@@ -60,7 +60,7 @@ https://kanari.io/opendata/feux.csv (licence CC BY 4.0, mis à jour en continu).
 kanari is a free, independent, near real-time world map of wildfire ignitions. This
 dataset is its archive of significant wildfires since 2026-08-03: fires detected by
 satellite (NASA FIRMS VIIRS 375 m, NOAA GOES, EUMETSAT Meteosat MTG) and cross-checked
-with AI-verified witness reports. One row per fire: slug and permanent URL, first and
+with AI-verified witness reports. One row per archived detection event (first-detection day and approximately 11 km cell, not necessarily a distinct confirmed wildfire): slug and permanent URL, first and
 last detection (UTC), position, place and country, detections per sensor, peak fire
 radiative power (MW), confidence level, witness posts, aircraft observed on zone,
 status. Only significant fires are archived (corroborated, or above detection/power
@@ -73,7 +73,7 @@ https://kanari.io. API and MCP server: https://kanari.io/en/api.
 kanari est une carte mondiale, gratuite et indépendante, des départs de feu en temps
 quasi réel. Ce jeu de données est son archive des feux de forêt significatifs depuis le
 3 août 2026 : feux détectés par satellite (NASA FIRMS VIIRS 375 m, NOAA GOES, EUMETSAT
-Meteosat MTG) et recoupés avec des témoignages vérifiés par IA. Une ligne par feu :
+Meteosat MTG) et recoupés avec des témoignages vérifiés par IA. Une ligne par événement de détection archivé (jour de première détection et cellule d’environ 11 km, pas nécessairement un incendie physique distinct confirmé) :
 identifiant et URL permanente, première et dernière détection (UTC), position, lieu et
 pays, détections par capteur, puissance radiative maximale (MW), niveau de confiance,
 témoignages, moyens aériens observés, statut. Seuls les feux significatifs sont archivés
@@ -183,3 +183,11 @@ Hola, soy Vincent Ryckbosch, desarrollador independiente francés. He creado kan
 ### Texte PT (Climatempo, Defesa Civil, veículos BR/PT)
 
 Olá, sou Vincent Ryckbosch, desenvolvedor independente francês. Criei o kanari.io, um mapa mundial, gratuito e independente dos focos de incêndio: detecções de satélite NASA FIRMS, GOES e Meteosat MTG a cada 10 minutos, relatos verificados por IA, aviões-tanque ao vivo e um arquivo aberto de cada incêndio significativo. Ofereço, grátis e sem chave, com a única condição de citar kanari.io: API JSON de focos em tempo real (https://kanari.io/api/events?hours=24, documentação https://kanari.io/en/api), widget de mapa centrado em uma região (https://kanari.io/pt/widget), arquivo completo em CSV CC BY 4.0 (https://kanari.io/opendata/feux.csv) e observatório citável por país e mês (https://kanari.io/pt/statistiques). O kanari é um serviço de informação, não um canal oficial de alerta, e continuará gratuito. Obrigado, Vincent Ryckbosch, contact@kanari.io
+
+## Mise à jour du 10 septembre 2026
+
+- Visorando : formulaire dédié « Devenir partenaire VisoRando » rempli et envoyé à la suite de la réponse de Camille (dossier 103147701). Confirmation affichée : « Thank you for your interest. Someone will be contacting you shortly. » Proposition : essai gratuit d’un widget, API et archive, sans budget publicitaire. Contact : contact@kanari.io. Délai indicatif affiché avant envoi : cinq jours ouvrés. Ne pas renvoyer une deuxième demande.
+- Windy : réponses du 28 et du 30 août examinées. Recommande le framework de plugins, regroupement des points à faible zoom, nettoyage des ressources à la fermeture, attribution des sources, puis soumission et revue. Ce n’est pas une validation d’un plugin déjà publié. Développement déjà attribué à la conversation Développement selon docs/SEO.md ; ne pas créer une implémentation parallèle.
+- HDX : relance envoyée le 28 août retrouvée ; aucune validation reçue trouvée dans la recherche ciblée des messages des 21 derniers jours. Publication conditionnée à l’accord HDX.
+- Le suivi hebdomadaire SEO/GEO est activé dans Codex le jeudi à 10 h, avec notification uniquement des changements utiles. Les relevés de comptes restent locaux.
+- Les descriptions destinées aux portails doivent parler d’événements de détection archivés, pas d’une ligne par incendie physique confirmé. Les dépôts historiques datés ne sont pas remplacés silencieusement.
