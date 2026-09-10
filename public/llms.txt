@@ -104,8 +104,7 @@
   water bombers worldwide — Canadair CL-415/CL-215, the French Sécurité
   Civile fleet ("Pélican" Canadairs, "Milan" Dash 8s), Air Tractor Fire Boss,
   S-2T Turbo Tracker, DC-10 and BAe 146 air tankers, and firefighting
-  helicopters (S-64 Air Crane, CH-47 Chinook, CalFire Firehawk). Aircraft fly
-  in daylight only, so few appear at night.
+  helicopters (S-64 Air Crane, CH-47 Chinook, CalFire Firehawk). Visibility depends on reception and aircraft identification; absence from the map does not establish absence of firefighting activity.
 - Licence: data CC BY 4.0, attribution "kanari.io". Source code is public on
   GitHub: https://github.com/vria-consulting/vria-fire-detect
 - YouTube channel (FR explainers: satellite detection, water bombers, how to
@@ -202,3 +201,11 @@
   (satellite feeds every 10 minutes for Meteosat MTG and GOES, VIIRS passes
   several times a day). Daily digests at https://kanari.io/fr/bilan/<date>.
 - This file: last reviewed on 2026-09-07.
+
+## Measurement boundaries
+
+Archive counts are detection records grouped by first-detection UTC day and an approximately 11 km cell, not an official census of distinct confirmed wildfires. Agricultural, industrial and urban heat sources may be included. Coverage begins on August 3, 2026. The current month is incomplete.
+
+The CSV supports ?month=2026-08&country=FR (ISO-2 country). Complete exports fail explicitly if an upstream read cannot finish; never interpret an unavailable export as zero fires.
+
+Earliness compares satellite acquisition timestamps with automatically matched press articles. The median includes negative gaps. It does not measure when kanari published an alert, and does not establish a lead over emergency services. Check source links and geographic matching before citing a case.

@@ -1,3 +1,5 @@
+export const maxDuration = 60;
+import { OBSERVATION_NOTE } from "@/lib/observation-note";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -43,7 +45,7 @@ const getCountryData = unstable_cache(
     ]);
     return { stats, counts, total };
   },
-  ["obs-country-data"],
+  ["obs-country-data-complete-v2"],
   { revalidate: 1800 }
 );
 
@@ -106,6 +108,7 @@ export default async function ObservatoryCountryPage({
         <h1 className="mb-3" style={{ fontFamily: "var(--font-display)", fontSize: "var(--text-h2)", color: "var(--ink)" }}>
           {scope.flag} {t.h1Country(scope.name)}
         </h1>
+        <p className="my-4 text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>{OBSERVATION_NOTE[lang]}</p>
         <p className="mb-6 text-[15px] leading-relaxed" style={{ color: "var(--ink-2)" }}>
           {t.sinceArchive(total ?? counts.reduce((s, c) => s + (c.n ?? 0), 0))}.
         </p>

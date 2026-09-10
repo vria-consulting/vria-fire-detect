@@ -12,13 +12,19 @@ export function EmergencyButton({ lang }: { lang: Lang }) {
   const [number, setNumber] = useState(() => emergencyNumber(null, lang));
 
   useEffect(() => {
+    const controller = new AbortController();
     try {
       const raw = document.cookie.match(/(?:^|;\s*)kanari-geo=([^;]+)/)?.[1];
       const country = raw ? decodeURIComponent(raw).split(",")[2] || null : null;
       setNumber(emergencyNumber(country, lang));
-    } catch {
-      /* cookie illisible : repli par langue déjà en place */
-    }
+    } catch { /* keep the language fallback */ }
+    // Direct arrivals on editorial pages do not receive the homepage geo cookie.
+    fetch("/api/location", { signal: controller.signal, cache: "no-store" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.country && /^[A-Z]{2}$/.test(data.country)) setNumber(emergencyNumber(data.country, lang));
+      }).catch(() => {});
+    return () => controller.abort();
   }, [lang]);
 
   return (

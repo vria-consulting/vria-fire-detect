@@ -4,6 +4,7 @@
 // que citent la presse et les assistants IA, donc ça doit être cohérent
 // partout.
 
+import { readArchive } from "@/lib/archive-reader";
 import citiesJson from "../data/cities.json";
 import type { ArchivedFire } from "@/lib/firearchive";
 
@@ -29,13 +30,13 @@ async function fetchPaged<T>(query: string, limit: number): Promise<T[]> {
         headers: H,
         cache: "no-store",
       });
-      if (!res.ok) break;
+      if (!res.ok) throw new Error(`Archive search unavailable (HTTP ${res.status})`);
       const rows = (await res.json()) as T[];
       out.push(...rows);
       if (rows.length < size) break;
     }
   } catch {
-    /* lecture partielle : on renvoie ce qu'on a */
+    throw new Error("Archive search incomplete");
   }
   return out;
 }
@@ -141,14 +142,15 @@ export type PeriodStats = {
   truncated: boolean;
 };
 
-const MAX_ROWS = 20000;
 
 export async function periodStats(
   fromIso: string,
   toIso: string,
   cc: string | null = null
 ): Promise<PeriodStats> {
-  const rows = await searchArchive({ cc, fromIso, toIso, order: "recent", limit: MAX_ROWS });
+  const parts = [`select=${ROW_SELECT}`, `first_seen=gte.${encodeURIComponent(fromIso)}`, `first_seen=lt.${encodeURIComponent(toIso)}`];
+  if (cc) parts.push(`country=eq.${encodeURIComponent(cc.toUpperCase())}`);
+  const rows = await readArchive<ArchiveRow>(parts.join("&"));
   const byDay = new Map<string, number>();
   const byCountry = new Map<string, number>();
   const byDept = new Map<string, { code: string; n: number }>();
@@ -198,7 +200,7 @@ export async function periodStats(
       .map(([slug, d]) => ({ slug, code: d.code, n: d.n })),
     biggest,
     longest,
-    truncated: rows.length >= MAX_ROWS,
+    truncated: false,
   };
 }
 

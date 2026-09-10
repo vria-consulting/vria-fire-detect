@@ -1,3 +1,6 @@
+export const maxDuration = 60;
+import { OBSERVATION_NOTE } from "@/lib/observation-note";
+import { readArchive } from "@/lib/archive-reader";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -6,7 +9,6 @@ import { isValidLang, type Lang, localize, withXDefault } from "@/lib/i18n";
 import {
   countFires,
   listFiresBetween,
-  listFiresLite,
   type ArchivedFire,
 } from "@/lib/firearchive";
 import { getWaterBombers } from "@/lib/aircraft";
@@ -46,7 +48,7 @@ const T = {
     satDetection: "Détection satellite",
     faqTitle: "Questions fréquentes sur les chiffres",
     openDataTitle: "Données ouvertes",
-    openData: (aircraftFires: number) =>
+    openData: () =>
       `L'archive complète est librement réutilisable (licence CC BY 4.0, mention « kanari.io ») : `,
     openDataLink: "télécharger le CSV",
     openDataEnd: (aircraftFires: number) =>
@@ -312,7 +314,7 @@ const getStatsIndex = unstable_cache(
         countFires(`first_seen=gte.${encodeURIComponent(`${today}T00:00:00Z`)}`),
         countFires(`first_seen=gte.${encodeURIComponent(weekAgo)}`),
         countFires(`first_seen=gte.${encodeURIComponent(`${ARCHIVE_START}T00:00:00Z`)}`),
-        listFiresLite(`${ARCHIVE_START}T00:00:00Z`),
+        readArchive<{ slug: string; first_seen: string; status: string; country: string | null; dept_slug: string | null; max_frp: number }>(`select=slug,first_seen,status,country,dept_slug,max_frp&first_seen=gte.${ARCHIVE_START}T00:00:00Z`),
         listFiresBetween(`${ARCHIVE_START}T00:00:00Z`, new Date().toISOString(), 1000).then((rows) =>
           rows.slice(0, 5)
         ),
@@ -342,7 +344,7 @@ const getStatsIndex = unstable_cache(
       bombers,
     };
   },
-  ["stats-index"],
+  ["stats-index-complete-v2"],
   { revalidate: 900 }
 );
 
@@ -443,6 +445,7 @@ export default async function StatsPage({ params }: { params: Promise<{ lang: st
         <h1 className="mb-3" style={{ fontFamily: "var(--font-display)", fontSize: "var(--text-h2)", color: "var(--ink)" }}>
           {t.h1}
         </h1>
+        <p className="my-4 text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>{OBSERVATION_NOTE[lang]}</p>
         <p className="mb-6 text-[15px] leading-relaxed" style={{ color: "var(--ink-2)" }}>
           {t.intro(updated)}
         </p>
@@ -553,7 +556,7 @@ export default async function StatsPage({ params }: { params: Promise<{ lang: st
             {t.openDataTitle}
           </h2>
           <p className="text-[14px] leading-relaxed" style={{ color: "var(--ink-2)" }}>
-            {t.openData(aircraftFires)}
+            {t.openData()}
             <a href="/opendata/feux.csv" style={{ color: "var(--link)", fontWeight: 600 }}>{t.openDataLink}</a>
             {t.openDataEnd(aircraftFires)}
           </p>

@@ -1,3 +1,4 @@
+import { OBSERVATION_NOTE } from "@/lib/observation-note";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -259,6 +260,7 @@ export default async function MethodologyPage({ params }: { params: Promise<{ la
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(crumbLd) }} />
       <div className="mx-auto max-w-2xl px-4 py-10 sm:py-14" style={{ color: "var(--ink-2)" }}>
         <h1 className="mb-3" style={{ fontFamily: "var(--font-display)", fontSize: "var(--text-h2)", color: "var(--ink)" }}>{t.h1}</h1>
+        <p className="my-4 text-sm leading-relaxed" style={{ color: "var(--ink-2)" }}>{OBSERVATION_NOTE[lang]}</p>
         <p className="mb-8 text-[15px] leading-relaxed">{t.intro}</p>
 
         {t.sections.map((s) => (

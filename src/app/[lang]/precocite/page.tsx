@@ -29,6 +29,7 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
 type Case = EarlinessCase;
 
 function fmtDelta(min: number, l: Lang): string {
+  if (min < 0) return `−${fmtDelta(-min, l)}`;
   if (min < 60) return `${min} min`;
   const h = Math.floor(min / 60);
   const m = min % 60;
@@ -44,9 +45,7 @@ const H2 = ({ children }: { children: React.ReactNode }) => (
 export default async function Precocite({ params }: { params: Promise<{ lang: string }> }) {
   const { lang } = await params;
   if (!isValidLang(lang)) notFound();
-  const { cases, fetchedAt } = await measuredEarliness();
-  const median =
-    cases.length > 0 ? cases.map((c) => c.deltaMin).sort((a, b) => a - b)[Math.floor(cases.length / 2)] : null;
+  const { cases, fetchedAt, matched, satelliteFirst, pressFirst, simultaneous, medianMin: median } = await measuredEarliness();
 
   const fr = lang === "fr";
   return (
@@ -65,13 +64,13 @@ export default async function Precocite({ params }: { params: Promise<{ lang: st
             <li>
               {fr ? (
                 <>
-                  <strong>Premier signal kanari</strong> : l&apos;heure du premier passage satellite
+                  <strong>Premier signal satellite</strong> : l&apos;heure du premier passage satellite
                   ayant vu le foyer (VIIRS, GOES ou Meteosat, heure UTC fournie par la NASA et
                   EUMETSAT — pas par nous) ;
                 </>
               ) : (
                 <>
-                  <strong>First kanari signal</strong>: the time of the first satellite pass that saw
+                  <strong>First satellite signal</strong>: the time of the first satellite pass that saw
                   the fire (VIIRS, GOES or Meteosat — UTC time supplied by NASA and EUMETSAT, not by
                   us);
                 </>
@@ -93,11 +92,12 @@ export default async function Precocite({ params }: { params: Promise<{ lang: st
           </ul>
           <p>
             {fr
-              ? "L'écart entre les deux est l'avance mesurée. Elle sous-estime probablement l'avance réelle sur l'information du grand public (un article publié n'est pas encore lu), et elle ne dit RIEN de l'avance sur les secours : les pompiers disposent de leurs propres canaux (appels au 18/112, vigies, caméras) souvent plus rapides que la presse."
-              : "The gap between the two is the measured lead. It probably underestimates the real lead over public awareness (a published article is not yet read), and it says NOTHING about a lead over emergency services: firefighters have their own channels (emergency calls, watchtowers, cameras) that are often faster than the press."}
+              ? "L'écart compare deux sources : un nombre positif signifie que le satellite précède l'article trouvé, un nombre négatif que la presse le précède. Ce n'est pas le délai de publication d'une alerte kanari : cet horodatage historique n'est pas disponible. L'appariement géographique avec la presse est automatique, peut concerner plusieurs foyers proches et reste à vérifier. Aucune avance sur les secours n'est démontrée."
+              : "The gap compares two sources: positive means the satellite predates the matched article, negative means the press came first. It does not measure when kanari published an alert: historical publication timestamps are unavailable. Geographic press matching is automatic, can involve several nearby clusters, and requires verification. No lead over emergency services is established."}
           </p>
 
           <H2>{fr ? `Cas mesurés (72 h glissantes)` : `Measured cases (rolling 72 h)`}</H2>
+          <p>{fr ? `${matched} appariements : satellite avant presse ${satelliteFirst}, presse avant satellite ${pressFirst}, même minute ${simultaneous}.` : `${matched} matches: satellite first ${satelliteFirst}, press first ${pressFirst}, same minute ${simultaneous}.`}</p>
           {cases.length === 0 ? (
             <p>
               {fr
@@ -110,12 +110,12 @@ export default async function Precocite({ params }: { params: Promise<{ lang: st
                 {fr ? (
                   <>
                     <strong>{cases.length}</strong> foyer{cases.length > 1 ? "s" : ""} avec presse
-                    datée · avance médiane : <strong>{fmtDelta(median!, lang)}</strong>
+                    datée affichés · écart médian sur tous les appariements : <strong>{fmtDelta(median!, lang)}</strong>
                   </>
                 ) : (
                   <>
                     <strong>{cases.length}</strong> fire{cases.length > 1 ? "s" : ""} with dated
-                    press · median lead: <strong>{fmtDelta(median!, lang)}</strong>
+                    press shown · median gap across all matches: <strong>{fmtDelta(median!, lang)}</strong>
                   </>
                 )}
               </p>
@@ -147,6 +147,7 @@ export default async function Precocite({ params }: { params: Promise<{ lang: st
                           >
                             {c.place}
                           </Link>
+                          {c.articleUrl && <a className="ml-2 underline" href={c.articleUrl} rel="noopener noreferrer">{fr ? "Article source" : "Source article"}</a>}
                         </td>
                         <td className="py-1.5 pr-3 font-mono text-[12px]">
                           {c.firstSeen.slice(5, 16).replace("T", " ")}
@@ -165,8 +166,8 @@ export default async function Precocite({ params }: { params: Promise<{ lang: st
               {fetchedAt && (
                 <p className="text-xs" style={{ color: "var(--ink-3)" }}>
                   {fr
-                    ? `Recalculé en continu — données au ${fetchedAt.slice(0, 16).replace("T", " ")} UTC. Les cas où la presse a été plus rapide que le satellite sont exclus du tableau (ils existent : témoins au sol, feux urbains).`
-                    : `Continuously recomputed — data as of ${fetchedAt.slice(0, 16).replace("T", " ")} UTC. Cases where the press beat the satellite are excluded from the table (they exist: ground witnesses, urban fires).`}
+                    ? `Recalculé en continu — données au ${fetchedAt.slice(0, 16).replace("T", " ")} UTC. Tous les écarts valides sont inclus dans la médiane, y compris quand la presse précède le satellite. Les lignes affichées sont les appariements les plus récents, pas des feux physiques distincts garantis.`
+                    : `Continuously recomputed — data as of ${fetchedAt.slice(0, 16).replace("T", " ")} UTC. All valid gaps contribute to the median, including cases where the press came first. Rows show the most recent matches, not guaranteed distinct physical fires.`}
                 </p>
               )}
             </>

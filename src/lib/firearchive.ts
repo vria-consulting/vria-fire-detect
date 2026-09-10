@@ -315,17 +315,15 @@ export async function listFiresLite(fromIso: string, limit = 50000): Promise<Fir
 export async function getFireBySlug(slug: string): Promise<ArchivedFire | null> {
   const sb = supabaseCreds();
   if (!sb) return null;
-  try {
-    const res = await fetch(
-      `${sb.url}/rest/v1/fire_events?slug=eq.${encodeURIComponent(slug)}&limit=1`,
-      { headers: { apikey: sb.key, Authorization: `Bearer ${sb.key}` }, cache: "no-store" }
-    );
-    if (!res.ok) return null;
-    const rows = (await res.json()) as ArchivedFire[];
-    return rows[0] ?? null;
-  } catch {
-    return null;
-  }
+  const res = await fetch(
+    `${sb.url}/rest/v1/fire_events?slug=eq.${encodeURIComponent(slug)}&limit=1`,
+    { headers: { apikey: sb.key, Authorization: `Bearer ${sb.key}` }, cache: "no-store", signal: AbortSignal.timeout(8000) }
+  );
+  // An upstream outage is not a missing fire: never cache a false 404.
+  if (!res.ok) throw new Error(`Fire archive unavailable (HTTP ${res.status})`);
+  const rows = (await res.json()) as ArchivedFire[];
+  if (!Array.isArray(rows)) throw new Error("Invalid fire archive response");
+  return rows[0] ?? null;
 }
 
 export async function listRecentFires(limit = 60): Promise<ArchivedFire[]> {

@@ -1,0 +1,7 @@
+import type { Lang } from "./i18n";
+export const OBSERVATION_NOTE: Record<Lang, string> = {
+  fr: "Unité : événements de détection archivés, regroupés par jour de première détection et cellule d'environ 11 km. Un même incendie peut concerner plusieurs enregistrements, et un point chaud peut être agricole, industriel ou urbain. Ces chiffres ne sont pas un recensement des seuls feux de forêt confirmés. L'archive commence le 3 août 2026 ; le mois en cours est incomplet.",
+  en: "Unit: archived detection events, grouped by first-detection day and a roughly 11 km cell. One physical fire can span multiple records; hotspots can also be agricultural, industrial or urban. These counts are not a census of confirmed wildfires. The archive starts on August 3, 2026; the current month is incomplete.",
+  es: "Unidad: eventos de detección archivados, agrupados por día de primera detección y celda de unos 11 km. Un incendio puede aparecer en varios registros; los puntos calientes también pueden ser agrícolas, industriales o urbanos. No es un censo de incendios forestales confirmados. El archivo empieza el 3 de agosto de 2026; el mes actual está incompleto.",
+  pt: "Unidade: eventos de detecção arquivados, agrupados pelo dia da primeira detecção e célula de cerca de 11 km. Um incêndio pode abranger vários registros; os focos também podem ser agrícolas, industriais ou urbanos. Não é um censo de incêndios florestais confirmados. O arquivo começa em 3 de agosto de 2026; o mês atual está incompleto.",
+};
