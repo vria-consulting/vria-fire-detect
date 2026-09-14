@@ -234,6 +234,8 @@ export default async function MethodologyPage({ params }: { params: Promise<{ la
     about: {
       "@type": "Dataset",
       name: "kanari wildfire archive",
+      description: OBSERVATION_NOTE[lang],
+      creator: { "@id": "https://kanari.io/#org" },
       url: `https://kanari.io/${lang}/statistiques`,
       license: "https://creativecommons.org/licenses/by/4.0/",
       distribution: [{ "@type": "DataDownload", encodingFormat: "text/csv", contentUrl: "https://kanari.io/opendata/feux.csv" }],

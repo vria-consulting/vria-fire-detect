@@ -29,7 +29,7 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Intégrité des données et des mesures
-        run: node --import tsx --test scripts/archive-integrity.test.ts
+        run: node --import tsx --test scripts/archive-integrity.test.ts scripts/fire-indexability.test.ts
 
       - name: Build de production
         run: npm run build
@@ -44,6 +44,9 @@ jobs:
 
       - name: Garde SEO (bloquante)
         run: node scripts/seo-guard.mjs http://localhost:3111
+
+      - name: Dataset dans le HTML (quatre langues)
+        run: node scripts/seo-dataset-guard.mjs http://localhost:3111
 
       - name: Cohérence sitemap et indexabilité
         run: node scripts/seo-sitemap-guard.mjs http://localhost:3111
